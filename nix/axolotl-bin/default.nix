@@ -5,7 +5,7 @@
   ...
 }:
 stdenv.mkDerivation rec {
-  pname = "axolotl";
+  pname = "axolotl-bin";
   version = "1.9.5";
   src = (
     let

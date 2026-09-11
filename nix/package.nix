@@ -1,12 +1,12 @@
-{ pkgs, lib, prebuild ? true, launchEnv ? {}, ... }:
+{ pkgs, lib, prebuilt ? true, launchEnv ? {}, ... }:
 (
   let
     axolotl = pkgs.callPackage (
-      if prebuild then ./axolotl-bin.nix else ./axolotl.nix
+      if prebuilt then ./axolotl-bin else ./axolotl-git
     ) {};
   in
     pkgs.buildFHSEnv {
-      name = "axolotl";
+      name = "axolotl-launcher";
       targetPkgs = pkgs: builtins.concatLists [
         [ axolotl ]
         (with pkgs; [
