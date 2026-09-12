@@ -1,9 +1,9 @@
-{ pkgs, lib, prebuilt ? true, launchEnv ? {}, ... }:
+{ inputs, pkgs, lib, prebuilt ? true, launchEnv ? {}, ... }:
 (
   let
     axolotl = pkgs.callPackage (
       if prebuilt then ./axolotl-bin else ./axolotl-git
-    ) {};
+    ) { inherit inputs; };
   in
     pkgs.buildFHSEnv {
       name = "axolotl-launcher";
