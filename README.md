@@ -96,6 +96,59 @@ curl -fsSL https://ppa.axlmc.org/setup.sh | sudo bash
 sudo apt install axolotl-launcher
 ```
 
+**NixOS**：
+# 源码构建版
+```bash
+nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.git
+```
+# 预编译二进制版
+```bash
+nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
+```
+
+**使用 Home-Manager 的 NixOS 或任意其他发行版**
+
+将此 Flake 加入你的 `flake.nix`
+```nix
+# flake.nix
+{
+  inputs = {
+    home-manager = {
+      url = "github:nix-community/home-manager/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    axolotl-launcher = {
+      url = "github:Mystic-Stars/Axolotl";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+  outputs = inputs: {
+    homeConfigurations = {
+      <UserName> = home-manager.lib.homeManagerConfiguration {
+        modules = [
+          axolotl-launcher.homeModules
+        ];
+      };
+    };
+  };
+}
+```
+然后在 `home.nix` 中配置
+```nix
+# home.nix
+{
+  programs.axolotl-launcher = {
+    enable = true;
+  };
+}
+```
+可选属性
+| 键        | 类型    | 默认值  | 说明 |
+|-----------|---------|---------|--------------------------------------|
+| enable    | `bool`  | `false` | 设置为`true`以启用 Axolotl Launcher。 |
+| launchEnv | `attrs` | `{ }`   | Axolotl Launcher 启动时额外的环境变量。例如`{ HELLO = 1; world = "two"; }`能为 Axolotl Launcher 设置额外的环境变量`HELLO=1`和`world=two`。 |
+| prebuilt  | `bool`  | `true`  | 为`true`时从GitHub下载预编译版本（通常是最新的Releasea版本），为`false`时从最新的源代码进行本地编译。|
+
 </details>
 
 ## 参与项目开发
