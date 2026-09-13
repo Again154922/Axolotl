@@ -21,11 +21,15 @@ import {
 	UserIcon,
 	UsersIcon,
 	WorldIcon,
+	XIcon,
 } from '@modrinth/assets'
 import {
 	Admonition,
 	Avatar,
 	BigOptionButton,
+	bindingMatchesKeyboardEvent,
+	bindingMatchesMouseEvent,
+	bindingMatchesWheelEvent,
 	ButtonStyled,
 	Checkbox,
 	clientInstallableLoaders,
@@ -35,6 +39,7 @@ import {
 	CreationFlowModal,
 	defineMessages,
 	I18nDebugPanel,
+	type KeyBinding,
 	LoadingBar,
 	NewModal,
 	NotificationPanel,
@@ -45,8 +50,10 @@ import {
 	provideNotificationManager,
 	providePageContext,
 	providePopupNotificationManager,
+	ScrollToTopButton,
 	useDebugLogger,
 	useFormatBytes,
+	useModalStack,
 	useVIntl,
 } from '@modrinth/ui'
 import BatchScanOverlay from '@modrinth/ui/src/components/flows/drop/BatchScanOverlay.vue'
@@ -119,18 +126,26 @@ import { install_create_modpack_instance, install_get_modpack_preview } from '@/
 import { type DirectLinkSyncReport, get as getInstance, run } from '@/helpers/instance'
 import { reconcileMojangAuthSourceAtStartup } from '@/helpers/mojang-auth'
 import { cancelLogin, get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
+import { getNavShortcutEnabled } from '@/helpers/nav-shortcut-state'
+import { runWhenIdle } from '@/helpers/page-transition'
 import { mergeUrlQuery, parseModrinthLink } from '@/helpers/project-links.ts'
+import { getQuickScrollEnabled, getShowScrollTop } from '@/helpers/scroll-top-state'
 import {
 	get as getSettings,
 	getLastBrowseContentProjectType,
 	getPrivacySettings,
 	getUpdateChannel,
 	getUpdatePreferences,
-	isBrowseContentProjectType,
 	type PrivacySettings,
 	savePrivacySettings,
 	set as setSettings,
 } from '@/helpers/settings.ts'
+import {
+	discoverContentTarget,
+	SHORTCUT_ACTIONS,
+	type ShortcutAction,
+} from '@/helpers/shortcut-actions'
+import { resolveAllBindings } from '@/helpers/shortcut-bindings'
 import { getSidebarExpanded, setSidebarExpanded } from '@/helpers/sidebar-state.ts'
 import { get_opening_command, initialize_state, set_discord_activity } from '@/helpers/state'
 import {
@@ -144,11 +159,10 @@ import {
 	isDev,
 	isElevated,
 	isNetworkMetered,
-	restartApp,
 	setRestartAfterPendingUpdate,
 } from '@/helpers/utils.js'
 import { start_join_server, start_join_singleplayer_world } from '@/helpers/worlds.ts'
-import i18n, { resolveInitialLocale } from '@/i18n.config'
+import { applyLocalePreference, setFollowSystemLocale } from '@/i18n.config'
 import {
 	appUpdateState,
 	downloadAvailableAppUpdate,
@@ -178,34 +192,36 @@ import { AppNotificationManager } from './providers/app-notifications'
 import { AppPopupNotificationManager } from './providers/app-popup-notifications'
 
 const themeStore = useTheming()
+/** While a dialog is open no shortcut fires, including the one being recorded. */
+const { hasModal } = useModalStack()
 const router = useRouter()
 const route = useRoute()
 const onSkinsPage = computed(() => route.path === '/skins')
 const onSchematicWorkshopPage = computed(() => route.path === '/lab/schematic-preview')
+const onSettingsPage = computed(() => route.path.startsWith('/settings'))
 const isSchematicFile = (path: string) => /\.(litematic|schematic|schem)$/i.test(path)
 const APP_LEFT_NAV_WIDTH = '4rem'
 
-const discoverContentPath = computed(() => {
-	const projectType = route.params.projectType
-	if (
-		!route.query.i &&
-		!route.query.sid &&
-		!route.query.wid &&
-		typeof projectType === 'string' &&
-		isBrowseContentProjectType(projectType)
-	) {
-		return `/browse/${projectType}`
-	}
-
-	return `/browse/${getLastBrowseContentProjectType()}`
-})
+const discoverContentPath = computed(() => discoverContentTarget(route))
 
 function getPageTransitionKey(route: RouteLocationNormalizedLoaded) {
 	const transitionGroup = route.meta.pageTransitionGroup
 	if (typeof transitionGroup !== 'string') return route.fullPath
 
 	const routeId = route.params.id
-	return `${transitionGroup}:${Array.isArray(routeId) ? routeId.join('/') : (routeId ?? '')}`
+	if (routeId !== undefined) {
+		return `${transitionGroup}:${Array.isArray(routeId) ? routeId.join('/') : routeId}`
+	}
+
+	// Browse-style routes use :projectType instead of :id. Keep tab switches on
+	// the same SPA instance (Browse already watches the param) so only the
+	// results area refreshes — no full page transition. Favorites is a different
+	// component under the same group; give it its own key so it still remounts.
+	if (route.name === 'Favorites') {
+		return `${transitionGroup}:favorites`
+	}
+
+	return `${transitionGroup}:`
 }
 const APP_SIDEBAR_WIDTH = 300
 const credentials = ref()
@@ -482,7 +498,201 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 		event.preventDefault()
 		event.stopPropagation()
 	}
+
+	handleScrollShortcutKey(event)
+	handleNavShortcutKey(event)
 }
+
+/** Editing surfaces keep these keys for themselves. */
+function isEditableTarget(target: EventTarget | null) {
+	return (
+		target instanceof HTMLInputElement ||
+		target instanceof HTMLTextAreaElement ||
+		target instanceof HTMLSelectElement ||
+		(target instanceof HTMLElement && target.isContentEditable)
+	)
+}
+
+function scrollsAtOwnLevel(element: Element) {
+	const { overflowY } = getComputedStyle(element)
+	return /(auto|scroll|overlay)/.test(overflowY) && element.scrollHeight > element.clientHeight
+}
+
+/** A container that scrolls the page itself rather than a widget on it. */
+function isPageScroller(element: Element) {
+	return scrollsAtOwnLevel(element) && element.clientHeight >= window.innerHeight / 2
+}
+
+/** Nearest scrolling ancestor, whatever its size. */
+function nearestScrollContainer(target: EventTarget | null) {
+	let element = target instanceof Element ? target : null
+	while (element) {
+		if (scrollsAtOwnLevel(element)) return element
+		element = element.parentElement
+	}
+	return null
+}
+
+/**
+ * The page's own scroller. Most pages scroll inside `.app-viewport`, but some
+ * screens (settings, consoles, studios) turn that element's scrolling off and
+ * host a full-height container inside it, so fall back to whatever fills the
+ * middle of the viewport.
+ */
+function resolvePageScroller() {
+	const viewport = document.querySelector<HTMLElement>('.app-viewport')
+	if (!viewport) return null
+	if (isPageScroller(viewport)) return viewport
+
+	const bounds = viewport.getBoundingClientRect()
+	let element: Element | null = document.elementFromPoint(
+		bounds.left + bounds.width / 2,
+		bounds.top + bounds.height / 2,
+	)
+	while (element) {
+		if (isPageScroller(element)) return element
+		element = element.parentElement
+	}
+
+	return viewport
+}
+
+/** The combination an action answers to now: recorded if there is one, default otherwise. */
+function bindingFor(action: ShortcutAction): KeyBinding {
+	return themeStore.shortcutBindings[action.id] ?? action.defaultBinding
+}
+
+/** Whether an action is switched on and reachable in the current state. */
+function shortcutIsAvailable(action: ShortcutAction): boolean {
+	if (!themeStore[action.enabledField]) return false
+	return !action.unavailable?.({
+		worldsTabEnabled: themeStore.featureFlags.worlds_tab,
+		offline: offline.value,
+	})
+}
+
+/**
+ * Finds the action a combination belongs to. Shortcuts stand down entirely
+ * while a dialog is open, so the one being recorded cannot fire, and editing
+ * surfaces keep their keys. `includeDisabled` is for scrolling, which has to
+ * recognise its keys even while it is off in order to hold them back.
+ */
+function findShortcut<E extends Event>(
+	event: E,
+	matches: (binding: KeyBinding, event: E) => boolean,
+	{ includeDisabled = false }: { includeDisabled?: boolean } = {},
+): ShortcutAction | null {
+	if (hasModal.value) return null
+	if (isEditableTarget(event.target)) return null
+
+	for (const action of SHORTCUT_ACTIONS) {
+		if (!includeDisabled && !shortcutIsAvailable(action)) continue
+		if (matches(bindingFor(action), event)) return action
+	}
+
+	return null
+}
+
+/** Does what an action is for. Scrolling actions move the page's own scroller. */
+function runShortcut(action: ShortcutAction, event: Event) {
+	if (action.target) {
+		router.push(action.target(route))
+		return
+	}
+
+	const focusedContainer = nearestScrollContainer(event.target)
+	if (focusedContainer && !isPageScroller(focusedContainer)) return
+
+	const scroller = resolvePageScroller()
+	if (!scroller) return
+
+	action.applyScroll?.(scroller)
+}
+
+/**
+ * Quick scrolling for the page's own scroll container. The setting decides
+ * whether the keys act at all: while it is off they stay inert, and while it is
+ * on they move the page. A focused list or popover still scrolls itself, so
+ * local keyboard scrolling keeps working.
+ */
+function handleScrollShortcutKey(event: KeyboardEvent) {
+	if (event.isComposing) return
+
+	const match = findShortcut(event, bindingMatchesKeyboardEvent, { includeDisabled: true })
+	if (match?.group !== 'scroll') return
+
+	const focusedContainer = nearestScrollContainer(event.target)
+	if (focusedContainer && !isPageScroller(focusedContainer)) return
+
+	const scroller = resolvePageScroller()
+	if (!scroller) return
+
+	// Take the key over even when the feature is off: the browser would scroll
+	// a focused page container on its own, which would make the setting a lie.
+	event.preventDefault()
+	if (!shortcutIsAvailable(match)) return
+
+	match.applyScroll?.(scroller)
+}
+
+/**
+ * Jump to a menu item with the combination it is set to. Every shortcut is off
+ * by default and enabled individually from the Shortcut settings page.
+ */
+function handleNavShortcutKey(event: KeyboardEvent) {
+	if (event.isComposing) return
+
+	const match = findShortcut(event, bindingMatchesKeyboardEvent)
+	if (match?.group !== 'nav') return
+
+	event.preventDefault()
+	runShortcut(match, event)
+}
+
+/** Whether any action listens to the pointer, so the listeners can stay cheap. */
+const hasPointerBindings = computed(() =>
+	SHORTCUT_ACTIONS.some((action) => bindingFor(action).device === 'mouse'),
+)
+
+function handleShortcutMouse(event: MouseEvent) {
+	if (!hasPointerBindings.value) return
+
+	const match = findShortcut(event, bindingMatchesMouseEvent)
+	if (!match) return
+
+	// A shortcut owns this button, so the pointer event stops here.
+	event.preventDefault()
+	event.stopPropagation()
+	runShortcut(match, event)
+}
+
+function handleShortcutWheel(event: WheelEvent) {
+	if (!hasPointerBindings.value) return
+
+	const match = findShortcut(event, bindingMatchesWheelEvent)
+	if (!match) return
+
+	event.preventDefault()
+	event.stopPropagation()
+	runShortcut(match, event)
+}
+
+/**
+ * Hand the keyboard over to the page after the menu navigates. Without this the
+ * focus stays on the nav button, so Tab keeps walking the rail and the page's
+ * own shortcuts act on whatever happened to be focused before.
+ */
+watch(
+	() => route.path,
+	async () => {
+		await nextTick()
+		const active = document.activeElement
+		const navRail = document.querySelector('.app-grid-navbar')
+		const cameFromMenu = !active || active === document.body || (navRail?.contains(active) ?? false)
+		if (!cameFromMenu) return
+		document.querySelector<HTMLElement>('.app-viewport')?.focus({ preventScroll: true })
+	},
+)
 
 onMounted(async () => {
 	unlistenLightweightModeError = await listen<string>('lightweight-mode-error', ({ payload }) => {
@@ -498,14 +708,20 @@ onMounted(async () => {
 	await useCheckDisableMouseover()
 
 	window.addEventListener('keydown', handleGlobalKeydown, true)
+	window.addEventListener('mousedown', handleShortcutMouse, true)
+	// Not passive: a bound wheel direction has to keep the page from scrolling.
+	window.addEventListener('wheel', handleShortcutWheel, { capture: true, passive: false })
 	unlistenCloseRequested = await getCurrentWindow().onCloseRequested(handleCloseRequested)
 	document.querySelector('body').addEventListener('click', handleClick)
 	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
 	window.addEventListener(DIRECT_LINKS_SYNCED_EVENT, handleDirectLinkSyncReport)
 
-	checkUpdates()
-	void warnIfRunningElevated()
-	startDirectLinkSync()
+	// Background maintenance must not compete with first paint / route enter.
+	runWhenIdle(() => {
+		void checkUpdates()
+		void warnIfRunningElevated()
+		startDirectLinkSync()
+	})
 })
 
 let directLinkSync: (() => Promise<void>) | undefined
@@ -580,6 +796,8 @@ onUnmounted(async () => {
 	if (maximizedStateTimer) clearTimeout(maximizedStateTimer)
 	unlistenWindowResize?.()
 	window.removeEventListener('keydown', handleGlobalKeydown, true)
+	window.removeEventListener('mousedown', handleShortcutMouse, true)
+	window.removeEventListener('wheel', handleShortcutWheel, { capture: true, passive: false })
 	unlistenCloseRequested?.()
 	unlistenLightweightModeError?.()
 	unlistenSystemAccentColor?.()
@@ -700,6 +918,10 @@ const messages = defineMessages({
 		id: 'app.auth-servers.unreachable.body',
 		defaultMessage:
 			'Minecraft authentication servers may be down right now. Check your internet connection and try again later.',
+	},
+	quitLauncher: {
+		id: 'app.initialization.quit',
+		defaultMessage: 'Quit launcher',
 	},
 	runningAsAdmin: {
 		id: 'app.warning.running-as-admin',
@@ -1085,12 +1307,12 @@ async function setupApp() {
 		pending_update_toast_for_version,
 	} = initialSettings
 
-	// Initialize locale from saved settings
-	if (locale) {
-		i18n.global.locale.value = locale
-	} else {
-		const resolvedLocale = resolveInitialLocale(navigator.languages)
-		i18n.global.locale.value = resolvedLocale
+	// Initialize locale from saved settings. Empty/'system' (or the follow-system
+	// flag) keeps tracking the OS language and stores a concrete locale for backend
+	// checks that compare against codes like `zh-CN`.
+	if (!locale) setFollowSystemLocale(true)
+	const resolvedLocale = applyLocalePreference(locale)
+	if (!locale || locale !== resolvedLocale) {
 		initialSettings.locale = resolvedLocale
 		await setSettings(initialSettings)
 	}
@@ -1136,8 +1358,15 @@ async function setupApp() {
 	themeStore.homeLayout = home_layout
 	themeStore.minimalHomeInstanceId = minimal_home_instance_id
 	themeStore.closeBehavior = close_behavior
+	themeStore.showScrollTop = getShowScrollTop()
+	themeStore.quickScrollEnabled = getQuickScrollEnabled()
 	themeStore.devMode = developer_mode
 	themeStore.featureFlags = feature_flags
+	for (const shortcut of SHORTCUT_ACTIONS) {
+		if (shortcut.group === 'nav')
+			themeStore[shortcut.enabledField] = getNavShortcutEnabled(shortcut.id)
+	}
+	themeStore.shortcutBindings = resolveAllBindings()
 	stateInitialized.value = true
 	if (privacyConsentPending.value) {
 		await nextTick()
@@ -1395,14 +1624,34 @@ stateInitialization
 		setupApp().catch((err) => {
 			stateFailed.value = true
 			console.error(err)
-			error.showError(err, null, false, 'state_init')
+			error.showError(err, null, true, 'state_init')
 		})
 	})
 	.catch((err) => {
 		stateFailed.value = true
 		console.error('Failed to initialize app', err)
-		error.showError(err, null, false, 'state_init')
+		error.showError(err, null, true, 'state_init')
 	})
+
+/**
+ * Exits a launcher that failed to initialize.
+ *
+ * The window is frameless and the app shell (which owns the only window
+ * controls) never rendered, so without this the user has no way out short of
+ * the task manager. It deliberately skips `closeWindowImmediately`, which
+ * saves window state first and would hit the same broken initialization.
+ */
+async function forceExit() {
+	try {
+		await invoke('exit_app')
+	} catch (error) {
+		// Closing the window still reaches the exit path, one dialog later.
+		console.error('Failed to exit the launcher; closing the window', error)
+		await getCurrentWindow()
+			.close()
+			.catch(() => {})
+	}
+}
 
 async function closeWindowImmediately() {
 	if (closeRequestInProgress.value) return
@@ -1689,6 +1938,7 @@ const dropImport = useDropImport({
 	fileDrop,
 	onSkinsPage,
 	onSchematicWorkshopPage,
+	onSettingsPage,
 	isSchematicFile,
 	trackEvent,
 	router,
@@ -2288,6 +2538,9 @@ function handleClick(e) {
 }
 
 function handleAuxClick(e) {
+	// A shortcut answers to this button, so the click is not a click at all.
+	if (findShortcut(e, bindingMatchesMouseEvent)) return
+
 	// disables middle click -> new tab
 	if (e.button === 1) {
 		e.preventDefault()
@@ -2306,6 +2559,28 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 
 <template>
 	<SplashScreen v-if="!stateFailed" ref="splashScreen" data-tauri-drag-region />
+	<!--
+		A failed initialization never renders the app shell, so this framed window
+		ends up with no title bar and no controls at all. This strip keeps the
+		window draggable and offers a way to quit that does not depend on the
+		parts which failed to load.
+	-->
+	<div
+		v-if="stateFailed && !stateInitialized"
+		data-tauri-drag-region
+		class="fixed inset-x-0 top-0 z-[300] flex h-9 items-center justify-end px-1"
+	>
+		<button
+			v-tooltip.bottom="formatMessage(messages.quitLauncher)"
+			data-tauri-drag-region-exclude
+			class="flex size-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-secondary transition-colors hover:bg-surface-4 hover:text-contrast"
+			type="button"
+			:aria-label="formatMessage(messages.quitLauncher)"
+			@click="forceExit"
+		>
+			<XIcon class="size-4" />
+		</button>
+	</div>
 	<div id="teleports"></div>
 	<div
 		v-if="stateInitialized && themeStore.customBackgroundPath && !themeStore.transparentBackground"
@@ -2500,7 +2775,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<AxolotlLogo class="h-full w-auto shrink-0 pointer-events-none" />
 					<span
 						v-if="isBetaBuild"
-						class="inline-flex shrink-0 rounded-full bg-[#b6e9ff] px-2 py-0.5 text-xs font-semibold leading-none text-[#005bda]"
+						class="inline-flex shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold leading-none text-blue-700"
 					>
 						{{ formatMessage(messages.betaBuild) }}
 					</span>
@@ -2542,7 +2817,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			'has-transparent-background': themeStore.transparentBackground,
 		}"
 	>
-		<div class="app-viewport flex-grow router-view">
+		<div class="app-viewport flex-grow router-view" tabindex="-1">
 			<div
 				class="loading-indicator-container h-8 fixed z-50 pointer-events-none"
 				:style="{
@@ -2575,16 +2850,22 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				{{ formatMessage(messages.authUnreachableBody) }}
 			</Admonition>
 			<div class="page-transition-grid grid min-h-full">
-				<RouterView v-slot="{ Component, route }">
-					<Transition name="page-slide" :css="themeStore.getFeatureFlag('page_transitions')">
-						<div v-if="Component" :key="getPageTransitionKey(route)" class="page-transition-layer">
-							<Suspense @pending="onSuspensePending" @resolve="onSuspenseResolve">
+				<RouterView v-slot="{ Component, route: pageRoute }">
+					<!--
+						Enter animation is keyed only on the route (see getPageTransitionKey).
+						The layer mounts as soon as the URL changes — not when the async page
+						Suspense resolves — so nav switches stay smooth while data loads.
+					-->
+					<Transition name="page-slide" :css="themeStore.getFeatureFlag('page_transitions')" appear>
+						<div :key="getPageTransitionKey(pageRoute)" class="page-transition-layer">
+							<Suspense v-if="Component" @pending="onSuspensePending" @resolve="onSuspenseResolve">
 								<component :is="Component"></component>
 							</Suspense>
 						</div>
 					</Transition>
 				</RouterView>
 			</div>
+			<ScrollToTopButton v-if="themeStore.showScrollTop" />
 		</div>
 		<div
 			class="app-sidebar mt-px shrink-0 flex flex-col border-0 border-l-[1px] border-[--brand-gradient-border] border-solid"
@@ -2691,7 +2972,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		<div class="mt-4">
 			<Checkbox
 				v-model="closeChoiceRemember"
-				:disabled="closeRequestInProgress"
+				:disabled="closeRequestInProgress || stateFailed"
 				:label="formatMessage(messages.closeLauncherRemember)"
 			/>
 		</div>
@@ -2758,7 +3039,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 
 	<!-- Global drop overlay -->
 	<div
-		v-if="isDragging && !onSkinsPage"
+		v-if="isDragging && !onSkinsPage && !onSettingsPage"
 		class="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center pointer-events-none"
 	>
 		<div class="rounded-2xl border-2 border-dashed border-brand bg-surface-2/90 p-8 text-center">
@@ -2769,7 +3050,13 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 
 	<!-- Processing overlay -->
 	<div
-		v-if="(isProcessing || scanningInstances) && !isDragging && !onSkinsPage && !batchActive"
+		v-if="
+			(isProcessing || scanningInstances) &&
+			!isDragging &&
+			!onSkinsPage &&
+			!onSettingsPage &&
+			!batchActive
+		"
 		class="fixed inset-0 z-[9999] bg-black/20 flex items-center justify-center"
 	>
 		<div class="flex flex-col items-center gap-3">
@@ -2985,6 +3272,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	background-color: var(--color-bg);
 	border-top-left-radius: var(--radius-xl);
 	overflow: hidden;
+	// Keep sticky/fixed chrome and the page-layer stack from spilling or
+	// re-anchoring while slide/opacity transitions repaint.
+	isolation: isolate;
 	--right-bar-width: 0px;
 
 	display: grid;
@@ -3196,11 +3486,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-contents::before {
 	z-index: 30;
 	content: '';
-	position: fixed;
-	left: var(--left-bar-width);
-	top: var(--top-bar-height);
-	right: calc(-1 * var(--left-bar-width));
-	bottom: calc(-1 * var(--left-bar-width));
+	// Absolute (not fixed) so the inset edge shadow stays glued to the content
+	// pane. Fixed coordinates recompute against the viewport and can desync
+	// from the nav/content boundary during page-layer compositing.
+	position: absolute;
+	inset: 0;
 	border-radius: var(--radius-xl);
 	box-shadow: 1px 1px 15px rgba(0, 0, 0, 0.1) inset;
 	border-color: var(--surface-5);

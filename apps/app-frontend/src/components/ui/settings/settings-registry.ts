@@ -3,9 +3,11 @@ import {
 	BotIcon,
 	CoffeeIcon,
 	CpuIcon,
+	FileTextIcon,
 	GameIcon,
 	GaugeIcon,
 	InfoIcon,
+	KeyboardIcon,
 	LanguagesIcon,
 	LayoutTemplateIcon,
 	PaintbrushIcon,
@@ -15,7 +17,8 @@ import {
 	UsersIcon,
 } from '@modrinth/assets'
 import { commonMessages, defineMessages, type MessageDescriptor } from '@modrinth/ui'
-import { defineAsyncComponent, type Component } from 'vue'
+import { type Component, defineAsyncComponent } from 'vue'
+
 import {
 	getVisibleSettingsCategoryDefinitions,
 	type SettingsCategoryDefinition,
@@ -52,6 +55,10 @@ const categoryContent: Record<SettingsCategoryId, Pick<SettingsCategory, 'icon' 
 		content: defineAsyncComponent(() => import('./LanguageTranslationSettings.vue')),
 	},
 	ai: { icon: BotIcon, content: defineAsyncComponent(() => import('./AISettings.vue')) },
+	'shortcut-settings': {
+		icon: KeyboardIcon,
+		content: defineAsyncComponent(() => import('./KeybindSettings.vue')),
+	},
 	'java-performance': {
 		icon: CoffeeIcon,
 		content: defineAsyncComponent(() => import('./JavaSettings.vue')),
@@ -80,6 +87,10 @@ const categoryContent: Record<SettingsCategoryId, Pick<SettingsCategory, 'icon' 
 		icon: RefreshCwIcon,
 		content: defineAsyncComponent(() => import('./UpdateSettings.vue')),
 	},
+	logs: {
+		icon: FileTextIcon,
+		content: defineAsyncComponent(() => import('./LogsSettings.vue')),
+	},
 	about: { icon: InfoIcon, content: defineAsyncComponent(() => import('./AboutSettings.vue')) },
 	'feature-flags': {
 		icon: ToggleRightIcon,
@@ -88,7 +99,7 @@ const categoryContent: Record<SettingsCategoryId, Pick<SettingsCategory, 'icon' 
 }
 
 const messages = defineMessages({
-	launcher: { id: 'app.settings.groups.launcher', defaultMessage: 'Launcher' },
+	launcher: { id: 'app.settings.groups.launcher', defaultMessage: 'Interface' },
 	game: { id: 'app.settings.groups.game', defaultMessage: 'Game' },
 	dataPrivacy: { id: 'app.settings.groups.data-privacy', defaultMessage: 'Data & privacy' },
 	support: { id: 'app.settings.groups.support', defaultMessage: 'App & support' },

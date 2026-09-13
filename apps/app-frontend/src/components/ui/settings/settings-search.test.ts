@@ -23,13 +23,19 @@ const settingsComponentFiles = {
 	'home-navigation': ['./AppearanceSettings.vue'],
 	'language-translation': ['./LanguageSettings.vue', './TranslationSettings.vue'],
 	ai: ['./AISettings.vue'],
+	'shortcut-settings': ['./KeybindSettings.vue'],
 	'java-performance': ['./JavaSettings.vue'],
-	'launch-defaults': ['./DefaultInstanceSettings.vue', './CrashAnalysisAISettings.vue'],
+	'launch-defaults': [
+		'./DefaultInstanceSettings.vue',
+		'./LogShareSettings.vue',
+		'./SharedLogsSettings.vue',
+	],
 	'content-downloads': ['./AppearanceSettings.vue', './ResourceManagementSettings.vue'],
 	'network-multiplayer': ['./ResourceManagementSettings.vue', './MultiplayerSettings.vue'],
 	'storage-backups': ['./ResourceManagementSettings.vue', './StorageSettings.vue'],
 	'privacy-data': ['./PrivacySettings.vue'],
 	updates: ['./UpdateSettings.vue'],
+	logs: ['./LogsSettings.vue'],
 	about: ['./AboutSettings.vue'],
 	'feature-flags': ['./FeatureFlagSettings.vue'],
 } as const
@@ -159,17 +165,18 @@ test('settings navigation groups preserve the intended Axolotl information archi
 	assert.deepEqual(categoriesForGroup('launcher'), [
 		'interface',
 		'home-navigation',
+		'shortcut-settings',
 		'language-translation',
 		'ai',
 	])
 	assert.deepEqual(categoriesForGroup('game'), [
-		'java-performance',
 		'launch-defaults',
+		'java-performance',
 		'content-downloads',
 		'network-multiplayer',
 	])
 	assert.deepEqual(categoriesForGroup('data-privacy'), ['storage-backups', 'privacy-data'])
-	assert.deepEqual(categoriesForGroup('support'), ['updates', 'about'])
+	assert.deepEqual(categoriesForGroup('support'), ['updates', 'about', 'logs'])
 	assert.deepEqual(categoriesForGroup('developer'), [])
 	assert.deepEqual(categoriesForGroup('developer', true), ['feature-flags'])
 })

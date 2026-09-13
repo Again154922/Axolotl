@@ -45,7 +45,9 @@ pub struct InstallJobState {
     pub context: Option<InstallErrorContext>,
     #[serde(default)]
     pub events: Vec<InstallJobEvent>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    /// Live request state used for progress snapshots. Download resumption is
+    /// based on persisted events and filesystem state, not partial byte counts.
+    #[serde(skip)]
     pub active_downloads: HashMap<String, ActiveDownloadState>,
     #[serde(default)]
     pub display: Option<InstallJobDisplay>,
@@ -809,6 +811,36 @@ mod tests {
     }
 
     #[test]
+    fn active_downloads_are_not_persisted() {
+        let mut job = job_state();
+        job.active_downloads.insert(
+            "client.jar".to_string(),
+            ActiveDownloadState {
+                name: "client.jar".to_string(),
+                url: "https://piston-data.mojang.com/client.jar".to_string(),
+                source: "official".to_string(),
+                bytes_downloaded: 400,
+                bytes_total: Some(1_000),
+                attempt: 1,
+                max_attempts: 3,
+                status: DownloadItemStatus::Downloading,
+                last_reported_bytes: 400,
+                last_progress_at: Utc::now(),
+                speed_bytes_per_second: Some(200),
+                speed_sample_started_at: Utc::now(),
+                speed_sample_started_bytes: 400,
+            },
+        );
+
+        let serialized = serde_json::to_value(&job).unwrap();
+        assert!(serialized.get("active_downloads").is_none());
+
+        let restored: InstallJobState =
+            serde_json::from_value(serialized).unwrap();
+        assert!(restored.active_downloads.is_empty());
+    }
+
+    #[test]
     fn canceling_a_job_clears_active_download_requests() {
         let mut job = job_state();
         job.record_event(InstallJobEventKind::DownloadRequestStarted {
@@ -1477,9 +1509,38 @@ pub enum InstallRequest {
         #[serde(default)]
         display_icon: Option<String>,
     },
+    InstallContentBatch {
+        instance_id: String,
+        items: Vec<InstallContentBatchItem>,
+        display_title: String,
+        #[serde(default)]
+        display_icon: Option<String>,
+    },
     DownloadJava {
         vendor: String,
         version: u32,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum InstallContentBatchItem {
+    Modrinth {
+        project_id: String,
+        version_id: Option<String>,
+        content_type: ContentType,
+        #[serde(default)]
+        selected: ResolutionPreferences,
+        #[serde(default)]
+        excluded_project_ids: Vec<String>,
+        #[serde(default)]
+        force_project_ids: Vec<String>,
+    },
+    CurseForge {
+        request: CurseForgeInstallRequest,
+    },
+    CurseForgeWorld {
+        request: CurseForgeWorldInstallRequest,
     },
 }
 
@@ -1509,6 +1570,7 @@ impl InstallRequest {
             Self::InstallContent { .. }
             | Self::InstallCurseForgeContent { .. }
             | Self::InstallCurseForgeWorld { .. }
+            | Self::InstallContentBatch { .. }
             | Self::DownloadJava { .. } => false,
         }
     }
@@ -1540,6 +1602,7 @@ impl InstallRequest {
             Self::InstallCurseForgeWorld { .. } => {
                 InstallJobKind::InstallContent
             }
+            Self::InstallContentBatch { .. } => InstallJobKind::InstallContent,
             Self::DownloadJava { .. } => InstallJobKind::DownloadJava,
         }
     }
@@ -1576,6 +1639,11 @@ impl InstallRequest {
                     instance_id: request.instance_id.clone(),
                 }
             }
+            Self::InstallContentBatch { instance_id, .. } => {
+                InstallTarget::ExistingInstance {
+                    instance_id: instance_id.clone(),
+                }
+            }
             _ => InstallTarget::NewInstance { instance_id: None },
         }
     }
@@ -1606,6 +1674,7 @@ impl InstallRequest {
             Self::InstallContent { .. } => InstallCleanup::None,
             Self::InstallCurseForgeContent { .. } => InstallCleanup::None,
             Self::InstallCurseForgeWorld { .. } => InstallCleanup::None,
+            Self::InstallContentBatch { .. } => InstallCleanup::None,
             _ => InstallCleanup::DeleteNewInstance { instance_id: None },
         }
     }
@@ -2375,6 +2444,23 @@ impl InstallJobState {
             }
             InstallRequest::InstallContent { .. } => {
                 InstallJobProvider::Modrinth
+            }
+            InstallRequest::InstallContentBatch { items, .. } => {
+                if items.iter().all(|item| {
+                    matches!(item, InstallContentBatchItem::Modrinth { .. })
+                }) {
+                    InstallJobProvider::Modrinth
+                } else if items.iter().all(|item| {
+                    matches!(
+                        item,
+                        InstallContentBatchItem::CurseForge { .. }
+                            | InstallContentBatchItem::CurseForgeWorld { .. }
+                    )
+                }) {
+                    InstallJobProvider::CurseForge
+                } else {
+                    InstallJobProvider::Application
+                }
             }
             InstallRequest::InstallCurseForgeContent { .. }
             | InstallRequest::InstallCurseForgeWorld { .. }

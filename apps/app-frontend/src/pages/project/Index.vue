@@ -387,7 +387,6 @@
 			@create="serverInstallContent.handleServerModpackFlowCreate"
 		/>
 		<CreateModpackServerModal ref="modpackServerModal" @created="handleModpackServerCreated" />
-		<ScrollToTopButton />
 	</div>
 </template>
 
@@ -409,6 +408,7 @@ import {
 	PlusIcon,
 	ReportIcon,
 	SearchIcon,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used by temporarily commented start-server button
 	ServerIcon,
 	SpinnerIcon,
 	StopCircleIcon,
@@ -438,7 +438,6 @@ import {
 	ProjectSidebarTags,
 	requestInstall,
 	SelectedProjectsFloatingBar,
-	ScrollToTopButton,
 	usesTargetGameVersion,
 	useVIntl,
 } from '@modrinth/ui'
@@ -483,8 +482,10 @@ import { projectGalleryTranslationSegments } from '@/helpers/project-gallery'
 import { createProjectBrowseLocation } from '@/helpers/project-links'
 import { get_categories, get_game_versions, get_loaders } from '@/helpers/tags'
 import {
+	autoTranslateHintMessages,
 	getTranslationErrorKind,
 	getTranslationSettings,
+	noteManualTranslateClick,
 	prepareDescription,
 	translateInBatches as translateContent,
 	validateTranslatedDescription,
@@ -592,7 +593,7 @@ const messages = defineMessages({
 	favoritesLoading: {
 		id: 'app.content-favorites.loading',
 		defaultMessage: 'Updating favorites…',
-},
+	},
 	viewDependents: {
 		id: 'project.actions.view-dependents',
 		defaultMessage: 'View dependents',
@@ -644,6 +645,8 @@ const favoriteSaved = computed(() =>
 	data.value ? contentFavorites.isFavorite('modrinth', data.value.id) : false,
 )
 
+// Used by the temporarily commented start-server button.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const serverCapableModpack = computed(
 	() => data.value?.project_type === 'modpack' && data.value.server_side !== 'unsupported',
 )
@@ -1147,6 +1150,15 @@ async function maybeAutoTranslate() {
 	}
 }
 
+async function maybeHintAutoTranslate() {
+	if (!(await noteManualTranslateClick())) return
+	addNotification({
+		title: formatMessage(autoTranslateHintMessages.title),
+		text: formatMessage(autoTranslateHintMessages.text),
+		type: 'info',
+	})
+}
+
 function toggleTranslation() {
 	if (translationActive.value) {
 		translationRequestVersion++
@@ -1154,6 +1166,7 @@ function toggleTranslation() {
 		translationLoading.value = false
 		return
 	}
+	void maybeHintAutoTranslate()
 	void translateProject()
 }
 

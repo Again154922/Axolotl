@@ -47,14 +47,29 @@
   "badge.release": {
     "defaultMessage": "Release"
   },
+  "browse.clear-search": {
+    "defaultMessage": "Clear search"
+  },
   "browse.filter-results": {
     "defaultMessage": "Filter results..."
+  },
+  "browse.loading-results": {
+    "defaultMessage": "Loading results…"
   },
   "browse.no-results": {
     "defaultMessage": "No results found for your query!"
   },
+  "browse.no-results.heading": {
+    "defaultMessage": "Nothing here yet"
+  },
   "browse.offline": {
     "defaultMessage": "You are currently offline. Connect to the internet to browse Modrinth!"
+  },
+  "browse.offline.heading": {
+    "defaultMessage": "No connection"
+  },
+  "browse.retry": {
+    "defaultMessage": "Try again"
   },
   "browse.search.placeholder": {
     "defaultMessage": "Search {projectType}..."
@@ -305,6 +320,12 @@
   "console.action.share": {
     "defaultMessage": "Share"
   },
+  "console.command-completions.no-results": {
+    "defaultMessage": "No matching completions"
+  },
+  "console.command-completions.search": {
+    "defaultMessage": "Search command completions"
+  },
   "console.command.disabled-placeholder": {
     "defaultMessage": "Command input disabled"
   },
@@ -313,12 +334,6 @@
   },
   "console.command.server-not-running-placeholder": {
     "defaultMessage": "Server is not running"
-  },
-  "console.command-completions.no-results": {
-    "defaultMessage": "No matching completions"
-  },
-  "console.command-completions.search": {
-    "defaultMessage": "Search command completions"
   },
   "console.crash.export-context": {
     "defaultMessage": "Export crash context"
@@ -962,15 +977,6 @@
   "content.metadata-filter.source.shared-instance": {
     "defaultMessage": "Shared instance"
   },
-  "content.metadata-filter.state": {
-    "defaultMessage": "Status"
-  },
-  "content.metadata-filter.state.disabled": {
-    "defaultMessage": "Disabled"
-  },
-  "content.metadata-filter.state.enabled": {
-    "defaultMessage": "Enabled"
-  },
   "content.metadata-filter.toggle": {
     "defaultMessage": "Filter"
   },
@@ -979,15 +985,6 @@
   },
   "content.metadata-filter.unknown": {
     "defaultMessage": "Unknown"
-  },
-  "content.metadata-filter.update.available": {
-    "defaultMessage": "Update available"
-  },
-  "content.metadata-filter.update.up-to-date": {
-    "defaultMessage": "Up to date"
-  },
-  "content.metadata-filter.updates": {
-    "defaultMessage": "Updates"
   },
   "content.page-layout.browse-content": {
     "defaultMessage": "Browse content"
@@ -2531,18 +2528,6 @@
   "label.no-items": {
     "defaultMessage": "No items"
   },
-  "notification.panel.copy": {
-    "defaultMessage": "Copy to clipboard"
-  },
-  "notification.panel.copy-support": {
-    "defaultMessage": "Copy error details for support"
-  },
-  "notification.panel.dismiss": {
-    "defaultMessage": "Dismiss"
-  },
-  "notification.panel.export-error-logs": {
-    "defaultMessage": "Export error logs"
-  },
   "label.notifications": {
     "defaultMessage": "Notifications"
   },
@@ -2933,6 +2918,18 @@
   "notification.error.title": {
     "defaultMessage": "An error occurred"
   },
+  "notification.panel.copy": {
+    "defaultMessage": "Copy to clipboard"
+  },
+  "notification.panel.copy-support": {
+    "defaultMessage": "Copy error details for support"
+  },
+  "notification.panel.dismiss": {
+    "defaultMessage": "Dismiss"
+  },
+  "notification.panel.export-error-logs": {
+    "defaultMessage": "Export error logs"
+  },
   "omorphia.component.badge.label.accepted": {
     "defaultMessage": "Accepted"
   },
@@ -3019,6 +3016,15 @@
   },
   "omorphia.component.loading-indicator.label": {
     "defaultMessage": "Loading"
+  },
+  "pagination.go-to-page": {
+    "defaultMessage": "Go to page"
+  },
+  "pagination.go-to-page.placeholder": {
+    "defaultMessage": "Page"
+  },
+  "pagination.loading-page": {
+    "defaultMessage": "Loading page…"
   },
   "payment-method.amazon_pay": {
     "defaultMessage": "Amazon Pay"
@@ -4537,6 +4543,141 @@
   },
   "ui.confirm-leave-modal.title": {
     "defaultMessage": "Leave page?"
+  },
+  "ui.keybinding-modal.alt": {
+    "defaultMessage": "Alt"
+  },
+  "ui.keybinding-modal.cancel": {
+    "defaultMessage": "Cancel"
+  },
+  "ui.keybinding-modal.capture-hint": {
+    "defaultMessage": "Then press the keys you want this shortcut to use."
+  },
+  "ui.keybinding-modal.capture-title": {
+    "defaultMessage": "Click here to record"
+  },
+  "ui.keybinding-modal.current": {
+    "defaultMessage": "Current shortcut"
+  },
+  "ui.keybinding-modal.device-keyboard": {
+    "defaultMessage": "Keyboard"
+  },
+  "ui.keybinding-modal.device-mouse": {
+    "defaultMessage": "Mouse"
+  },
+  "ui.keybinding-modal.group-digits": {
+    "defaultMessage": "Digits"
+  },
+  "ui.keybinding-modal.group-function": {
+    "defaultMessage": "Function keys"
+  },
+  "ui.keybinding-modal.group-letters": {
+    "defaultMessage": "Letters"
+  },
+  "ui.keybinding-modal.group-mouse-buttons": {
+    "defaultMessage": "Buttons"
+  },
+  "ui.keybinding-modal.group-navigation": {
+    "defaultMessage": "Navigation keys"
+  },
+  "ui.keybinding-modal.group-punctuation": {
+    "defaultMessage": "Punctuation"
+  },
+  "ui.keybinding-modal.group-wheel": {
+    "defaultMessage": "Wheel"
+  },
+  "ui.keybinding-modal.issue-conflict": {
+    "defaultMessage": "Already used by {label}."
+  },
+  "ui.keybinding-modal.issue-needs-modifier": {
+    "defaultMessage": "Hold Ctrl/Cmd, Alt or Shift as well, or pick a function or navigation key."
+  },
+  "ui.keybinding-modal.issue-reserved": {
+    "defaultMessage": "{label} is reserved by the launcher."
+  },
+  "ui.keybinding-modal.listening-hint": {
+    "defaultMessage": "Press the keys you want to use."
+  },
+  "ui.keybinding-modal.listening-title": {
+    "defaultMessage": "Listening…"
+  },
+  "ui.keybinding-modal.mismatch": {
+    "defaultMessage": "That was a different combination, so recording started again."
+  },
+  "ui.keybinding-modal.mod": {
+    "defaultMessage": "Ctrl/Cmd"
+  },
+  "ui.keybinding-modal.modifiers": {
+    "defaultMessage": "Modifiers"
+  },
+  "ui.keybinding-modal.mouse-back": {
+    "defaultMessage": "Back button"
+  },
+  "ui.keybinding-modal.mouse-forward": {
+    "defaultMessage": "Forward button"
+  },
+  "ui.keybinding-modal.mouse-left": {
+    "defaultMessage": "Left click"
+  },
+  "ui.keybinding-modal.mouse-middle": {
+    "defaultMessage": "Middle click"
+  },
+  "ui.keybinding-modal.mouse-right": {
+    "defaultMessage": "Right click"
+  },
+  "ui.keybinding-modal.nothing-captured": {
+    "defaultMessage": "No key was recorded."
+  },
+  "ui.keybinding-modal.restore-default": {
+    "defaultMessage": "Restore default"
+  },
+  "ui.keybinding-modal.save": {
+    "defaultMessage": "Save"
+  },
+  "ui.keybinding-modal.shift": {
+    "defaultMessage": "Shift"
+  },
+  "ui.keybinding-modal.special-hint": {
+    "defaultMessage": "Mouse buttons, the wheel and combinations with them can only be picked here."
+  },
+  "ui.keybinding-modal.title": {
+    "defaultMessage": "Set a shortcut"
+  },
+  "ui.keybinding-modal.title-for": {
+    "defaultMessage": "Shortcut for {action}"
+  },
+  "ui.keybinding-modal.tree-label": {
+    "defaultMessage": "Inputs a shortcut can use"
+  },
+  "ui.keybinding-modal.unset": {
+    "defaultMessage": "Not set"
+  },
+  "ui.keybinding-modal.use-capture": {
+    "defaultMessage": "Record a combination instead"
+  },
+  "ui.keybinding-modal.use-special": {
+    "defaultMessage": "Pick an input another way"
+  },
+  "ui.keybinding-modal.verified-hint": {
+    "defaultMessage": "Confirmed. Save to use this shortcut."
+  },
+  "ui.keybinding-modal.verified-title": {
+    "defaultMessage": "Confirmed"
+  },
+  "ui.keybinding-modal.verifying-hint": {
+    "defaultMessage": "This checks the combination was recorded correctly."
+  },
+  "ui.keybinding-modal.verifying-title": {
+    "defaultMessage": "Press it again to confirm"
+  },
+  "ui.keybinding-modal.wheel-down": {
+    "defaultMessage": "Wheel down"
+  },
+  "ui.keybinding-modal.wheel-up": {
+    "defaultMessage": "Wheel up"
+  },
+  "ui.scroll-to-top.tooltip": {
+    "defaultMessage": "Scroll to top"
   },
   "ui.stacked-admonitions.alert-count": {
     "defaultMessage": "{count, plural, one {# alert} other {# alerts}}"
