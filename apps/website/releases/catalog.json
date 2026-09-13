@@ -1,6 +1,57 @@
 {
-  "updated_at": "2026-09-13T13:34:08.000Z",
+  "updated_at": "2026-09-13T21:17:55.000Z",
   "announcements": [
+    {
+      "id": "launcher-1.9.6-beta.7",
+      "version": "1.9.6-beta.7",
+      "publishedAt": "2026-09-13",
+      "title": {
+        "en-US": "Axolotl Launcher 1.9.6-beta.7",
+        "zh-CN": "Axolotl Launcher 1.9.6-beta.7"
+      },
+      "changes": {
+        "changed": [
+          {
+            "en-US": "Changed the default launcher log level to Info and normalized existing log-level settings.",
+            "zh-CN": "将启动器的默认日志等级调整为 Info，并统一迁移已有的日志等级设置。"
+          },
+          {
+            "en-US": "Simplified the splash screen appearance by removing its glow effect.",
+            "zh-CN": "移除启动画面的发光效果，使其外观更加简洁。"
+          }
+        ],
+        "fixed": [
+          {
+            "en-US": "Fixed periodic launcher freezes during high-speed downloads, including freezes that continued after navigating to another page.",
+            "zh-CN": "修复高速下载时启动器周期性卡顿，以及切换到其他页面后仍受影响的问题。"
+          },
+          {
+            "en-US": "Fixed download speeds sometimes being reported higher than the actual transfer rate.",
+            "zh-CN": "修复下载速度有时高于实际传输速率的问题。"
+          },
+          {
+            "en-US": "Fixed cancellation or failure of linked instance imports potentially deleting files from the original external instance.",
+            "zh-CN": "修复取消或执行失败的链接实例导入可能删除原外部实例文件、造成数据丢失的问题。"
+          },
+          {
+            "en-US": "Fixed imported and symlinked instances being incorrectly treated as direct-linked instances during synchronization, which could cause duplicate, modified, or removed instance records.",
+            "zh-CN": "修复同步时错误地将导入实例和符号链接实例视为直连实例，可能导致实例记录被重复创建、修改或移除的问题。"
+          },
+          {
+            "en-US": "Fixed an extra background section appearing beside the navigation tabs on the Browse page.",
+            "zh-CN": "修复发现页导航标签旁出现多余背景区块的问题。"
+          },
+          {
+            "en-US": "Fixed the check icon being positioned incorrectly in the accent color settings.",
+            "zh-CN": "修复强调色设置中选中标记位置不正确的问题。"
+          },
+          {
+            "en-US": "Fixed excessive reserved space around the bottom floating action bar.",
+            "zh-CN": "修复底部浮动操作栏自动避让时预留空白过大的问题。"
+          }
+        ]
+      }
+    },
     {
       "id": "launcher-1.9.6-beta.6",
       "version": "1.9.6-beta.6",
