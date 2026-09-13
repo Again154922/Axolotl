@@ -122,7 +122,7 @@ nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-  outputs = inputs: {
+  outputs = { home-manager, axolotl-launcher, ... }: {
     homeConfigurations = {
       <UserName> = home-manager.lib.homeManagerConfiguration {
         modules = [
@@ -147,7 +147,7 @@ nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
 |-----------|---------|---------|--------------------------------------|
 | enable    | `bool`  | `false` | 设置为`true`以启用 Axolotl Launcher。 |
 | launchEnv | `attrs` | `{ }`   | Axolotl Launcher 启动时额外的环境变量。例如`{ HELLO = 1; world = "two"; }`能为 Axolotl Launcher 设置额外的环境变量`HELLO=1`和`world=two`。 |
-| prebuilt  | `bool`  | `true`  | 为`true`时从GitHub下载预编译版本（通常是最新的Releasea版本），为`false`时从最新的源代码进行本地编译。|
+| prebuilt  | `bool`  | `true`  | 为`true`时从GitHub下载预编译版本（通常是最新的Release版本），为`false`时从最新的源代码进行本地编译。|
 
 </details>
 
