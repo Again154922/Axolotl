@@ -97,12 +97,12 @@ sudo apt install axolotl-launcher
 ```
 
 **NixOS**：
+
+```bash
 # 源码构建版
-```bash
 nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.git
-```
+
 # 预编译二进制版
-```bash
 nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
 ```
 
@@ -118,7 +118,7 @@ nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
       inputs.nixpkgs.follows = "nixpkgs";
     };
     axolotl-launcher = {
-      url = "github:Mystic-Stars/Axolotl";
+      url = "git+https://github.com/Mystic-Stars/Axolotl";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -126,6 +126,7 @@ nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
     homeConfigurations = {
       <UserName> = home-manager.lib.homeManagerConfiguration {
         modules = [
+          home.nix
           axolotl-launcher.homeModules
         ];
       };
