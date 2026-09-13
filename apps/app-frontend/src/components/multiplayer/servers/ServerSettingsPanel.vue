@@ -10,6 +10,7 @@ import {
 	injectFilePicker,
 	injectNotificationManager,
 	StyledInput,
+	Toggle,
 	useVIntl,
 } from '@modrinth/ui'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
@@ -75,6 +76,10 @@ const messages = defineMessages({
 		id: 'app.servers.settings.running-hint',
 		defaultMessage: 'Your changes will take effect the next time the server starts.',
 	},
+	pinHome: {
+		id: 'app.servers.settings.pin-home',
+		defaultMessage: 'Pin to Home',
+	},
 })
 
 const { deleteServer, refresh } = useServers()
@@ -90,6 +95,7 @@ const javaSelection = ref<{ path: string; version: string }>({
 const memoryMb = ref(props.server.memoryMb ?? 2048)
 const jvmArgsText = ref((props.server.jvmArgs ?? []).join(' '))
 const preLaunchHookText = ref(props.server.preLaunchHook ?? '')
+const pinnedToHome = ref(Boolean(props.server.homePinnedAt))
 const isSaving = ref(false)
 const deleteModal = useTemplateRef<ComponentExposed<typeof ConfirmModal>>('deleteModal')
 const editor = useTemplateRef<ComponentExposed<typeof ServerPropertiesEditor>>('editor')
@@ -109,6 +115,7 @@ const baseline = ref({
 	memoryMb: props.server.memoryMb ?? 2048,
 	jvmArgs: (props.server.jvmArgs ?? []).join(' '),
 	preLaunchHook: props.server.preLaunchHook ?? '',
+	homePinned: Boolean(props.server.homePinnedAt),
 })
 
 onMounted(async () => {
@@ -142,6 +149,7 @@ const generalDirty = computed(
 		memoryMb.value !== baseline.value.memoryMb ||
 		jvmArgsText.value !== baseline.value.jvmArgs ||
 		preLaunchHookText.value !== baseline.value.preLaunchHook,
+		pinnedToHome.value !== baseline.value.homePinned,
 )
 
 const isDirty = computed(() => generalDirty.value || (editor.value?.isDirty ?? false))
@@ -159,6 +167,7 @@ async function save() {
 			memoryMb: memoryMbValue,
 			jvmArgs,
 			preLaunchHook: preLaunchHookText.value,
+			homePinned: pinnedToHome.value,
 		})
 		if (iconPath.value !== baseline.value.iconPath) {
 			await serversApi.setIcon(props.server.id, iconPath.value)
@@ -177,6 +186,7 @@ async function save() {
 			memoryMb: memoryMbValue,
 			jvmArgs: jvmArgsText.value,
 			preLaunchHook: preLaunchHookText.value,
+			homePinned: pinnedToHome.value,
 		}
 		await refresh()
 		addNotification({ type: 'success', title: formatMessage(messages.saved) })
@@ -194,6 +204,7 @@ function cancel() {
 	memoryMb.value = baseline.value.memoryMb
 	jvmArgsText.value = baseline.value.jvmArgs
 	preLaunchHookText.value = baseline.value.preLaunchHook
+	pinnedToHome.value = baseline.value.homePinned
 	editor.value?.cancel()
 }
 
@@ -304,6 +315,12 @@ async function confirmDelete() {
 							formatMessage(messages.preLaunchHookHint)
 						}}</span>
 					</label>
+					<div
+						class="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-solid border-surface-5 bg-surface-4 p-3 sm:col-span-2 xl:col-span-4"
+					>
+						<span class="font-semibold text-contrast">{{ formatMessage(messages.pinHome) }}</span>
+						<Toggle id="server-settings-pin-home" v-model="pinnedToHome" />
+					</div>
 				</div>
 			</Card>
 
