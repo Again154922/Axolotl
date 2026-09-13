@@ -351,7 +351,11 @@ async fn start_inner(
 /// is a shell command executed with the server directory as its working
 /// directory; a non-zero exit aborts the start so callers can surface the
 /// failure.
-async fn run_pre_launch_hook(server_id: &str, dir: &Path, hook: &str) -> Result<()> {
+async fn run_pre_launch_hook(
+    server_id: &str,
+    dir: &Path,
+    hook: &str,
+) -> Result<()> {
     let mut parts = shlex::split(hook).ok_or_else(|| {
         ErrorKind::InputError("Invalid pre-launch hook".to_string()).as_error()
     })?;
@@ -366,8 +370,10 @@ async fn run_pre_launch_hook(server_id: &str, dir: &Path, hook: &str) -> Result<
         .status()
         .await
         .map_err(|e| {
-            ErrorKind::LauncherError(format!("Failed to run pre-launch hook: {e}"))
-                .as_error()
+            ErrorKind::LauncherError(format!(
+                "Failed to run pre-launch hook: {e}"
+            ))
+            .as_error()
         })?;
     if !status.success() {
         let code = status
