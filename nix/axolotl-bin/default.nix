@@ -1,8 +1,8 @@
 {
   inputs,
-  stdenv,
   fetchurl,
   libarchive,
+  stdenv,
   ...
 }:
 stdenv.mkDerivation rec {
@@ -29,15 +29,14 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ libarchive ];
   unpackPhase = ''
     runHook preUnpack
-    mkdir -p "$out/bin" "$out/share"
+    mkdir -p "$out/bin"
     bsdtar -xf "$src" "data.tar.gz"
     bsdtar -xf "data.tar.gz" -C "$out/bin" --strip-components=2 "usr/bin/Axolotl Launcher"
-    bsdtar -xf "data.tar.gz" -C "$out/share" --strip-components=2 "usr/share/icons"
     runHook postUnpack
   '';
-  installPhase = ''
-    runHook preInstall
-    chmod +x "$out/bin/Axolotl Launcher"
-    runHook postInstall
-  '';
+  # installPhase = ''
+  #   runHook preInstall
+  #   chmod +x "$out/bin/Axolotl Launcher"
+  #   runHook postInstall
+  # '';
 }

@@ -1,13 +1,13 @@
 {
   inputs,
-  pkgs,
+  callPackage,
   mkShell,
   writeShellScriptBin,
   ...
 }:
 (
   let
-    axolotl-git= pkgs.callPackage ./axolotl-git { inherit inputs; };
+    axolotl-git= callPackage ./axolotl-git { inherit inputs; };
     update-gradle-deps = writeShellScriptBin "update-gradle-deps" ''
       ${axolotl-git.mitmCache.updateScript}
     '';

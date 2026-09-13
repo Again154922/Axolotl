@@ -1,12 +1,10 @@
 {
   inputs,
-  pkgs,
-  lib,
-  stdenv,
-
+  callPackage,
   fetchurl,
   fetchPnpmDeps,
   makeShellWrapper,
+  stdenv,
 
   cargo-tauri,
   gradle_9,
@@ -31,7 +29,7 @@ let
   version = with builtins; (fromJSON (readFile ../../apps/app-frontend/package.json)).version;
   src = ../..;
 
-  blockbench = pkgs.callPackage ./blockbench.nix { inherit inputs; };
+  blockbench = callPackage ./blockbench.nix { inherit inputs; };
 
   gradle_9_j17 = gradle_9.override {
     java = jdk17;
