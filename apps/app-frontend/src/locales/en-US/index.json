@@ -6914,6 +6914,9 @@
   "app.servers.settings.jvm-args-hint": {
     "message": "Space-separated arguments, e.g. -XX:+UseG1GC"
   },
+  "app.servers.settings.pre-launch-hook-hint": {
+    "message": "Runs in the server directory before the server starts. A non-zero exit code cancels the start."
+  },
   "app.servers.settings.memory": {
     "message": "Memory"
   },

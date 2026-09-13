@@ -6902,6 +6902,9 @@
   "app.servers.settings.jvm-args-hint": {
     "message": "以空格分隔的参数，例如 -XX:+UseG1GC"
   },
+  "app.servers.settings.pre-launch-hook-hint": {
+    "message": "在服务器启动前于服务器目录中执行；退出码非零将取消启动。"
+  },
   "app.servers.settings.memory": {
     "message": "内存"
   },
