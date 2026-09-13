@@ -70,7 +70,12 @@ pub async fn servers_update_settings(
     home_pinned: Option<bool>,
 ) -> Result<servers::ServerManifest> {
     Ok(servers::update_settings(
-        server_id, name, java_path, memory_mb, jvm_args, home_pinned,
+        server_id,
+        name,
+        java_path,
+        memory_mb,
+        jvm_args,
+        home_pinned,
     )
     .await?)
 }
