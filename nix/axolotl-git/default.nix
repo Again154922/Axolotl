@@ -17,8 +17,11 @@
   pnpmConfigHook,
   pnpm_10,
   rust-bin,
+  wrapGAppsHook4,
 
-  glib,
+  glib-networking,
+  libayatana-appindicator,
+  librsvg,
   webkitgtk_4_1,
   ...
 }:
@@ -58,7 +61,7 @@ in
     };
     mitmCache = gradle_9_j17.fetchDeps {
       pkg = finalAttrs.finalPackage;
-      data = ./gradle_9-deps.json;
+      data = ./mitmCache.json;
     };
     pnpmDeps = fetchPnpmDeps {
       inherit pname version src;
@@ -90,9 +93,12 @@ in
       pkg-config
       pnpmConfigHook
       pnpm_10_33_2
+      wrapGAppsHook4
     ];
     buildInputs = [
-      glib
+      glib-networking
+      libayatana-appindicator
+      librsvg
       webkitgtk_4_1
     ];
     preBuild = ''
