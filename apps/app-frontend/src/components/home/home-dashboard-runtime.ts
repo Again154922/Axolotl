@@ -130,11 +130,16 @@ export function provideHomeDashboardRuntime(handleError: ErrorHandler): HomeDash
 		}
 	}
 
+	let pinnedLocalServersGeneration = 0
+
 	async function refreshPinnedLocalServers() {
+		const generation = ++pinnedLocalServersGeneration
 		try {
 			const all = await serversApi.list()
+			if (generation !== pinnedLocalServersGeneration) return
 			pinnedLocalServers.value = all.filter((server) => Boolean(server.homePinnedAt))
 		} catch (error) {
+			if (generation !== pinnedLocalServersGeneration) return
 			handleError(error)
 			pinnedLocalServers.value = []
 		}
