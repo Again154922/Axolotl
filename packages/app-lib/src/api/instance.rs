@@ -15,6 +15,7 @@ mod run;
 mod screenshot_groups;
 mod screenshots;
 mod synced_options;
+mod synced_packs;
 pub(crate) mod synced_servers;
 mod upgrade;
 
