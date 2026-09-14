@@ -15,22 +15,8 @@ mod run;
 mod screenshot_groups;
 mod screenshots;
 pub(crate) mod synced_options;
-pub(crate) mod synced_packs {
-	pub(crate) fn schedule_reconciliation() {}
-	pub(crate) async fn detach<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn prepare_instance_update<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn reconcile<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn capture_resource_pack_selection_change<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn seed_from_instance<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
-}
-pub(crate) mod synced_servers {
-	pub(crate) async fn merge_servers_from_instance<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn reconcile_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn seed_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn ensure_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn detach_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn canonical_exists<T>(_: T) -> crate::Result<bool> { Ok(false) }
-}
+pub(crate) mod synced_packs;
+pub(crate) mod synced_servers;
 mod upgrade;
 
 pub use self::content::{
