@@ -67,15 +67,7 @@ pub async fn list_screenshots(
 
 pub async fn list_synced_screenshots() -> crate::Result<Vec<InstanceScreenshot>>
 {
-    if !super::super::synced_options::get_global_options()
-        .await?
-        .screenshots
-    {
-        return Ok(Vec::new());
-    }
-    let state = State::get().await?;
-    let sources = instance_rows::list_screenshot_sources(&state.pool).await?;
-    list_source_screenshot_sets(&state, sources).await
+    list_all_screenshots().await
 }
 
 pub async fn list_all_screenshots() -> crate::Result<Vec<InstanceScreenshot>> {
@@ -366,37 +358,12 @@ pub async fn save_edited_screenshot(
     })?;
 
     let source_path = source_screenshot.path.clone();
-    let (source_dimensions, edited_dimensions, png_bytes) =
+    let (edited_dimensions, png_bytes) =
         tokio::task::spawn_blocking(move || {
-            let source = std::fs::File::open(&source_path)
-                .map_err(|error| IOError::with_path(error, &source_path))?;
-            let source_dimensions = image::ImageReader::with_format(
-                std::io::BufReader::new(source),
-                image::ImageFormat::Png,
-            )
-            .into_dimensions()
-            .map_err(|error| {
-                crate::ErrorKind::InputError(format!(
-                    "Could not read screenshot dimensions: {error}"
-                ))
-            })?;
             let edited_dimensions = validate_png_dimensions(&png_bytes)?;
-            Ok::<_, crate::Error>((
-                source_dimensions,
-                edited_dimensions,
-                png_bytes,
-            ))
+            Ok::<_, crate::Error>((edited_dimensions, png_bytes))
         })
         .await??;
-    if edited_dimensions.0 > source_dimensions.0
-        || edited_dimensions.1 > source_dimensions.1
-    {
-        return Err(crate::ErrorKind::InputError(format!(
-            "Edited screenshot dimensions cannot exceed {}x{}",
-            source_dimensions.0, source_dimensions.1,
-        ))
-        .into());
-    }
 
     let screenshots_dir = source_screenshots_dir(&state, &source).await?;
     let (target_path, copy_group) = match mode {

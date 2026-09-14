@@ -153,6 +153,13 @@ pub struct State {
     configured_http_client_update: AsyncMutex<()>,
 
     pub(crate) file_watcher: FileWatcher,
+	pub(crate) screenshot_locks: DashMap<String, Arc<AsyncMutex<()>>>,
+}
+
+impl State {
+	pub(crate) async fn lock_instance_screenshots(&self, instance_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+		self.screenshot_locks.entry(instance_id.to_string()).or_insert_with(|| Arc::new(AsyncMutex::new(()))).clone().lock_owned().await
+	}
 }
 
 #[derive(Default)]
@@ -924,6 +931,7 @@ impl State {
             configured_http_client: RwLock::new(configured_http_client),
             configured_http_client_update: AsyncMutex::new(()),
             file_watcher,
+			screenshot_locks: DashMap::new(),
             // app_identifier,
         }))
     }
@@ -992,6 +1000,7 @@ pub(crate) async fn test_state(
         configured_http_client: RwLock::new(configured_http_client),
         configured_http_client_update: AsyncMutex::new(()),
         file_watcher,
+		screenshot_locks: DashMap::new(),
     }))
 }
 
