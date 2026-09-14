@@ -24,7 +24,7 @@ pub(crate) async fn ensure_servers(metadata: &InstanceMetadata, state: &State) -
 }
 pub(crate) async fn detach_servers(_: &InstanceMetadata, _: &State) -> crate::Result<()> { Ok(()) }
 pub(crate) async fn canonical_exists(state: &State) -> crate::Result<bool> { Ok(canonical_path(state).exists()) }
-pub(crate) async fn list_synced_servers() -> crate::Result<Vec<SyncedServer>> {
+pub async fn list_synced_servers() -> crate::Result<Vec<SyncedServer>> {
     let state=State::get().await?; let rows=sqlx::query("SELECT id, position, nbt FROM synced_servers ORDER BY position").fetch_all(&state.pool).await?;
     use sqlx::Row; Ok(rows.into_iter().map(|r| SyncedServer{id:r.get("id"),position:r.get("position"),nbt:r.get("nbt")}).collect())
 }
