@@ -26,6 +26,7 @@ import HooksSettings from '@/components/ui/instance_settings/HooksSettings.vue'
 import InstallationSettings from '@/components/ui/instance_settings/InstallationSettings.vue'
 import JavaSettings from '@/components/ui/instance_settings/JavaSettings.vue'
 import WindowSettings from '@/components/ui/instance_settings/WindowSettings.vue'
+import SyncSettings from '@/components/ui/instance_settings/SyncSettings.vue'
 import InstanceIcon from '@/components/ui/InstanceIcon.vue'
 import { get_project_v3 } from '@/helpers/cache'
 import { get_linked_modpack_info } from '@/helpers/instance'
@@ -104,6 +105,14 @@ const tabs = computed<TabbedModalTab[]>(() => [
 		}),
 		icon: WrenchIcon,
 		content: InstallationSettings,
+	},
+	{
+		name: defineMessage({
+			id: 'instance.settings.tabs.sync',
+			defaultMessage: 'Synchronization',
+		}),
+		icon: WrenchIcon,
+		content: SyncSettings,
 	},
 	{
 		// Core component editing is instance-specific and advanced, so it is intentionally excluded from first-run onboarding.
