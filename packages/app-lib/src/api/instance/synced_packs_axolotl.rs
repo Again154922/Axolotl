@@ -8,8 +8,8 @@
 use crate::api::instance::synced_servers::DesyncServerMode;
 use crate::state::{
     ContentItem, ContentSourceKind, ContentItemOwner, ContentItemProject,
-    ContentItemRollback, ContentItemVersion, ContentProvider, ContentProviderRef,
-    ProjectType, State,
+    ContentItemRollback, ContentItemVersion, ContentOwnershipKind,
+    ContentProvider, ContentProviderRef, ContentRequirement, ProjectType, State,
 };
 use bytes::Bytes;
 use chrono::Utc;
@@ -162,6 +162,62 @@ async fn materialize(
     }
     let bytes = tokio::fs::read(cache_path(state, &row.sha1)).await?;
     tokio::fs::write(&destination, bytes).await?;
+    let relative_path = logical_path(project_type, &row.file_name, row.enabled != 0);
+    let file = crate::state::instances::adapters::sqlite::content_rows::upsert_instance_file_from_parts(
+        crate::state::instances::adapters::sqlite::content_rows::UpsertInstanceFile {
+            instance_id,
+            relative_path: &relative_path,
+            file_name: &row.file_name,
+            enabled: row.enabled != 0,
+            sha1: &row.sha1,
+            size: row.size.max(0) as u64,
+            missing: false,
+            local_mod_data: None,
+            icon_path: None,
+        },
+        &state.pool,
+    )
+    .await?;
+    let entry = crate::state::instances::adapters::sqlite::content_rows::upsert_content_entry_from_parts(
+        crate::state::instances::adapters::sqlite::content_rows::UpsertContentEntry {
+            instance_id,
+            content_set_id: &metadata.applied_content_set.id,
+            file_id: Some(&file.id),
+            project_type,
+            source_kind: ContentSourceKind::SharedInstance,
+            ownership_kind: ContentOwnershipKind::PackManaged,
+            auto_dependency: false,
+            server_requirement: ContentRequirement::Optional,
+            client_requirement: ContentRequirement::Optional,
+            enabled: row.enabled != 0,
+        },
+        &state.pool,
+    )
+    .await?;
+    sqlx::query(
+        "INSERT INTO instance_pack_members
+         (id, content_set_id, content_entry_id, member_key, project_type,
+          expected_relative_path, required, expected_sha1, expected_size,
+          materialization_state, override_kind, reconciled, created_at, modified_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 'present', 'none', 1, ?, ?)
+         ON CONFLICT(content_set_id, member_key) DO UPDATE SET
+           content_entry_id=excluded.content_entry_id,
+           expected_sha1=excluded.expected_sha1, expected_size=excluded.expected_size,
+           materialization_state='present', override_kind='none',
+           reconciled=1, modified_at=excluded.modified_at",
+    )
+    .bind(format!("pack-member:{}", row.id))
+    .bind(&metadata.applied_content_set.id)
+    .bind(&entry.id)
+    .bind(format!("shared:{}", row.id))
+    .bind(project_type.get_name())
+    .bind(&relative_path)
+    .bind(&row.sha1)
+    .bind(row.size)
+    .bind(Utc::now().timestamp())
+    .bind(Utc::now().timestamp())
+    .execute(&state.pool)
+    .await?;
     sqlx::query(
         "INSERT INTO synced_pack_instances(pack_id, instance_id, excluded, materialized_path, modified_at)
          VALUES (?, ?, ?, ?, ?)
