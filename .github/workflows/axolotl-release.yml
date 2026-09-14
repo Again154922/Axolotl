@@ -102,6 +102,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       SQLX_OFFLINE: true
+      # Cargo.toml defaults release LTO to thin for faster local `pnpm app:build`.
+      # Published binaries keep fat LTO.
+      CARGO_PROFILE_RELEASE_LTO: true
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
