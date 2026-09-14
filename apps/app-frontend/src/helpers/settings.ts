@@ -48,7 +48,10 @@ export type UpdatePreferences = {
 	updatesPaused: boolean
 }
 export type DownloadSourceMode =
-	'auto' | 'official_only' | 'mirror_preferred' | 'official_preferred'
+	| 'auto'
+	| 'official_only'
+	| 'mirror_preferred'
+	| 'official_preferred'
 export type DownloadEngine = 'legacy' | 'xmcl'
 
 export type ProxyMode = 'none' | 'system' | 'custom'
@@ -101,7 +104,11 @@ export async function setUpdatePreferences(preferences: UpdatePreferences): Prom
 }
 
 export type BrowseContentSource =
-	'all' | 'modrinth' | 'curseforge' | 'mcarchive' | 'planet_minecraft'
+	| 'all'
+	| 'modrinth'
+	| 'curseforge'
+	| 'mcarchive'
+	| 'planet_minecraft'
 
 const BROWSE_CONTENT_SOURCE_STORAGE_KEY = 'axolotl-browse-content-source'
 const BROWSE_DEFAULT_INSTANCE_STORAGE_KEY = 'axolotl-browse-default-instance'
