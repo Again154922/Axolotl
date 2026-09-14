@@ -12,10 +12,13 @@ pub struct SyncedServer {
 }
 
 pub(crate) async fn merge_servers_from_instance(
-    _: &InstanceMetadata,
-    _: &State,
+    metadata: &InstanceMetadata,
+    state: &State,
 ) -> crate::Result<()> {
-    Ok(())
+    if !metadata.synced_options.multiplayer_servers {
+        return Ok(());
+    }
+    reconcile_servers(metadata, state).await
 }
 pub(crate) async fn reconcile_servers(
     metadata: &InstanceMetadata,
@@ -244,7 +247,43 @@ async fn write_and_project(state: &State) -> crate::Result<()> {
             let target = crate::api::instance::synced_options::instance_dir(
                 &metadata, state,
             )
-            .join("servers.dat");
+                .join("servers.dat");
+            let excluded = sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM instance_servers
+                 WHERE instance_id = ? AND source = 'local_desynced'
+                   AND excluded_synced_server_id IS NOT NULL",
+            )
+            .bind(&id)
+            .fetch_one(&state.pool)
+            .await?
+                > 0;
+            sqlx::query("DELETE FROM instance_server_projection_entries WHERE instance_id = ?")
+                .bind(&id)
+                .execute(&state.pool)
+                .await?;
+            let canonical_rows = sqlx::query(
+                "SELECT id, nbt, position FROM synced_servers ORDER BY position",
+            )
+            .fetch_all(&state.pool)
+            .await?;
+            for canonical_row in canonical_rows {
+                sqlx::query(
+                    "INSERT INTO instance_server_projection_entries
+                     (instance_id, owner, server_id, nbt, position)
+                     VALUES (?, 'synced', ?, ?, ?)
+                     ON CONFLICT(instance_id, owner, server_id) DO UPDATE SET
+                       nbt=excluded.nbt, position=excluded.position",
+                )
+                .bind(&id)
+                .bind(canonical_row.get::<String, _>("id"))
+                .bind(canonical_row.get::<Vec<u8>, _>("nbt"))
+                .bind(canonical_row.get::<i64, _>("position"))
+                .execute(&state.pool)
+                .await?;
+            }
+            if excluded {
+                continue;
+            }
             if let Some(parent) = target.parent() {
                 tokio::fs::create_dir_all(parent).await?;
             }
