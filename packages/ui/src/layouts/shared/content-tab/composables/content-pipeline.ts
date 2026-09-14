@@ -481,16 +481,16 @@ export function useContentPipeline(config: ContentPipelineConfig) {
 					filterId,
 				]
 			} else {
-				selectedStatusFilters.value.splice(index, 1)
+				selectedStatusFilters.value = selectedStatusFilters.value.filter((_, i) => i !== index)
 			}
 			return
 		}
 
 		const index = selectedStatusFilters.value.indexOf(filterId)
 		if (index === -1) {
-			selectedStatusFilters.value.push(filterId)
+			selectedStatusFilters.value = [...selectedStatusFilters.value, filterId]
 		} else {
-			selectedStatusFilters.value.splice(index, 1)
+			selectedStatusFilters.value = selectedStatusFilters.value.filter((_, i) => i !== index)
 		}
 	}
 
