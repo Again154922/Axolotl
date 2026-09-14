@@ -9,13 +9,13 @@ CREATE TABLE sync_feature_settings (
 
 INSERT INTO sync_feature_settings (feature, globally_enabled, new_instance_default)
 VALUES
-	('command_history', 1, 1),
-	('multiplayer_servers', 1, 1),
-	('creative_hotbars', 1, 1),
-	('screenshots', 1, 1),
-	('game_options', 0, 1),
-	('resource_packs', 0, 1),
-	('data_packs', 0, 1);
+	('command_history', 0, 0),
+	('multiplayer_servers', 0, 0),
+	('creative_hotbars', 0, 0),
+	('screenshots', 0, 0),
+	('game_options', 0, 0),
+	('resource_packs', 0, 0),
+	('data_packs', 0, 0);
 
 CREATE TABLE instance_sync_preferences (
 	instance_id TEXT NOT NULL,
@@ -36,14 +36,14 @@ CROSS JOIN (
 	SELECT 'command_history' AS feature, 0 AS enabled
 	UNION ALL SELECT 'multiplayer_servers', 0
 	UNION ALL SELECT 'creative_hotbars', 0
-	UNION ALL SELECT 'screenshots', 1
+	UNION ALL SELECT 'screenshots', 0
 ) AS features;
 
 INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
 SELECT id, 'game_options', 0 FROM instances;
 
 INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
-SELECT instances.id, features.feature, 1
+SELECT instances.id, features.feature, 0
 FROM instances
 CROSS JOIN (
 	SELECT 'resource_packs' AS feature
@@ -217,7 +217,7 @@ CREATE TABLE screenshot_group_memberships (
 CREATE INDEX screenshot_group_memberships_group_id ON screenshot_group_memberships(group_id);
 
 ALTER TABLE screenshots ADD COLUMN editor_state TEXT;
-ALTER TABLE settings ADD COLUMN sync_features_across_devices INTEGER NOT NULL DEFAULT TRUE;
+ALTER TABLE settings ADD COLUMN sync_features_across_devices INTEGER NOT NULL DEFAULT FALSE;
 
 ALTER TABLE settings ADD COLUMN show_files_tab_in_instances INTEGER NOT NULL DEFAULT TRUE CHECK (show_files_tab_in_instances IN (0, 1));
 ALTER TABLE settings ADD COLUMN show_worlds_tab_in_instances INTEGER NOT NULL DEFAULT TRUE CHECK (show_worlds_tab_in_instances IN (0, 1));

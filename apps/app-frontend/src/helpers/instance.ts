@@ -666,6 +666,20 @@ export async function get_dependencies_as_content_items(
 	return items
 }
 
+export function adaptContentItems(items: ContentItem[]): ContentItem[] {
+	return items.map((item) => {
+		const embeddedMetadata = item.embedded_metadata
+		if (!embeddedMetadata?.icon_path) return item
+		return {
+			...item,
+			embedded_metadata: {
+				...embeddedMetadata,
+				icon_url: convertFileSrc(embeddedMetadata.icon_path),
+			},
+		}
+	})
+}
+
 export async function get_full_path(instanceId: string): Promise<string> {
 	return await invoke('plugin:instance|instance_get_full_path', { instanceId })
 }
@@ -696,7 +710,7 @@ export type DailyPlaytime = {
 	top_instance_name?: string | null
 }
 
-export async function set_pinned(instanceId: string, pinned: boolean): Promise<GameInstance> {
+export async function set_pinned(instanceId: string, pinned: boolean): Promise<void> {
 	return await invoke('plugin:instance|instance_set_pinned', { instanceId, pinned })
 }
 
@@ -1241,6 +1255,7 @@ export type InstanceScreenshot = {
 	url: string
 }
 export type ScreenshotGroup = { id: string; name: string }
+export type ScreenshotGroupImport = ScreenshotGroup & { screenshot_ids: string[] }
 export type ScreenshotGroupMembershipUpdate = { screenshot_id: string; group_id: string | null }
 
 export async function list_screenshots(instanceId: string): Promise<InstanceScreenshot[]> {
@@ -1278,6 +1293,20 @@ export async function set_screenshot_group_memberships(
 ): Promise<void> {
 	return await invoke('plugin:instance|instance_set_screenshot_group_memberships', { updates })
 }
+export async function import_screenshot_groups(groups: ScreenshotGroupImport[]): Promise<void> {
+	return await invoke('plugin:instance|instance_import_screenshot_groups', { groups })
+}
+export async function save_edited_screenshot(
+	key: ScreenshotKey,
+	pngBytes: Uint8Array,
+	mode: 'create_copy' | 'replace_edit',
+): Promise<InstanceScreenshot> {
+	return await invoke('plugin:instance|instance_save_edited_screenshot', {
+		key,
+		bytes: Array.from(pngBytes),
+		mode,
+	})
+}
 export async function delete_screenshots(keys: ScreenshotKey[]): Promise<void> {
 	return await invoke('plugin:instance|instance_delete_screenshots', { keys })
 }
@@ -1286,6 +1315,9 @@ export async function export_screenshots(keys: ScreenshotKey[], path: string): P
 }
 export function getInstanceIconUrl(iconPath?: string | null): string | undefined {
 	return iconPath ? convertFileSrc(iconPath) : undefined
+}
+export async function open_screenshot(key: ScreenshotKey): Promise<void> {
+	return await invoke('plugin:instance|instance_open_screenshot', { key })
 }
 export async function move_screenshots(
 	keys: ScreenshotKey[],

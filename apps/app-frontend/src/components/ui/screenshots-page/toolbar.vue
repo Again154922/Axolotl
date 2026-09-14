@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ArrowUpDownIcon, LayoutGridIcon, PlusIcon, SearchIcon } from '@modrinth/assets'
+import { ArrowUpDownIcon, GridIcon, PlusIcon, SearchIcon } from '@modrinth/assets'
 import {
 	Button,
 	Combobox,
 	type ComboboxOption,
 	defineMessages,
-	Input,
+	StyledInput,
 	useVIntl,
 } from '@modrinth/ui'
 
@@ -34,7 +34,7 @@ const messages = defineMessages({
 <template>
 	<div class="flex flex-col gap-2">
 		<div class="flex flex-wrap gap-2">
-			<Input
+			<StyledInput
 				v-model="search"
 				:icon="SearchIcon"
 				type="text"
@@ -73,10 +73,7 @@ const messages = defineMessages({
 				dropdown-min-width="160px"
 			>
 				<template #prefix>
-					<LayoutGridIcon
-						class="size-5 text-primary"
-						:aria-label="formatMessage(messages.groupBy)"
-					/>
+					<GridIcon class="size-5 text-primary" :aria-label="formatMessage(messages.groupBy)" />
 				</template>
 				<template #selected="{ label }">
 					<span>{{ label }}</span>

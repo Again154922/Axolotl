@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineMessages, injectNotificationManager, Toggle, useVIntl } from '@modrinth/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import {
 	get_synced_options_overview,
@@ -15,6 +15,11 @@ const { instance } = injectInstanceSettings()
 const { formatMessage } = useVIntl()
 const { handleError } = injectNotificationManager()
 const queryClient = useQueryClient()
+const syncedOptions = ref(instance.value?.synced_options ?? {})
+
+watch(instance, (updatedInstance) => {
+	syncedOptions.value = updatedInstance.synced_options
+})
 
 const messages = defineMessages({
 	title: { id: 'instance.settings.sync.title', defaultMessage: 'Settings synchronization' },
@@ -62,7 +67,8 @@ const overviewQuery = useQuery({
 const mutation = useMutation({
 	mutationFn: ({ option, enabled }: { option: SyncedOption; enabled: boolean }) =>
 		set_instance_synced_option(instance.value.id, option, enabled),
-	onSuccess: async () => {
+	onSuccess: async (_data, variables) => {
+		syncedOptions.value = { ...syncedOptions.value, [variables.option]: variables.enabled }
 		await Promise.all([
 			queryClient.invalidateQueries({ queryKey: instanceKeys.all }),
 			queryClient.invalidateQueries({ queryKey: ['instance-synced-options'] }),
@@ -71,18 +77,8 @@ const mutation = useMutation({
 	onError: handleError,
 })
 
-const capabilityMap = computed(
-	() =>
-		new Map(
-			(overviewQuery.data.value?.capabilities ?? []).map((capability) => [
-				capability.option,
-				capability,
-			]),
-		),
-)
-
 function enabled(option: SyncedOption) {
-	return instance.value.synced_options?.[option] ?? false
+	return syncedOptions.value?.[option] ?? false
 }
 </script>
 
@@ -96,7 +92,7 @@ function enabled(option: SyncedOption) {
 			<span class="text-contrast">{{ formatMessage(messages[item.label]) }}</span>
 			<Toggle
 				:model-value="enabled(item.key)"
-				:disabled="mutation.isPending.value || capabilityMap.get(item.key)?.supported === false"
+				:disabled="mutation.isPending.value"
 				:aria-label="formatMessage(messages[item.label])"
 				@update:model-value="(value) => mutation.mutate({ option: item.key, enabled: value })"
 			/>

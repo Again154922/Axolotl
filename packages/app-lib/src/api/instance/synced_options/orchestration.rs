@@ -402,6 +402,9 @@ async fn set_global_option_with_state(
         set_global_option_enabled(option, enabled, state).await?;
     }
 
+    // Reload metadata after updating the global preference. The initial list
+    // may contain stale per-instance sync flags, which would otherwise make
+    // the reconciliation pass skip instances that were just enabled.
     let instances = match crate::state::list_instances(&state.pool).await {
         Ok(instances) => instances,
         Err(error) if option == SyncedOption::GameOptions => {
@@ -464,22 +467,30 @@ async fn set_global_option_enabled(
     state: &State,
 ) -> crate::Result<()> {
     let option_name = option.as_str();
-    sqlx::query!(
+    sqlx::query(
         "
 		INSERT INTO sync_feature_settings
 			(feature, globally_enabled, new_instance_default)
-		VALUES (?, ?, 1)
+		VALUES (?, ?, ?)
 		ON CONFLICT(feature) DO UPDATE SET
-			globally_enabled = excluded.globally_enabled
+			globally_enabled = excluded.globally_enabled,
+			new_instance_default = excluded.new_instance_default
 		",
-        option_name,
-        enabled,
     )
+    .bind(option_name)
+    .bind(enabled)
+    .bind(enabled)
+    .execute(&state.pool)
+    .await?;
+    sqlx::query(
+        "UPDATE instance_sync_preferences SET enabled = ? WHERE feature = ?",
+    )
+    .bind(enabled)
+    .bind(option_name)
     .execute(&state.pool)
     .await?;
     Ok(())
 }
-
 async fn enable_global_option_from_base(
     option: SyncedOption,
     base_instance_id: &str,
@@ -678,7 +689,10 @@ pub async fn set_instance_option(
         .await?
         .ok_or_else(|| ErrorKind::InputError("Unknown instance".to_string()))?;
     let previous_enabled = instance_option_enabled(&metadata, option);
-    if previous_enabled == enabled {
+    // A global toggle can update this preference before the local projection
+    // is created. Re-run the enable path instead of returning early solely
+    // because the preference already says enabled.
+    if previous_enabled == enabled && !enabled {
         return Ok(metadata);
     }
     let global = get_global_options_with_state(&state).await?;

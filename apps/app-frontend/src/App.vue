@@ -8,6 +8,7 @@ import {
 	FlaskConicalIcon,
 	FolderOpenIcon,
 	HomeIcon,
+	ImagesIcon,
 	LeftArrowIcon,
 	LibraryIcon,
 	LogInIcon,
@@ -979,6 +980,10 @@ const messages = defineMessages({
 	downloads: {
 		id: 'app.navigation.downloads',
 		defaultMessage: 'Downloads',
+	},
+	screenshots: {
+		id: 'app.navigation.screenshots',
+		defaultMessage: 'Screenshots',
 	},
 	lab: {
 		id: 'app.navigation.lab',
@@ -2637,6 +2642,14 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			<NavRail>
 				<NavButton v-tooltip.right="formatMessage(messages.home)" to="/">
 					<HomeIcon />
+				</NavButton>
+				<NavButton
+					v-tooltip.right="formatMessage(messages.screenshots)"
+					data-onboarding-id="nav-screenshots"
+					to="/screenshots"
+					:is-primary="(r) => r.path.startsWith('/screenshots')"
+				>
+					<ImagesIcon />
 				</NavButton>
 				<NavButton
 					v-if="themeStore.featureFlags.worlds_tab"

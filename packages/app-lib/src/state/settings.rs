@@ -184,7 +184,7 @@ pub struct Settings {
 
     pub developer_mode: bool,
     pub feature_flags: HashMap<FeatureFlag, bool>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub sync_features_across_devices: bool,
     #[serde(default = "default_true")]
     pub show_files_tab_in_instances: bool,

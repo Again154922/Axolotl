@@ -1448,11 +1448,13 @@ pub(crate) async fn set_instance_sync_preference(
     pool: &SqlitePool,
 ) -> crate::Result<()> {
     sqlx::query(
-        "UPDATE instance_sync_preferences SET enabled = ? WHERE instance_id = ? AND feature = ?",
+        "INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
+         VALUES (?, ?, ?)
+         ON CONFLICT(instance_id, feature) DO UPDATE SET enabled = excluded.enabled",
     )
-    .bind(enabled)
     .bind(instance_id)
     .bind(option.as_str())
+    .bind(enabled)
     .execute(pool)
     .await?;
     Ok(())

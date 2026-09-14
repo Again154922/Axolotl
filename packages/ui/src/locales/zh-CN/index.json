@@ -213,7 +213,7 @@
     "defaultMessage": "重新安装整合包"
   },
   "button.remove": {
-    "defaultMessage": "删除通行密钥"
+    "defaultMessage": "删除"
   },
   "button.remove-image": {
     "defaultMessage": "移除图片"

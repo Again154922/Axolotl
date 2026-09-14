@@ -5,6 +5,7 @@ import {
 	list_all_screenshots,
 	list_screenshot_groups,
 	list_screenshots,
+	list_synced_screenshots,
 } from '@/helpers/instance'
 
 export const instanceKeys = {
@@ -37,6 +38,13 @@ export function allScreenshotsQueryOptions() {
 	return queryOptions({
 		queryKey: screenshotKeys.global(),
 		queryFn: list_all_screenshots,
+	})
+}
+
+export function syncedScreenshotsQueryOptions() {
+	return queryOptions({
+		queryKey: [...screenshotKeys.all, 'synced'] as const,
+		queryFn: list_synced_screenshots,
 	})
 }
 

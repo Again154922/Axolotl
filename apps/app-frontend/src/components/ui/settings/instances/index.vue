@@ -18,7 +18,6 @@ import {
 	set_global_synced_option,
 	type SyncedOption,
 } from '@/helpers/instance'
-import { appSettingsKeys, appSettingsQueryOptions, get, set } from '@/helpers/settings'
 import {
 	canSourceMultiplayerServers,
 	gameOptionsSyncSourcesQueryOptions,
@@ -32,7 +31,6 @@ import { instanceKeys, instanceListQueryOptions } from '@/pages/instance/query-o
 
 import CommandHistoryModal from './command-history-modal.vue'
 import GameSettingsModal from './game-settings-modal/index.vue'
-import LaunchOptions from './launch-options.vue'
 import SyncedServersModal from './servers-modal.vue'
 import SyncedPacksModal from './SyncedPacksModal.vue'
 import SyncSourceModal from './SyncSourceModal.vue'
@@ -45,10 +43,6 @@ const commandHistoryModal = ref<InstanceType<typeof CommandHistoryModal>>()
 const syncedServersModal = ref<InstanceType<typeof SyncedServersModal>>()
 
 const messages = defineMessages({
-	syncFeaturesAcrossDevices: {
-		id: 'app.settings.synced-options.sync-features-across-devices',
-		defaultMessage: 'Sync synchronization settings across devices',
-	},
 	resourcePacks: {
 		id: 'app.settings.synced-options.resource-packs',
 		defaultMessage: 'Sync resource packs',
@@ -242,16 +236,6 @@ const defaultGlobalOptions: GlobalSyncedOptions = {
 }
 
 const globalOptionsQuery = useQuery(globalSyncedOptionsQueryOptions())
-const appSettingsQuery = useQuery(appSettingsQueryOptions())
-const appSettingsMutation = useMutation({
-	mutationKey: appSettingsKeys.update,
-	mutationFn: async (enabled: boolean) => {
-		const current = await get()
-		await set({ ...current, sync_features_across_devices: enabled })
-	},
-	onSuccess: () => queryClient.invalidateQueries({ queryKey: appSettingsKeys.all }),
-	onError: handleError,
-})
 const initializedOptionsQuery = useQuery(initializedSyncedOptionsQueryOptions())
 const gameOptionSourcesQuery = useQuery(gameOptionsSyncSourcesQueryOptions())
 const resourcePacksQuery = useQuery(syncedPackQueryOptions('resourcepack'))
@@ -276,7 +260,7 @@ const hasGameOptionsToEdit = computed(
 		initializedOptions.value.game_options ||
 		instances.value.some(
 			(instance) =>
-				instance.synced_options.game_options && eligibleGameOptionSourceIds.value.has(instance.id),
+				instance?.synced_options?.game_options && eligibleGameOptionSourceIds.value.has(instance.id),
 		),
 )
 const baseOption = ref<SyncedOption | null>(null)
@@ -445,10 +429,7 @@ const globalOptionMutation = useMutation({
 	onSuccess: async (options, { option, enabled }) => {
 		queryClient.setQueryData(syncedOptionsKeys.global, options)
 		if (option === 'game_options') {
-			await Promise.all([
-				refreshSettings(),
-				queryClient.invalidateQueries({ queryKey: gameSettingsKeys.synced }),
-			])
+			await queryClient.invalidateQueries({ queryKey: gameSettingsKeys.synced })
 		}
 		if (enabled && option === 'multiplayer_servers') {
 			await queryClient.invalidateQueries({ queryKey: syncedOptionsKeys.servers })
@@ -559,12 +540,8 @@ function openGameSettings() {
 	gameSettingsModal.value?.show()
 }
 
-function refreshSettings() {
-	return queryClient.invalidateQueries({ queryKey: appSettingsKeys.all })
-}
-
 async function handleGameSettingsSaved() {
-	await Promise.all([invalidateSyncedOptions(), refreshSettings()])
+	await invalidateSyncedOptions()
 }
 
 function clearBaseSource() {
@@ -597,26 +574,13 @@ onScopeDispose(clearBaseSource)
 		/>
 
 		<section class="border-0 border-b border-solid border-surface-4 pb-6">
-			<div class="flex flex-col gap-6">
-				<div class="flex items-center justify-between gap-6">
-					<h2 class="m-0 text-lg font-semibold text-contrast">
-						{{ formatMessage(messages.syncFeaturesAcrossDevices) }}
-					</h2>
-					<Toggle
-						id="sync-features-across-devices"
-						:model-value="appSettingsQuery.data.value?.sync_features_across_devices ?? true"
-						:disabled="appSettingsQuery.isPending.value || appSettingsMutation.isPending.value"
-						:aria-label="formatMessage(messages.syncFeaturesAcrossDevices)"
-						@update:model-value="(enabled) => appSettingsMutation.mutate(enabled)"
-					/>
-				</div>
-				<div class="flex flex-col gap-4">
-					<div
-						v-for="row in availableGlobalRows"
+			<div class="flex flex-col gap-4">
+				<div
+					v-for="row in availableGlobalRows"
 						:key="row.option"
 						class="flex items-center justify-between gap-6"
 					>
-						<div class="flex min-w-0 flex-col gap-1">
+					<div class="flex min-w-0 flex-col gap-1">
 							<h2 class="m-0 text-lg font-semibold text-contrast">
 								{{ formatMessage(messages[row.title]) }}
 							</h2>
@@ -624,7 +588,7 @@ onScopeDispose(clearBaseSource)
 								{{ formatMessage(messages[row.description]) }}
 							</p>
 						</div>
-						<div class="flex shrink-0 items-center gap-2">
+					<div class="flex shrink-0 items-center gap-2">
 							<span v-if="row.editable" v-tooltip="editGlobalOptionTooltip(row)" class="flex">
 								<IconButton
 									type="outlined"
@@ -655,10 +619,7 @@ onScopeDispose(clearBaseSource)
 							/>
 						</div>
 					</div>
-				</div>
 			</div>
 		</section>
-
-		<LaunchOptions />
 	</div>
 </template>

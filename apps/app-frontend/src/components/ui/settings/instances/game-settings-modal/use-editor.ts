@@ -113,11 +113,24 @@ export function useGameSettingsEditor(
 		const cached = !editorInstanceId.value && queryClient.getQueryData(options.queryKey)
 		if (cached) {
 			applyState(cached)
-			void queryClient.prefetchQuery(options)
-			return true
+			try {
+				// A previously cached empty state is common immediately after enabling
+				// sync. Refresh it before returning so the editor does not stay empty.
+				const refreshed = await queryClient.fetchQuery({ ...options, staleTime: 0 })
+				if (generation !== loadGeneration) return false
+				applyState(refreshed)
+				return true
+			} catch (error) {
+				if (generation !== loadGeneration) return false
+				handleError(error)
+				return true
+			}
 		}
 		await nextTick()
-		const result = await stateQuery.refetch({ cancelRefetch: false })
+		const result = await queryClient
+			.fetchQuery({ ...options, staleTime: 0 })
+			.then((data) => ({ data, isError: false, error: null as unknown }))
+			.catch((error) => ({ data: undefined, isError: true, error }))
 		if (generation !== loadGeneration) return false
 		if (result.isError) {
 			handleError(result.error)

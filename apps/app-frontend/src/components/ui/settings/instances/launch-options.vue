@@ -340,7 +340,7 @@ const messages = defineMessages({
 						:max-label="`${Number((maxMemory / 1024).toFixed(1))} GB`"
 						unit="MB"
 					/>
-					<Button v-else-if="memoryQuery.isError.value" @click="memoryQuery.refetch()">
+					<Button v-else-if="memoryQuery?.isError.value" @click="memoryQuery.refetch()">
 						{{ formatMessage(commonMessages.refreshButton) }}
 					</Button>
 					<div
