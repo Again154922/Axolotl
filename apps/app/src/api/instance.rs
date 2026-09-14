@@ -124,6 +124,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_move_screenshots,
             instance_open_screenshot,
             instance_get_synced_options,
+            instance_get_initialized_synced_options,
             instance_get_synced_options_overview,
             instance_get_synced_option_capabilities,
             instance_get_synced_option_join_preview,
@@ -134,6 +135,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_list_synced_servers,
             instance_update_synced_server,
             instance_remove_synced_server,
+            instance_get_synced_game_options_config,
+            instance_preview_synced_game_option_changes,
+            instance_save_synced_game_option_changes,
         ])
         .build()
 }
@@ -141,6 +145,30 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 #[tauri::command]
 pub async fn instance_get_synced_options() -> Result<theseus::instance::GlobalSyncedOptions> {
     Ok(theseus::instance::get_global_synced_options().await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_initialized_synced_options() -> Result<theseus::instance::GlobalSyncedOptions> {
+    Ok(theseus::instance::get_initialized_synced_options().await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_synced_game_options_config() -> Result<theseus::instance::GameSettingsEditorState> {
+    Ok(theseus::instance::get_synced_game_options_config().await?)
+}
+
+#[tauri::command]
+pub async fn instance_preview_synced_game_option_changes(
+    request: theseus::instance::UpdateGameSettingsRequest,
+) -> Result<theseus::instance::GameSettingsEditorState> {
+    Ok(theseus::instance::preview_synced_game_option_changes(request).await?)
+}
+
+#[tauri::command]
+pub async fn instance_save_synced_game_option_changes(
+    request: theseus::instance::UpdateGameSettingsRequest,
+) -> Result<theseus::instance::SaveGameSettingsResult> {
+    Ok(theseus::instance::save_synced_game_option_changes(request).await?)
 }
 
 #[tauri::command]

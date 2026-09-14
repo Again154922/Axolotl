@@ -111,6 +111,12 @@ pub use self::synced_options::{
     get_command_history as get_synced_command_history,
     set_command_history as set_synced_command_history,
 };
+pub use self::synced_options::game_options::{
+    get_config as get_synced_game_options_config,
+    preview_changes as preview_synced_game_option_changes,
+    save_changes as save_synced_game_option_changes,
+    GameSettingsEditorState, SaveGameSettingsResult, UpdateGameSettingsRequest,
+};
 pub use crate::state::SyncedOption;
 pub use self::synced_servers_axolotl::{SyncedServer, list_synced_servers, update_synced_server, remove_synced_server};
 pub use self::upgrade::{
