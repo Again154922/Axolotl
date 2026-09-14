@@ -117,6 +117,14 @@ pub use self::synced_options::game_options::{
     save_changes as save_synced_game_option_changes,
     GameSettingsEditorState, SaveGameSettingsResult, UpdateGameSettingsRequest,
 };
+pub(crate) use self::synced_options::game_options::{
+    apply_launcher_overrides as apply_game_options_launcher_overrides,
+    sync_before_launch as sync_game_options_before_launch,
+};
+pub(crate) use self::synced_options::{
+    reconcile_changed_file as reconcile_synced_option_file,
+    remove_generated_instance_files,
+};
 pub use crate::state::SyncedOption;
 pub use self::synced_servers_axolotl::{SyncedServer, list_synced_servers, update_synced_server, remove_synced_server};
 pub use self::upgrade::{

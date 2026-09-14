@@ -113,6 +113,19 @@ export async function get_global_synced_options(): Promise<GlobalSyncedOptions> 
 export async function get_initialized_synced_options(): Promise<GlobalSyncedOptions> { return await invoke('plugin:instance|instance_get_initialized_synced_options') }
 export function isSyncedOptionAvailable(option: SyncedOption): boolean { return option !== 'data_packs' }
 export async function set_global_synced_option(option: SyncedOption, enabled: boolean, baseInstanceId?: string | null): Promise<GlobalSyncedOptions> { return await invoke('plugin:instance|instance_set_synced_option', { option, enabled, baseInstanceId }) }
+export async function set_instance_synced_option(
+	instanceId: string,
+	option: SyncedOption,
+	enabled: boolean,
+	resolution?: string | null,
+): Promise<void> {
+	await invoke('plugin:instance|instance_set_instance_synced_option', {
+		instanceId,
+		option,
+		enabled,
+		resolution,
+	})
+}
 export async function get_command_history(): Promise<string> { return await invoke('plugin:instance|instance_get_synced_command_history') }
 export async function set_command_history(contents: string): Promise<string> { return await invoke('plugin:instance|instance_set_synced_command_history', { contents }) }
 export type SyncedServer = { id: string; position: number; nbt: number[] }
