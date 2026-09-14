@@ -26,8 +26,6 @@ import {
 
 import {
 	canToggleContentItem,
-	getClientWarningType,
-	isClientOnlyEnvironment,
 	isDisabledContentItem,
 	isEnabledContentItem,
 } from '../../composables/content-filtering'
@@ -159,10 +157,6 @@ const filterOptions = computed(() => {
 			}
 		})
 
-	if (items.value.some((item) => getClientWarningType(item) !== null)) {
-		options.push({ id: 'warnings', label: 'Warnings' })
-	}
-
 	if (items.value.some(isDisabledContentItem)) {
 		options.push({ id: 'disabled', label: 'Disabled' })
 	}
@@ -188,18 +182,16 @@ function toggleFilter(filterId: string) {
 	}
 }
 
-const attributeFilterIds = new Set(['disabled', 'warnings'])
+const attributeFilterIds = new Set(['disabled'])
 
 const typeFilteredCount = computed(() => {
 	if (selectedFilters.value.length === 0) return items.value.length
 	const typeFilters = selectedFilters.value.filter((f) => !attributeFilterIds.has(f))
 	const hasDisabledFilter = selectedFilters.value.includes('disabled')
-	const hasWarningsFilter = selectedFilters.value.includes('warnings')
 	return items.value.filter((item) => {
 		if (typeFilters.length > 0 && !typeFilters.includes(normalizeProjectType(item.project_type)))
 			return false
 		if (hasDisabledFilter && !isDisabledContentItem(item)) return false
-		if (hasWarningsFilter && getClientWarningType(item) === null) return false
 		return true
 	}).length
 })
@@ -221,12 +213,10 @@ const filteredItems = computed(() => {
 	if (selectedFilters.value.length > 0) {
 		const typeFilters = selectedFilters.value.filter((f) => !attributeFilterIds.has(f))
 		const hasDisabledFilter = selectedFilters.value.includes('disabled')
-		const hasWarningsFilter = selectedFilters.value.includes('warnings')
 		result = result.filter((item) => {
 			if (typeFilters.length > 0 && !typeFilters.includes(normalizeProjectType(item.project_type)))
 				return false
 			if (hasDisabledFilter && !isDisabledContentItem(item)) return false
-			if (hasWarningsFilter && getClientWarningType(item) === null) return false
 			return true
 		})
 	}
@@ -274,11 +264,6 @@ const tableItems = computed<ContentCardTableItem[]>(() =>
 		toggleDisabled: props.actionDisabled || !canToggleContentItem(item),
 		toggleDisabledTooltip: props.actionDisabled ? props.actionDisabledTooltip : undefined,
 		dependencyBadge: dependencyBadgeFor(item),
-		isClientOnly:
-			isClientOnlyEnvironment(item.environment) ||
-			!!item.pack_client_retained ||
-			!!item.pack_client_depends,
-		clientWarning: getClientWarningType(item),
 		disabled:
 			props.actionDisabled || disabledIds.value.has(item.file_name) || item.installing === true,
 		disabledTooltip: props.actionDisabled ? props.actionDisabledTooltip : undefined,
