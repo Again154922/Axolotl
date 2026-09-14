@@ -131,6 +131,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_set_instance_synced_option,
             instance_get_synced_command_history,
             instance_set_synced_command_history,
+            instance_list_synced_servers,
+            instance_update_synced_server,
+            instance_remove_synced_server,
         ])
         .build()
 }
@@ -175,6 +178,13 @@ pub async fn instance_get_synced_command_history() -> Result<String> {
 pub async fn instance_set_synced_command_history(contents: String) -> Result<String> {
     Ok(theseus::instance::set_synced_command_history(&contents).await?)
 }
+
+#[tauri::command]
+pub async fn instance_list_synced_servers() -> Result<Vec<theseus::instance::SyncedServer>> { Ok(theseus::instance::list_synced_servers().await?) }
+#[tauri::command]
+pub async fn instance_update_synced_server(server: theseus::instance::SyncedServer) -> Result<()> { theseus::instance::update_synced_server(server).await?; Ok(()) }
+#[tauri::command]
+pub async fn instance_remove_synced_server(id: String) -> Result<()> { theseus::instance::remove_synced_server(id).await?; Ok(()) }
 
 #[derive(Serialize, Debug, Clone)]
 pub struct Instance {
