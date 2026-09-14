@@ -1458,6 +1458,30 @@ pub(crate) async fn set_instance_sync_preference(
     Ok(())
 }
 
+pub(crate) async fn get_instance_synced_options(
+    instance_id: &str,
+    pool: &SqlitePool,
+) -> crate::Result<crate::state::InstanceSyncedOptions> {
+    let rows = sqlx::query("SELECT feature, enabled FROM instance_sync_preferences WHERE instance_id = ?")
+        .bind(instance_id).fetch_all(pool).await?;
+    let mut options = crate::state::InstanceSyncedOptions::default();
+    for row in rows {
+        let feature: String = sqlx::Row::get(&row, "feature");
+        let enabled: bool = sqlx::Row::get(&row, "enabled");
+        match feature.as_str() {
+            "game_options" => options.game_options = enabled,
+            "command_history" => options.command_history = enabled,
+            "multiplayer_servers" => options.multiplayer_servers = enabled,
+            "creative_hotbars" => options.creative_hotbars = enabled,
+            "screenshots" => options.screenshots = enabled,
+            "resource_packs" => options.resource_packs = enabled,
+            "data_packs" => options.data_packs = enabled,
+            _ => {}
+        }
+    }
+    Ok(options)
+}
+
 struct InstanceLinkColumns {
     link_kind: &'static str,
     modrinth_project_id: Option<String>,

@@ -38,10 +38,9 @@ pub(crate) async fn get_instance_metadata(
     let loader_components =
         loader_component_rows::list_loader_components(instance_id, pool)
             .await?;
-    Ok(Some(InstanceMetadata::from_record(
-        record,
-        loader_components,
-    )))
+    let mut metadata = InstanceMetadata::from_record(record, loader_components);
+    metadata.synced_options = instance_rows::get_instance_synced_options(&metadata.instance.id, pool).await?;
+    Ok(Some(metadata))
 }
 
 pub(crate) async fn get_instances_metadata(
@@ -57,7 +56,9 @@ pub(crate) async fn get_instances_metadata(
             pool,
         )
         .await?;
-        metadata.push(InstanceMetadata::from_record(record, components));
+        let mut item = InstanceMetadata::from_record(record, components);
+        item.synced_options = instance_rows::get_instance_synced_options(&item.instance.id, pool).await?;
+        metadata.push(item);
     }
     Ok(metadata)
 }
@@ -73,7 +74,9 @@ pub(crate) async fn list_instances(
             pool,
         )
         .await?;
-        metadata.push(InstanceMetadata::from_record(record, components));
+        let mut item = InstanceMetadata::from_record(record, components);
+        item.synced_options = instance_rows::get_instance_synced_options(&item.instance.id, pool).await?;
+        metadata.push(item);
     }
     Ok(metadata)
 }
