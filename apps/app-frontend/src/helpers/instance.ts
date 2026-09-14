@@ -105,6 +105,15 @@ export async function get_many(instanceIds: string[]): Promise<GameInstance[]> {
 	return await invoke('plugin:instance|instance_get_many', { instanceIds })
 }
 
+export type SyncedOption = 'game_options' | 'command_history' | 'multiplayer_servers' | 'creative_hotbars' | 'screenshots' | 'resource_packs' | 'data_packs'
+export type GlobalSyncedOptions = Record<SyncedOption, boolean>
+export type SyncedOptionCapability = { option: SyncedOption; supported: boolean; disabled_reason: string | null }
+export type SyncedOptionJoinPreview = { action: string }
+export async function get_global_synced_options(): Promise<GlobalSyncedOptions> { return await invoke('plugin:instance|instance_get_synced_options') }
+export async function get_initialized_synced_options(): Promise<GlobalSyncedOptions> { return await invoke('plugin:instance|instance_get_synced_options') }
+export function isSyncedOptionAvailable(option: SyncedOption): boolean { return option !== 'data_packs' }
+export async function set_global_synced_option(option: SyncedOption, enabled: boolean, baseInstanceId?: string | null): Promise<GlobalSyncedOptions> { return await invoke('plugin:instance|instance_set_synced_option', { option, enabled, baseInstanceId }) }
+
 export async function get_projects(
 	instanceId: string,
 	cacheBehaviour?: CacheBehaviour,
