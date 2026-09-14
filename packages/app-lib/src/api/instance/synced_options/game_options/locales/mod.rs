@@ -116,18 +116,7 @@ pub(crate) fn start_game_locale_indexer(state: Arc<State>) {
             );
             #[cfg(feature = "tauri")]
             {
-                use tauri::Emitter;
-                match crate::EventState::get()
-                    .app
-                    .emit("game-option-locales-updated", ())
-                {
-                    Ok(()) => tracing::info!(
-                        "Game setting locales: emitted game-option-locales-updated"
-                    ),
-                    Err(error) => {
-                        tracing::warn!(%error, "Game setting locales: update event failed")
-                    }
-                }
+                let _ = crate::EventState::get();
             }
         }
     });

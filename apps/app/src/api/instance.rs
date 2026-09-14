@@ -123,8 +123,38 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_export_screenshots,
             instance_move_screenshots,
             instance_open_screenshot,
+            instance_get_synced_options,
+            instance_get_synced_options_overview,
+            instance_get_synced_option_capabilities,
+            instance_get_synced_option_join_preview,
+            instance_set_synced_option,
         ])
         .build()
+}
+
+#[tauri::command]
+pub async fn instance_get_synced_options() -> Result<theseus::instance::GlobalSyncedOptions> {
+    Ok(theseus::instance::get_global_synced_options().await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_synced_options_overview(instance_id: String) -> Result<theseus::instance::SyncedOptionsOverview> {
+    Ok(theseus::instance::get_synced_options_overview(&instance_id).await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_synced_option_capabilities(instance_id: String) -> Result<Vec<theseus::instance::SyncedOptionCapability>> {
+    Ok(theseus::instance::get_synced_option_capabilities(&instance_id).await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_synced_option_join_preview(instance_id: String, option: theseus::instance::SyncedOption) -> Result<theseus::instance::SyncedOptionJoinPreview> {
+    Ok(theseus::instance::get_synced_option_join_preview(&instance_id, option).await?)
+}
+
+#[tauri::command]
+pub async fn instance_set_synced_option(option: theseus::instance::SyncedOption, enabled: bool, base_instance_id: Option<String>) -> Result<theseus::instance::GlobalSyncedOptions> {
+    Ok(theseus::instance::set_global_synced_option(option, enabled, base_instance_id.as_deref()).await?)
 }
 
 #[derive(Serialize, Debug, Clone)]
