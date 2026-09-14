@@ -1135,3 +1135,49 @@ export async function check_symlink_capability(): Promise<SymlinkCapability> {
 export async function allow_symlink_target(path: string): Promise<void> {
 	return await invoke('allow_symlink_target', { path })
 }
+
+export type ScreenshotKey = { instance_id: string; file_name: string }
+export type InstanceScreenshot = {
+	id: string
+	instance_id: string
+	instance_name: string
+	file_name: string
+	created_at: string
+	modified_at: number
+	group_id: string | null
+	path: string
+	url: string
+}
+export type ScreenshotGroup = { id: string; name: string }
+export type ScreenshotGroupMembershipUpdate = { screenshot_id: string; group_id: string | null }
+
+export async function list_screenshots(instanceId: string): Promise<InstanceScreenshot[]> {
+	return await invoke('plugin:instance|instance_list_screenshots', { instanceId })
+}
+export async function list_all_screenshots(): Promise<InstanceScreenshot[]> {
+	return await invoke('plugin:instance|instance_list_all_screenshots')
+}
+export async function list_synced_screenshots(): Promise<InstanceScreenshot[]> {
+	return await invoke('plugin:instance|instance_list_synced_screenshots')
+}
+export async function list_screenshot_groups(): Promise<ScreenshotGroup[]> {
+	return await invoke('plugin:instance|instance_list_screenshot_groups')
+}
+export async function create_screenshot_group(name: string, screenshotIds: string[]): Promise<ScreenshotGroup> {
+	return await invoke('plugin:instance|instance_create_screenshot_group', { name, ids: screenshotIds })
+}
+export async function rename_screenshot_group(id: string, newName: string): Promise<ScreenshotGroup> {
+	return await invoke('plugin:instance|instance_rename_screenshot_group', { id, newName })
+}
+export async function delete_screenshot_group(id: string): Promise<void> {
+	return await invoke('plugin:instance|instance_delete_screenshot_group', { id })
+}
+export async function set_screenshot_group_memberships(updates: ScreenshotGroupMembershipUpdate[]): Promise<void> {
+	return await invoke('plugin:instance|instance_set_screenshot_group_memberships', { updates })
+}
+export async function delete_screenshots(keys: ScreenshotKey[]): Promise<void> {
+	return await invoke('plugin:instance|instance_delete_screenshots', { keys })
+}
+export async function move_screenshots(keys: ScreenshotKey[], targetInstanceId: string): Promise<ScreenshotKey[]> {
+	return await invoke('plugin:instance|instance_move_screenshots', { keys, target: targetInstanceId })
+}
