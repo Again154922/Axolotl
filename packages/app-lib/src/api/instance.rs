@@ -16,17 +16,19 @@ mod screenshot_groups;
 mod screenshots;
 pub(crate) mod synced_options;
 pub(crate) mod synced_packs {
-	pub(crate) fn schedule_reconciliation() {}
-	pub(crate) async fn detach<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn prepare_instance_update<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn reconcile<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn capture_resource_pack_selection_change<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn seed_from_instance<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
+	pub(crate) use super::synced_packs_axolotl::{
+		capture_resource_pack_selection_change, detach, prepare_instance_update,
+		reconcile, schedule_reconciliation, seed_from_instance,
+	};
 }
+#[path = "instance/synced_servers/types.rs"]
+mod synced_server_types;
 pub(crate) mod synced_servers {
+    pub(crate) use super::synced_server_types::DesyncServerMode;
     pub(crate) use super::synced_servers_axolotl::{merge_servers_from_instance,reconcile_servers,seed_servers,ensure_servers,detach_servers,canonical_exists};
 }
 mod synced_servers_axolotl;
+mod synced_packs_axolotl;
 mod upgrade;
 
 pub use self::content::{
@@ -132,7 +134,13 @@ pub(crate) use self::synced_options::{
     remove_generated_instance_files,
 };
 pub use crate::state::SyncedOption;
+pub use self::synced_server_types::DesyncServerMode;
 pub use self::synced_servers_axolotl::{SyncedServer, list_synced_servers, update_synced_server, remove_synced_server};
+pub use self::synced_packs_axolotl::{
+	PackSyncPreview, PackSyncTarget, desync_pack, get_pack_sync_preview,
+	list_synced_packs, remove_synced_pack, set_synced_pack_enabled, sync_pack,
+	upload_synced_pack,
+};
 pub use self::upgrade::{
     dismiss_instance_post_upgrade_notice, execute_instance_upgrade,
     get_instance_post_upgrade_notice, get_instance_upgrade_plan,

@@ -143,6 +143,13 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_get_local_game_options_config,
             instance_preview_local_game_option_changes,
             instance_save_local_game_option_changes,
+            instance_get_pack_sync_preview,
+            instance_sync_pack,
+            instance_desync_pack,
+            instance_list_synced_packs,
+            instance_upload_synced_pack,
+            instance_set_synced_pack_enabled,
+            instance_remove_synced_pack,
         ])
         .build()
 }
@@ -219,6 +226,54 @@ pub async fn instance_save_local_game_option_changes(
     request: theseus::instance::UpdateGameSettingsRequest,
 ) -> Result<theseus::instance::SaveGameSettingsResult> {
     Ok(theseus::instance::save_local_game_option_changes(&instance_id, request).await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_pack_sync_preview(
+    instance_id: String,
+    project_path: String,
+) -> Result<theseus::instance::PackSyncPreview> {
+    Ok(theseus::instance::get_pack_sync_preview(&instance_id, &project_path).await?)
+}
+
+#[tauri::command]
+pub async fn instance_sync_pack(instance_id: String, project_path: String) -> Result<()> {
+    Ok(theseus::instance::sync_pack(&instance_id, &project_path).await?)
+}
+
+#[tauri::command]
+pub async fn instance_desync_pack(
+    instance_id: String,
+    pack_id: String,
+    mode: theseus::instance::DesyncServerMode,
+) -> Result<()> {
+    Ok(theseus::instance::desync_pack(&instance_id, &pack_id, mode).await?)
+}
+
+#[tauri::command]
+pub async fn instance_list_synced_packs(
+    project_type: theseus::data::ProjectType,
+) -> Result<Vec<theseus::data::ContentItem>> {
+    Ok(theseus::instance::list_synced_packs(project_type).await?)
+}
+
+#[tauri::command]
+pub async fn instance_upload_synced_pack(
+    path: PathBuf,
+    project_type: theseus::data::ProjectType,
+    game_versions: Vec<String>,
+) -> Result<()> {
+    Ok(theseus::instance::upload_synced_pack(path, project_type, game_versions).await?)
+}
+
+#[tauri::command]
+pub async fn instance_set_synced_pack_enabled(pack_id: String, enabled: bool) -> Result<()> {
+    Ok(theseus::instance::set_synced_pack_enabled(&pack_id, enabled).await?)
+}
+
+#[tauri::command]
+pub async fn instance_remove_synced_pack(pack_id: String) -> Result<()> {
+    Ok(theseus::instance::remove_synced_pack(&pack_id).await?)
 }
 
 #[tauri::command]
