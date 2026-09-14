@@ -1,4 +1,3 @@
-use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::{Command, exit};
 use std::{env, fs};
@@ -9,7 +8,11 @@ use std::{env, fs};
 const DATA_DIR_SUFFIX_VAR: &str = "AXOLOTL_DATA_DIR_SUFFIX";
 
 fn main() {
-    println!("cargo::rerun-if-changed=.env");
+    // Only watch .env when it exists. A missing rerun-if-changed path keeps
+    // Cargo treating the crate as dirty on every invocation.
+    if PathBuf::from(".env").exists() {
+        println!("cargo::rerun-if-changed=.env");
+    }
     println!("cargo::rerun-if-env-changed=CURSEFORGE_API_KEY");
     println!("cargo::rerun-if-changed=java/gradle");
     println!("cargo::rerun-if-changed=java/src");
@@ -108,6 +111,47 @@ fn read_dotenv_literal(name: &str) -> Option<String> {
     })
 }
 
+fn newest_mtime(path: &PathBuf) -> Option<std::time::SystemTime> {
+    let mut newest: Option<std::time::SystemTime> = None;
+    if path.is_file() {
+        return path.metadata().and_then(|m| m.modified()).ok();
+    }
+    if path.is_dir() {
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                if let Some(time) = newest_mtime(&entry.path().to_path_buf()) {
+                    newest = Some(newest.map_or(time, |current| current.max(time)));
+                }
+            }
+        }
+    }
+    newest
+}
+
+fn java_jars_are_fresh(out_dir: &PathBuf) -> bool {
+    let theseus_jar = out_dir.join("java/libs/theseus.jar");
+    let authlib_jar = out_dir.join("java/libs/authlib-injector.jar");
+    let Ok(theseus_time) = theseus_jar.metadata().and_then(|m| m.modified()) else {
+        return false;
+    };
+    let Ok(authlib_time) = authlib_jar.metadata().and_then(|m| m.modified()) else {
+        return false;
+    };
+
+    let input_paths = [
+        PathBuf::from("java/src"),
+        PathBuf::from("java/build.gradle.kts"),
+        PathBuf::from("java/settings.gradle.kts"),
+        PathBuf::from("java/gradle.properties"),
+        PathBuf::from("java/gradle"),
+    ];
+    input_paths.iter().all(|input| {
+        newest_mtime(input)
+            .map(|input_time| input_time <= theseus_time && input_time <= authlib_time)
+            .unwrap_or(true)
+    })
+}
+
 fn build_java_jars() {
     let out_dir =
         dunce::canonicalize(PathBuf::from(env::var_os("OUT_DIR").unwrap()))
@@ -118,6 +162,10 @@ fn build_java_jars() {
         out_dir.join("java/libs").display()
     );
 
+    if java_jars_are_fresh(&out_dir) {
+        return;
+    }
+
     let gradle_path = fs::canonicalize(
         #[cfg(target_os = "windows")]
         "java\\gradlew.bat",
@@ -126,14 +174,23 @@ fn build_java_jars() {
     )
     .unwrap();
 
-    let mut build_dir_str = OsString::from("-Dorg.gradle.project.buildDir=");
-    build_dir_str.push(out_dir.join("java"));
-    let exit_status = Command::new(gradle_path)
-        .arg(build_dir_str)
+    let mut command = Command::new(gradle_path);
+    command
+        .arg(format!(
+            "-Dorg.gradle.project.buildDir={}",
+            out_dir.join("java").display()
+        ))
         .arg("build")
-        .arg("--no-daemon")
         .arg("--console=rich")
-        .current_dir(dunce::canonicalize("java").unwrap())
+        .current_dir(dunce::canonicalize("java").unwrap());
+
+    // Local rebuilds keep the Gradle daemon so the next cargo build.rs run
+    // does not pay full JVM bootstrap again. CI runners are ephemeral.
+    if env::var_os("CI").is_some() {
+        command.arg("--no-daemon");
+    }
+
+    let exit_status = command
         .status()
         .expect("Failed to wait on Gradle build");
 
