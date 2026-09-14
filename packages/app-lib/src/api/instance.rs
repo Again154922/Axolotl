@@ -12,6 +12,8 @@ mod paths;
 mod planet_minecraft;
 mod projects;
 mod run;
+mod screenshot_groups;
+mod screenshots;
 mod upgrade;
 
 pub use self::content::{
@@ -71,6 +73,17 @@ pub use self::run::{
     GcLaunchIntent, GcLaunchReport, QuickPlayType, kill, run,
     run_with_extra_launch_args, run_with_extra_launch_args_with_gc,
     try_update_playtime_by_instance_id,
+};
+pub use self::screenshot_groups::{
+	ScreenshotGroup, ScreenshotGroupImport, ScreenshotGroupMembershipUpdate,
+	create_screenshot_group, delete_screenshot_group, import_screenshot_groups,
+	list_screenshot_groups, rename_screenshot_group, set_screenshot_group_memberships,
+};
+pub(crate) use self::screenshots::reconcile_screenshots;
+pub use self::screenshots::{
+	InstanceScreenshot, ScreenshotEditSaveMode, ScreenshotKey, delete_screenshots,
+	export_screenshots, get_screenshot_path, list_all_screenshots, list_screenshots,
+	list_synced_screenshots, move_screenshots, save_edited_screenshot,
 };
 pub use self::upgrade::{
     dismiss_instance_post_upgrade_notice, execute_instance_upgrade,
