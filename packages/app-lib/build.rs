@@ -7,6 +7,20 @@ use std::{env, fs};
 /// name.
 const DATA_DIR_SUFFIX_VAR: &str = "AXOLOTL_DATA_DIR_SUFFIX";
 
+/// Public service defaults for downstream builds that have no `.env`.
+/// Private Modrinth services remain disabled by Axolotl capabilities at runtime.
+const MODRINTH_ENV_DEFAULTS: &[(&str, &str)] = &[
+    ("MODRINTH_API_BASE_URL", "https://api.modrinth.com"),
+    ("MODRINTH_API_URL", "https://api.modrinth.com/v2/"),
+    ("MODRINTH_API_URL_V3", "https://api.modrinth.com/v3/"),
+    (
+        "MODRINTH_LAUNCHER_META_URL",
+        "https://launcher-meta.modrinth.com/",
+    ),
+    ("MODRINTH_URL", "https://modrinth.com/"),
+    ("MODRINTH_SOCKET_URL", "wss://disabled.invalid/"),
+];
+
 fn main() {
     // Only watch .env when it exists. A missing rerun-if-changed path keeps
     // Cargo treating the crate as dirty on every invocation.
@@ -14,6 +28,9 @@ fn main() {
         println!("cargo::rerun-if-changed=.env");
     }
     println!("cargo::rerun-if-env-changed=CURSEFORGE_API_KEY");
+    for (name, _) in MODRINTH_ENV_DEFAULTS {
+        println!("cargo::rerun-if-env-changed={name}");
+    }
     println!("cargo::rerun-if-changed=java/gradle");
     println!("cargo::rerun-if-changed=java/src");
     println!("cargo::rerun-if-changed=java/build.gradle.kts");
@@ -36,19 +53,40 @@ fn set_env() {
         .ok()
         .or_else(|| read_dotenv_literal("CURSEFORGE_API_KEY"));
 
-    for (var_name, var_value) in
-        dotenvy::dotenv_iter().into_iter().flatten().flatten()
-    {
+    let dotenv_values: Vec<(String, String)> = dotenvy::dotenv_iter()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .collect();
+
+    for (var_name, var_value) in &dotenv_values {
         if var_name == "DATABASE_URL"
             || var_name == "CURSEFORGE_API_KEY"
             || var_name == DATA_DIR_SUFFIX_VAR
+            || MODRINTH_ENV_DEFAULTS
+                .iter()
+                .any(|(name, _)| name == var_name)
         {
-            // Handled explicitly below, where an empty value can be rejected
-            // instead of baked into the crate.
+            // Handled explicitly below, where values are resolved with a
+            // stable priority chain instead of being dumped as-is.
             continue;
         }
 
         println!("cargo::rustc-env={var_name}={var_value}");
+    }
+
+    // Single source of truth for env!() service URLs. Prefer local .env, then
+    // an explicit process-env export, then public defaults. Always emit
+    // rustc-env so Cargo does not mix process-env fingerprints with a
+    // different baked value (which marked theseus dirty on every rebuild).
+    for (name, default) in MODRINTH_ENV_DEFAULTS {
+        let value = dotenv_values
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.clone())
+            .or_else(|| env::var(name).ok().filter(|value| !value.is_empty()))
+            .unwrap_or_else(|| (*default).to_string());
+        println!("cargo::rustc-env={name}={value}");
     }
 
     if let Some(curseforge_api_key) = curseforge_api_key {
