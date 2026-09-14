@@ -193,6 +193,11 @@ export type AppSettings = {
 
 	developer_mode: boolean
 	feature_flags: Record<FeatureFlag, boolean>
+	sync_features_across_devices: boolean
+	show_files_tab_in_instances: boolean
+	show_worlds_tab_in_instances: boolean
+	show_screenshots_tab_in_instances: boolean
+	show_skin_selector_in_sidebar: boolean
 
 	skipped_update: string | null
 	pending_update_toast_for_version: string | null
@@ -243,6 +248,11 @@ function normalizeDownloadSettings(settings: AppSettings & LegacyMirrorSettings)
 	settings.mojang_auth_source ??= 'auto'
 	settings.terracotta_public_nodes ??= ['wss://center.node.1tmc.top']
 	settings.feature_flags ??= { ...DEFAULT_FEATURE_FLAGS }
+	settings.sync_features_across_devices ??= true
+	settings.show_files_tab_in_instances ??= true
+	settings.show_worlds_tab_in_instances ??= true
+	settings.show_screenshots_tab_in_instances ??= false
+	settings.show_skin_selector_in_sidebar ??= true
 	for (const [key, value] of Object.entries(DEFAULT_FEATURE_FLAGS)) {
 		settings.feature_flags[key as FeatureFlag] ??= value
 	}

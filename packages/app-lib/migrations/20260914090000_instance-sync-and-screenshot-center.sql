@@ -13,7 +13,9 @@ VALUES
 	('multiplayer_servers', 1, 1),
 	('creative_hotbars', 1, 1),
 	('screenshots', 1, 1),
-	('game_options', 0, 1);
+	('game_options', 0, 1),
+	('resource_packs', 0, 1),
+	('data_packs', 0, 1);
 
 CREATE TABLE instance_sync_preferences (
 	instance_id TEXT NOT NULL,
@@ -39,6 +41,14 @@ CROSS JOIN (
 
 INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
 SELECT id, 'game_options', 0 FROM instances;
+
+INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
+SELECT instances.id, features.feature, 1
+FROM instances
+CROSS JOIN (
+	SELECT 'resource_packs' AS feature
+	UNION ALL SELECT 'data_packs'
+) AS features;
 
 CREATE TABLE synced_game_option_state (
 	singleton INTEGER PRIMARY KEY NOT NULL CHECK (singleton = 1),
