@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n\t\tSELECT *\n\t\tFROM instance_files\n\t\tWHERE instance_id = ? AND relative_path = ?\n\t\t",
+  "query": "\n\t\tSELECT *\n\t\tFROM instance_content_entries\n\t\tWHERE content_set_id = ?\n\t\tORDER BY added_at ASC, id ASC\n\t\t",
   "describe": {
     "columns": [
       {
@@ -14,54 +14,72 @@
         "type_info": "Text"
       },
       {
-        "name": "relative_path",
+        "name": "content_set_id",
         "ordinal": 2,
         "type_info": "Text"
       },
       {
-        "name": "file_name",
+        "name": "file_id",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "enabled",
+        "name": "project_type",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "sha1",
+        "name": "project_id",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "size",
+        "name": "version_id",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "missing",
+        "name": "source_kind",
         "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "server_requirement",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "client_requirement",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "enabled",
+        "ordinal": 10,
         "type_info": "Integer"
       },
       {
         "name": "added_at",
-        "ordinal": 8,
+        "ordinal": 11,
         "type_info": "Integer"
       },
       {
         "name": "modified_at",
-        "ordinal": 9,
+        "ordinal": 12,
         "type_info": "Integer"
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false,
       false,
       false,
+      true,
       false,
+      true,
+      true,
       false,
       false,
       false,
@@ -70,5 +88,5 @@
       false
     ]
   },
-  "hash": "3a6a810f35329133faf35bec48d55230904ec66d400171e94e9d36af24c458f3"
+  "hash": "1f0fe2b4a4c39b3083cd34f4816d2d2c7babd876d979d275ad62cf70cde678fe"
 }

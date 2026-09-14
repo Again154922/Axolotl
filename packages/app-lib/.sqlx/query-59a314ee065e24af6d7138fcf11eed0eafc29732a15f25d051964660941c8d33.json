@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n\t\tSELECT *\n\t\tFROM instance_files\n\t\tWHERE instance_id = ? AND relative_path = ?\n\t\t",
+  "query": "\n\t\tINSERT INTO instance_files (\n\t\t\tid,\n\t\t\tinstance_id,\n\t\t\trelative_path,\n\t\t\tfile_name,\n\t\t\tenabled,\n\t\t\tsha1,\n\t\t\tsize,\n\t\t\tmissing,\n\t\t\tadded_at,\n\t\t\tmodified_at\n\t\t)\n\t\tVALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\t\tON CONFLICT (instance_id, relative_path) DO UPDATE SET\n\t\t\tfile_name = excluded.file_name,\n\t\t\tenabled = excluded.enabled,\n\t\t\tsha1 = excluded.sha1,\n\t\t\tsize = excluded.size,\n\t\t\tmissing = excluded.missing,\n\t\t\tmodified_at = excluded.modified_at\n\t\tRETURNING\n\t\t\tid,\n\t\t\tinstance_id,\n\t\t\trelative_path,\n\t\t\tfile_name,\n\t\t\tenabled,\n\t\t\tsha1,\n\t\t\tsize,\n\t\t\tmissing,\n\t\t\tadded_at,\n\t\t\tmodified_at\n\t\t",
   "describe": {
     "columns": [
       {
@@ -55,7 +55,7 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 10
     },
     "nullable": [
       false,
@@ -70,5 +70,5 @@
       false
     ]
   },
-  "hash": "3a6a810f35329133faf35bec48d55230904ec66d400171e94e9d36af24c458f3"
+  "hash": "59a314ee065e24af6d7138fcf11eed0eafc29732a15f25d051964660941c8d33"
 }

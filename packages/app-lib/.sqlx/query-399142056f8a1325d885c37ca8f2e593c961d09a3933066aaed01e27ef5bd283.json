@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n\t\tSELECT *\n\t\tFROM instance_files\n\t\tWHERE instance_id = ?\n\t\tORDER BY relative_path ASC\n\t\t",
+  "query": "\n\t\tSELECT *\n\t\tFROM instances\n\t\tWHERE id = ?\n\t\t",
   "describe": {
     "columns": [
       {
@@ -9,48 +9,63 @@
         "type_info": "Text"
       },
       {
-        "name": "instance_id",
+        "name": "path",
         "ordinal": 1,
         "type_info": "Text"
       },
       {
-        "name": "relative_path",
+        "name": "applied_content_set_id",
         "ordinal": 2,
         "type_info": "Text"
       },
       {
-        "name": "file_name",
+        "name": "install_stage",
         "ordinal": 3,
         "type_info": "Text"
       },
       {
-        "name": "enabled",
+        "name": "launcher_feature_version",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "sha1",
+        "name": "update_channel",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "size",
+        "name": "name",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "missing",
+        "name": "icon_path",
         "ordinal": 7,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "added_at",
+        "name": "created",
         "ordinal": 8,
         "type_info": "Integer"
       },
       {
-        "name": "modified_at",
+        "name": "modified",
         "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_played",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "submitted_time_played",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "recent_time_played",
+        "ordinal": 12,
         "type_info": "Integer"
       }
     ],
@@ -60,15 +75,18 @@
     "nullable": [
       false,
       false,
+      true,
       false,
       false,
       false,
       false,
+      true,
       false,
       false,
+      true,
       false,
       false
     ]
   },
-  "hash": "215fd59e6532ee2994dc78ef187c33a60a17a64e75b3ae0e27ef8a7b441af710"
+  "hash": "399142056f8a1325d885c37ca8f2e593c961d09a3933066aaed01e27ef5bd283"
 }
