@@ -30,12 +30,12 @@ import {
 import { syncedPackKeys, syncedPackQueryOptions } from '@/helpers/synced-packs'
 import { instanceKeys, instanceListQueryOptions } from '@/pages/instance/query-options'
 
-import GameSettingsModal from '../game-settings-modal/index.vue'
-import SyncedPacksModal from '../SyncedPacksModal.vue'
-import SyncSourceModal from '../SyncSourceModal.vue'
 import CommandHistoryModal from './command-history-modal.vue'
+import GameSettingsModal from './game-settings-modal/index.vue'
 import LaunchOptions from './launch-options.vue'
 import SyncedServersModal from './servers-modal.vue'
+import SyncedPacksModal from './SyncedPacksModal.vue'
+import SyncSourceModal from './SyncSourceModal.vue'
 
 const { handleError } = injectNotificationManager()
 const { formatMessage } = useVIntl()

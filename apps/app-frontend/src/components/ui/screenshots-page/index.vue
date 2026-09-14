@@ -14,7 +14,7 @@ import {
 	FileArchiveIcon,
 	FolderOpenIcon,
 	MinusIcon,
-	SquarePlusIcon,
+	PlusIcon,
 	TrashIcon,
 	XIcon,
 } from '@modrinth/assets'
@@ -25,13 +25,10 @@ import {
 	type ComboboxOption,
 	commonMessages,
 	ConfirmModal,
-	ContextMenu,
 	defineMessages,
 	EmptyState,
 	FloatingActionBar,
 	IconButton,
-	ImageViewerEditor,
-	type ImageViewerEditorSavePayload,
 	injectNotificationManager,
 	ReadyTransition,
 	useDebugLogger,
@@ -48,6 +45,7 @@ import dayjs from 'dayjs'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import ContextMenu from '@/components/ui/ContextMenu.vue'
 import { useAppEvent } from '@/composables/use-app-event'
 import {
 	create_screenshot_group,
@@ -81,6 +79,7 @@ import ScreenshotDragPreview from './drag-preview.vue'
 import ScreenshotGroupSection from './group.vue'
 import ScreenshotToolbar from './toolbar.vue'
 import { type ActiveScreenshotDrag, useScreenshotDragGather } from './use-screenshot-drag-gather'
+import ImageViewerEditor, { type ScreenshotViewerSavePayload } from './viewer.vue'
 
 type ScreenshotSort = 'newest' | 'oldest' | 'name'
 type ScreenshotGroupBy = 'custom' | 'instance' | 'date' | 'none'
@@ -710,7 +709,7 @@ const saveEditMutation = useMutation({
 	onError: handleError,
 })
 
-function saveScreenshotEdit(payload: ImageViewerEditorSavePayload) {
+function saveScreenshotEdit(payload: ScreenshotViewerSavePayload) {
 	const screenshot = screenshotBySelectionKey(payload.item.id)
 	if (!screenshot) return
 	saveEditMutation.mutate({
@@ -1664,7 +1663,7 @@ onBeforeUnmount(() => {
 				:disabled="bulkBusy"
 				@click="createCustomGroup"
 			>
-				<SquarePlusIcon />
+				<PlusIcon />
 				<span class="bar-label">{{ formatMessage(messages.newGroup) }}</span>
 			</Button>
 			<Button

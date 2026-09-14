@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUpDownIcon, LayoutGridIcon, SearchIcon, SquarePlusIcon } from '@modrinth/assets'
+import { ArrowUpDownIcon, LayoutGridIcon, PlusIcon, SearchIcon } from '@modrinth/assets'
 import {
 	Button,
 	Combobox,
@@ -43,7 +43,7 @@ const messages = defineMessages({
 				wrapper-class="min-w-[16rem] flex-1"
 			/>
 			<Button @click="emit('new-group')">
-				<SquarePlusIcon />
+				<PlusIcon />
 				{{ formatMessage(messages.newGroup) }}
 			</Button>
 		</div>

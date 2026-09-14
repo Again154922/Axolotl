@@ -9,7 +9,7 @@ import {
 	type ContentItem,
 	type ContentOwner,
 } from '@modrinth/ui'
-import { invoke } from '@tauri-apps/api/core'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
 import { isOfflineMode } from '@/composables/useNetworkStatus'
 import { buildGcCandidateChain, resolveAutoGcStrategy } from '@/helpers/gc/auto-selector'
@@ -1280,6 +1280,12 @@ export async function set_screenshot_group_memberships(
 }
 export async function delete_screenshots(keys: ScreenshotKey[]): Promise<void> {
 	return await invoke('plugin:instance|instance_delete_screenshots', { keys })
+}
+export async function export_screenshots(keys: ScreenshotKey[], path: string): Promise<void> {
+	return await invoke('plugin:instance|instance_export_screenshots', { keys, path })
+}
+export function getInstanceIconUrl(iconPath?: string | null): string | undefined {
+	return iconPath ? convertFileSrc(iconPath) : undefined
 }
 export async function move_screenshots(
 	keys: ScreenshotKey[],

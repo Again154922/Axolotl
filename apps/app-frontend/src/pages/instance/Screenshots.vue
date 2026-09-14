@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import ScreenshotsPage from '@/components/ui/screenshots-page/index.vue'
 import { useRoute } from 'vue-router'
+
+import ScreenshotsPage from '@/components/ui/screenshots-page/index.vue'
 
 const route = useRoute()
 </script>
