@@ -132,7 +132,12 @@ export async function get_synced_options_overview(instanceId: string): Promise<S
 }
 export async function get_command_history(): Promise<string> { return await invoke('plugin:instance|instance_get_synced_command_history') }
 export async function set_command_history(contents: string): Promise<string> { return await invoke('plugin:instance|instance_set_synced_command_history', { contents }) }
-export type SyncedServer = { id: string; position: number; nbt: number[] }
+export type SyncedServer = {
+	id: string
+	name: string
+	address: string
+	accept_textures: boolean | null
+}
 export async function list_synced_servers(): Promise<SyncedServer[]> { return await invoke('plugin:instance|instance_list_synced_servers') }
 export async function update_synced_server(server: SyncedServer): Promise<void> { await invoke('plugin:instance|instance_update_synced_server', { server }) }
 export async function remove_synced_server(id: string): Promise<void> { await invoke('plugin:instance|instance_remove_synced_server', { id }) }
