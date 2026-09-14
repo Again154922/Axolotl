@@ -112,6 +112,7 @@ pub use self::synced_options::{
 	get_overview as get_synced_options_overview,
 	set_global_option as set_global_synced_option,
 };
+pub use crate::state::SyncedOption;
 pub use self::upgrade::{
     dismiss_instance_post_upgrade_notice, execute_instance_upgrade,
     get_instance_post_upgrade_notice, get_instance_upgrade_plan,
