@@ -24,13 +24,9 @@ pub(crate) mod synced_packs {
 	pub(crate) async fn seed_from_instance<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
 }
 pub(crate) mod synced_servers {
-	pub(crate) async fn merge_servers_from_instance<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn reconcile_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn seed_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn ensure_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn detach_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
-	pub(crate) async fn canonical_exists<T>(_: T) -> crate::Result<bool> { Ok(false) }
+    pub(crate) use super::synced_servers_axolotl::{merge_servers_from_instance,reconcile_servers,seed_servers,ensure_servers,detach_servers,canonical_exists};
 }
+mod synced_servers_axolotl;
 mod upgrade;
 
 pub use self::content::{
@@ -116,6 +112,7 @@ pub use self::synced_options::{
     set_command_history as set_synced_command_history,
 };
 pub use crate::state::SyncedOption;
+pub use self::synced_servers_axolotl::{SyncedServer, list_synced_servers, update_synced_server, remove_synced_server};
 pub use self::upgrade::{
     dismiss_instance_post_upgrade_notice, execute_instance_upgrade,
     get_instance_post_upgrade_notice, get_instance_upgrade_plan,
