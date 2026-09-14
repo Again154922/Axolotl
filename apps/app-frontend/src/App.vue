@@ -3476,7 +3476,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	// from the nav/content boundary during page-layer compositing.
 	position: absolute;
 	inset: 0;
-	border-radius: var(--radius-xl);
+	border-top-left-radius: var(--radius-xl);
 	box-shadow: 1px 1px 15px rgba(0, 0, 0, 0.1) inset;
 	border-color: var(--surface-5);
 	border-width: 1px;
