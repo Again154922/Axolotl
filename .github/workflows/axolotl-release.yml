@@ -102,9 +102,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       SQLX_OFFLINE: true
-      # Cargo.toml defaults release LTO to thin for faster local `pnpm app:build`.
-      # Published binaries keep fat LTO. PR CI (axolotl-ci.yml) sets this to
-      # false so Windows packaging stays fast.
+      # Cargo.toml keeps release LTO off for local/CI builds. Published
+      # binaries force fat LTO here. PR CI (axolotl-ci.yml) also sets this
+      # to false explicitly for Windows packaging.
       CARGO_PROFILE_RELEASE_LTO: 'true'
     steps:
       - name: Check out source
