@@ -15,6 +15,8 @@ pub struct InstanceMetadata {
     pub launch_overrides: InstanceLaunchOverrides,
     #[serde(default)]
     pub loader_components: Vec<LoaderComponent>,
+	#[serde(default)]
+	pub synced_options: crate::state::InstanceSyncedOptions,
 }
 
 pub(crate) async fn get_instance(
@@ -88,6 +90,7 @@ impl InstanceMetadata {
             groups: record.groups,
             launch_overrides: record.launch_overrides,
             loader_components,
+            synced_options: crate::state::InstanceSyncedOptions::default(),
         }
     }
 }

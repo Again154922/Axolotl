@@ -1,6 +1,7 @@
 use super::super::options_file::{input_error, sha1_bytes};
 use super::archive::{self, ArchiveIndex};
 use crate::state::{CachedEntry, InstanceMetadata, Project, State};
+use crate::state::ModrinthProjectId;
 use crate::util::{fetch, io};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -30,8 +31,7 @@ pub(super) async fn mod_projects(
         &state.api_semaphore,
     )
     .await?;
-    let project_ids: std::collections::HashSet<_> =
-        files.iter().map(|file| file.project_id.as_str()).collect();
+    let project_ids: std::collections::HashSet<_> = files.iter().filter_map(|file| ModrinthProjectId::new(file.project_id.as_str().to_string()).ok()).collect();
     let projects = CachedEntry::get_project_many(
         &project_ids.into_iter().collect::<Vec<_>>(),
         None,

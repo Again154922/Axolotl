@@ -1,6 +1,6 @@
 mod command_history;
 mod files;
-pub(super) mod game_options;
+pub(crate) mod game_options;
 mod hotbars;
 mod orchestration;
 pub(in crate::api::instance) mod pending;

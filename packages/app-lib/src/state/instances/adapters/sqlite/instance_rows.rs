@@ -1441,6 +1441,23 @@ pub(crate) async fn delete_instance_by_id(
     Ok(())
 }
 
+pub(crate) async fn set_instance_sync_preference(
+    instance_id: &str,
+    option: crate::state::SyncedOption,
+    enabled: bool,
+    pool: &SqlitePool,
+) -> crate::Result<()> {
+    sqlx::query(
+        "UPDATE instance_sync_preferences SET enabled = ? WHERE instance_id = ? AND feature = ?",
+    )
+    .bind(enabled)
+    .bind(instance_id)
+    .bind(option.as_str())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 struct InstanceLinkColumns {
     link_kind: &'static str,
     modrinth_project_id: Option<String>,

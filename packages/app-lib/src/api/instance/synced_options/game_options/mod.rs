@@ -25,7 +25,7 @@ mod fullscreen;
 mod instance_support;
 mod launch_overrides;
 mod local_settings_editor;
-mod locales;
+pub(crate) mod locales;
 mod options_file;
 mod pack_updates;
 mod read_instance_changes;

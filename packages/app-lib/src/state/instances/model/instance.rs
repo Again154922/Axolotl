@@ -20,6 +20,7 @@ pub struct InstanceSyncedOptions {
 pub enum SyncedOption { GameOptions, CommandHistory, MultiplayerServers, CreativeHotbars, Screenshots, ResourcePacks, DataPacks }
 
 impl SyncedOption {
+	pub const ALL: [Self; 7] = [Self::GameOptions, Self::CommandHistory, Self::MultiplayerServers, Self::CreativeHotbars, Self::Screenshots, Self::ResourcePacks, Self::DataPacks];
 	pub const fn is_available(self) -> bool { !matches!(self, Self::DataPacks) }
 	pub const fn as_str(self) -> &'static str { match self { Self::GameOptions => "game_options", Self::CommandHistory => "command_history", Self::MultiplayerServers => "multiplayer_servers", Self::CreativeHotbars => "creative_hotbars", Self::Screenshots => "screenshots", Self::ResourcePacks => "resource_packs", Self::DataPacks => "data_packs" } }
 }

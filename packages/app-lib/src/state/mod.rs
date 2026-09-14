@@ -29,12 +29,19 @@ pub use self::instances::*;
 mod settings;
 pub use self::settings::*;
 
+mod game_options;
+pub use self::game_options::*;
+
 mod proxy_settings;
 
 mod installer_settings;
 
 mod process;
 pub use self::process::*;
+
+pub(crate) async fn instance_has_running_process(instance_id: &str, state: &State) -> crate::Result<bool> {
+	Ok(state.process_manager.has_instance_process(instance_id))
+}
 
 mod java_globals;
 pub use self::java_globals::*;
@@ -154,11 +161,17 @@ pub struct State {
 
     pub(crate) file_watcher: FileWatcher,
 	pub(crate) screenshot_locks: DashMap<String, Arc<AsyncMutex<()>>>,
+	pub(crate) synced_options_lock: Arc<AsyncMutex<()>>,
+	pub(crate) game_locale_indexer: crate::api::instance::synced_options::game_options::locales::GameLocaleIndexer,
 }
 
 impl State {
 	pub(crate) async fn lock_instance_screenshots(&self, instance_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
 		self.screenshot_locks.entry(instance_id.to_string()).or_insert_with(|| Arc::new(AsyncMutex::new(()))).clone().lock_owned().await
+	}
+
+	pub(crate) async fn lock_synced_options(&self) -> tokio::sync::OwnedMutexGuard<()> {
+		self.synced_options_lock.clone().lock_owned().await
 	}
 }
 
@@ -930,8 +943,10 @@ impl State {
             pool,
             configured_http_client: RwLock::new(configured_http_client),
             configured_http_client_update: AsyncMutex::new(()),
-            file_watcher,
+			file_watcher,
 			screenshot_locks: DashMap::new(),
+			synced_options_lock: Arc::new(AsyncMutex::new(())),
+			game_locale_indexer: Default::default(),
             // app_identifier,
         }))
     }
@@ -999,8 +1014,10 @@ pub(crate) async fn test_state(
         pool,
         configured_http_client: RwLock::new(configured_http_client),
         configured_http_client_update: AsyncMutex::new(()),
-        file_watcher,
+		file_watcher,
 		screenshot_locks: DashMap::new(),
+		synced_options_lock: Arc::new(AsyncMutex::new(())),
+		game_locale_indexer: Default::default(),
     }))
 }
 

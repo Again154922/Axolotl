@@ -14,6 +14,23 @@ mod projects;
 mod run;
 mod screenshot_groups;
 mod screenshots;
+pub(crate) mod synced_options;
+pub(crate) mod synced_packs {
+	pub(crate) fn schedule_reconciliation() {}
+	pub(crate) async fn detach<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn prepare_instance_update<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn reconcile<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn capture_resource_pack_selection_change<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn seed_from_instance<T, U, V>(_: T, _: U, _: V) -> crate::Result<()> { Ok(()) }
+}
+pub(crate) mod synced_servers {
+	pub(crate) async fn merge_servers_from_instance<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn reconcile_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn seed_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn ensure_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn detach_servers<T, U>(_: T, _: U) -> crate::Result<()> { Ok(()) }
+	pub(crate) async fn canonical_exists<T>(_: T) -> crate::Result<bool> { Ok(false) }
+}
 mod upgrade;
 
 pub use self::content::{
@@ -84,6 +101,16 @@ pub use self::screenshots::{
 	InstanceScreenshot, ScreenshotEditSaveMode, ScreenshotKey, delete_screenshots,
 	export_screenshots, get_screenshot_path, list_all_screenshots, list_screenshots,
 	list_synced_screenshots, move_screenshots, save_edited_screenshot,
+};
+pub use self::synced_options::{
+	GlobalSyncedOptions, SyncedOptionCapability, SyncedOptionJoinAction,
+	SyncedOptionJoinPreview, SyncedOptionJoinResolution, SyncedOptionsOverview,
+	get_capabilities as get_synced_option_capabilities,
+	get_global_options as get_global_synced_options,
+	get_initialized_options as get_initialized_synced_options,
+	get_instance_option_join_preview as get_synced_option_join_preview,
+	get_overview as get_synced_options_overview,
+	set_global_option as set_global_synced_option,
 };
 pub use self::upgrade::{
     dismiss_instance_post_upgrade_notice, execute_instance_upgrade,

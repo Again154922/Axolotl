@@ -61,9 +61,7 @@ fn pack_version_id(metadata: &InstanceMetadata) -> Option<&str> {
         InstanceLink::ImportedModpack { version_id, .. } => {
             version_id.as_deref()
         }
-        InstanceLink::SharedInstance {
-            modpack_version_id, ..
-        } => modpack_version_id.as_deref(),
+        InstanceLink::SharedInstance { .. } => None,
         _ => None,
     }
 }

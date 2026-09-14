@@ -12,7 +12,8 @@ VALUES
 	('command_history', 1, 1),
 	('multiplayer_servers', 1, 1),
 	('creative_hotbars', 1, 1),
-	('screenshots', 1, 1);
+	('screenshots', 1, 1),
+	('game_options', 0, 1);
 
 CREATE TABLE instance_sync_preferences (
 	instance_id TEXT NOT NULL,
@@ -35,6 +36,55 @@ CROSS JOIN (
 	UNION ALL SELECT 'creative_hotbars', 0
 	UNION ALL SELECT 'screenshots', 1
 ) AS features;
+
+INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
+SELECT id, 'game_options', 0 FROM instances;
+
+CREATE TABLE synced_game_option_state (
+	singleton INTEGER PRIMARY KEY NOT NULL CHECK (singleton = 1),
+	revision INTEGER NOT NULL CHECK (revision >= 0),
+	catalog_revision INTEGER NOT NULL CHECK (catalog_revision >= 1)
+);
+
+CREATE TABLE synced_game_option_values (
+	option_id TEXT PRIMARY KEY NOT NULL,
+	kind TEXT NOT NULL CHECK (kind IN ('vanilla', 'external')),
+	raw_key TEXT,
+	canonical_type TEXT NOT NULL,
+	canonical_value_json TEXT,
+	value_codec TEXT NOT NULL,
+	seeded INTEGER NOT NULL CHECK (seeded IN (0, 1)),
+	revision INTEGER NOT NULL CHECK (revision >= 0),
+	origin TEXT NOT NULL CHECK (origin IN ('app_editor', 'instance', 'source_seed')),
+	source_game_version TEXT,
+	source_instance_id TEXT,
+	updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE synced_game_option_preferences (
+	option_id TEXT PRIMARY KEY NOT NULL,
+	enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+	source TEXT NOT NULL CHECK (source IN ('catalog_default', 'discovery_default', 'user')),
+	revision INTEGER NOT NULL CHECK (revision >= 0)
+);
+
+CREATE TABLE instance_game_option_pack_bases (
+	instance_id TEXT PRIMARY KEY NOT NULL,
+	pack_version_id TEXT,
+	source TEXT NOT NULL CHECK (source IN ('client_overrides', 'overrides', 'none')),
+	sha1 TEXT,
+	encoding TEXT,
+	document BLOB,
+	FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
+);
+
+CREATE TABLE instance_game_option_update_state (
+	instance_id TEXT PRIMARY KEY NOT NULL,
+	had_file INTEGER NOT NULL CHECK (had_file IN (0, 1)),
+	sha1 TEXT,
+	document BLOB,
+	FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
+);
 
 CREATE TABLE instance_sync_checkpoints (
 	instance_id TEXT NOT NULL,
@@ -133,7 +183,6 @@ CREATE INDEX screenshot_group_memberships_group_id ON screenshot_group_membershi
 
 ALTER TABLE screenshots ADD COLUMN editor_state TEXT;
 ALTER TABLE settings ADD COLUMN sync_features_across_devices INTEGER NOT NULL DEFAULT TRUE;
-UPDATE settings SET sync_features_across_devices = sync_behavior_across_devices;
 
 ALTER TABLE settings ADD COLUMN show_files_tab_in_instances INTEGER NOT NULL DEFAULT TRUE CHECK (show_files_tab_in_instances IN (0, 1));
 ALTER TABLE settings ADD COLUMN show_worlds_tab_in_instances INTEGER NOT NULL DEFAULT TRUE CHECK (show_worlds_tab_in_instances IN (0, 1));

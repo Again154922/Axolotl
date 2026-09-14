@@ -255,6 +255,10 @@ impl ProcessManager {
         }
     }
 
+    pub fn has_instance_process(&self, instance_id: &str) -> bool {
+        self.processes.iter().any(|entry| entry.value().metadata.instance_id == instance_id)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn insert_new_process(
         &self,
