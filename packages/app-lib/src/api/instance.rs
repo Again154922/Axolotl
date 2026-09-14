@@ -111,6 +111,7 @@ pub use self::synced_options::{
 	get_instance_option_join_preview as get_synced_option_join_preview,
 	get_overview as get_synced_options_overview,
 	set_global_option as set_global_synced_option,
+    set_instance_option as set_instance_synced_option,
     get_command_history as get_synced_command_history,
     set_command_history as set_synced_command_history,
 };
