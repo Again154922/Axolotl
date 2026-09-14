@@ -128,6 +128,8 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_get_synced_option_capabilities,
             instance_get_synced_option_join_preview,
             instance_set_synced_option,
+            instance_get_synced_command_history,
+            instance_set_synced_command_history,
         ])
         .build()
 }
@@ -155,6 +157,16 @@ pub async fn instance_get_synced_option_join_preview(instance_id: String, option
 #[tauri::command]
 pub async fn instance_set_synced_option(option: theseus::instance::SyncedOption, enabled: bool, base_instance_id: Option<String>) -> Result<theseus::instance::GlobalSyncedOptions> {
     Ok(theseus::instance::set_global_synced_option(option, enabled, base_instance_id.as_deref()).await?)
+}
+
+#[tauri::command]
+pub async fn instance_get_synced_command_history() -> Result<String> {
+    Ok(theseus::instance::get_synced_command_history().await?)
+}
+
+#[tauri::command]
+pub async fn instance_set_synced_command_history(contents: String) -> Result<String> {
+    Ok(theseus::instance::set_synced_command_history(&contents).await?)
 }
 
 #[derive(Serialize, Debug, Clone)]
