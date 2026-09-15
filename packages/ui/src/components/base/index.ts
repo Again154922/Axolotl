@@ -10,6 +10,7 @@ export { default as BigOptionButton } from './BigOptionButton.vue'
 export { default as BulletDivider } from './BulletDivider.vue'
 export { default as Button } from './Button.vue'
 export { default as NewButton } from './buttons/Button.vue'
+export { default as CheckCircleButton } from './buttons/CheckCircleButton.vue'
 export { default as IconButton } from './buttons/IconButton.vue'
 export type {
 	ButtonColor,
@@ -23,7 +24,6 @@ export type {
 export { default as ButtonStyled } from './ButtonStyled.vue'
 export { default as Card } from './Card.vue'
 export { default as Checkbox } from './Checkbox.vue'
-export { default as CheckCircleButton } from './buttons/CheckCircleButton.vue'
 export { default as Chips } from './Chips.vue'
 export { default as Collapsible } from './Collapsible.vue'
 export type { CollapsibleAdmonitionItem } from './CollapsibleAdmonition.vue'
@@ -80,7 +80,6 @@ export { default as NavTabs } from './NavTabs.vue'
 export { default as OptionGroup } from './OptionGroup.vue'
 export type { Option as OverflowMenuOption } from './OverflowMenu.vue'
 export { default as OverflowMenu } from './OverflowMenu.vue'
-export { default as TeleportOverflowMenu } from './TeleportOverflowMenu.vue'
 export { default as Page } from './Page.vue'
 export { default as Pagination } from './Pagination.vue'
 export { default as PopoutMenu } from './PopoutMenu.vue'
@@ -109,6 +108,7 @@ export type { TabsTab, TabsValue } from './Tabs.vue'
 export { default as Tabs } from './Tabs.vue'
 export { default as TagItem } from './TagItem.vue'
 export { default as TagTagItem } from './TagTagItem.vue'
+export { default as TeleportOverflowMenu } from './TeleportOverflowMenu.vue'
 export type {
 	TimeFrameLastUnit,
 	TimeFrameLastUnitOption,
