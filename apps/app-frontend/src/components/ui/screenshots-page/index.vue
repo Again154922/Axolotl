@@ -29,6 +29,8 @@ import {
 	EmptyState,
 	FloatingActionBar,
 	IconButton,
+	ImageViewerEditor,
+	type ImageViewerEditorSavePayload,
 	injectNotificationManager,
 	ReadyTransition,
 	useDebugLogger,
@@ -79,7 +81,6 @@ import ScreenshotDragPreview from './drag-preview.vue'
 import ScreenshotGroupSection from './group.vue'
 import ScreenshotToolbar from './toolbar.vue'
 import { type ActiveScreenshotDrag, useScreenshotDragGather } from './use-screenshot-drag-gather'
-import ImageViewerEditor, { type ScreenshotViewerSavePayload } from './viewer.vue'
 
 type ScreenshotSort = 'newest' | 'oldest' | 'name'
 type ScreenshotGroupBy = 'custom' | 'instance' | 'date' | 'none'
@@ -709,7 +710,7 @@ const saveEditMutation = useMutation({
 	onError: handleError,
 })
 
-function saveScreenshotEdit(payload: ScreenshotViewerSavePayload) {
+function saveScreenshotEdit(payload: ImageViewerEditorSavePayload) {
 	const screenshot = screenshotBySelectionKey(payload.item.id)
 	if (!screenshot) return
 	saveEditMutation.mutate({
