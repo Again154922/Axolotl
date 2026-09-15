@@ -100,10 +100,10 @@ sudo apt install axolotl-launcher
 
 ```bash
 # 源码构建版
-nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.git
+nix profile add 'git+https://github.com/Mystic-Stars/Axolotl#axolotl-launcher.git'
 
 # 预编译二进制版
-nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
+nix profile add 'git+https://github.com/Mystic-Stars/Axolotl#axolotl-launcher.bin'
 ```
 
 **使用 Home-Manager 的 NixOS 或任意其他发行版**
@@ -113,21 +113,19 @@ nix profile add 'github:Mystic-Stars/Axolotl'#axolotl-launcher.bin
 # flake.nix
 {
   inputs = {
-    home-manager = {
-      url = "github:nix-community/home-manager/master";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # nixpkgs home-manager 等其他输入...
     axolotl-launcher = {
       url = "git+https://github.com/Mystic-Stars/Axolotl";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-  outputs = { home-manager, axolotl-launcher, ... }: {
+  outputs = { axolotl-launcher, <其他输入>, ... }: {
     homeConfigurations = {
-      <UserName> = home-manager.lib.homeManagerConfiguration {
+      <用户名> = home-manager.lib.homeManagerConfiguration {
         modules = [
           home.nix
           axolotl-launcher.homeModules
+          # 其他模块
         ];
       };
     };

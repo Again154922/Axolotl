@@ -58,8 +58,6 @@ in
     profile = ''
       set -o allexport
       ${lib.toShellVars launchEnv}
-      GIO_MODULE_DIR="/lib/gio/modules"
-      SSL_CERT_FILE="/etc/ssl/certs/ca-bundle.crt"
       set +o allexport
     '';
     runScript = ''

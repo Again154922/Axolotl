@@ -3,6 +3,7 @@
   callPackage,
   fetchurl,
   fetchPnpmDeps,
+  lib,
   makeShellWrapper,
   stdenv,
 
@@ -27,7 +28,24 @@
 let
   pname = "axolotl-git";
   version = with builtins; (fromJSON (readFile ../../apps/app-frontend/package.json)).version;
-  src = ../..;
+  src = with lib.fileset; toSource {
+    root = ../..;
+    fileset = unions [
+      ../../.cargo
+      ../../apps
+      ../../packages
+      ../../patches
+      ../../scripts
+      ../../third-party
+      ../../Cargo.lock
+      ../../Cargo.toml
+      ../../package.json
+      ../../pnpm-lock.yaml
+      ../../pnpm-workspace.yaml
+      ../../rust-toolchain.toml
+      ../../turbo.jsonc
+    ];
+  };
 
   blockbench = callPackage ./blockbench.nix { inherit inputs; };
 
