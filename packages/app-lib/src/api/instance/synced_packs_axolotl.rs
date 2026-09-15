@@ -837,6 +837,33 @@ pub(crate) async fn seed_from_instance(
         let enabled = !file_name.ends_with(".disabled");
         let file_name = file_name.trim_end_matches(".disabled");
         let now = Utc::now().timestamp();
+        let replaced_rows = sqlx::query_as::<_, PackRow>(
+            "SELECT id, project_type, file_name, sha1, size, game_versions_json, enabled
+             FROM synced_pack_catalog
+             WHERE project_type = ? AND file_name = ? AND sha1 != ?",
+        )
+        .bind(project_type.get_name())
+        .bind(file_name)
+        .bind(&sha1)
+        .fetch_all(&state.pool)
+        .await?;
+        for replaced in replaced_rows {
+            let targets = sqlx::query(
+                "SELECT instance_id FROM synced_pack_instances WHERE pack_id = ?",
+            )
+            .bind(&replaced.id)
+            .fetch_all(&state.pool)
+            .await?;
+            for target in targets {
+                let target_id: String = target.try_get("instance_id")?;
+                if let Some(target_metadata) =
+                    crate::state::get_instance(&target_id, &state.pool).await?
+                {
+                    cleanup_materialization(state, &replaced, &target_metadata)
+                        .await?;
+                }
+            }
+        }
         let mut transaction = state.pool.begin().await?;
         sqlx::query(
             "DELETE FROM synced_pack_catalog
