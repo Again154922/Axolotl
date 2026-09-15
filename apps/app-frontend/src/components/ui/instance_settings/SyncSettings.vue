@@ -44,9 +44,7 @@ const messages = defineMessages({
 		id: 'instance.settings.sync.creative-hotbars',
 		defaultMessage: 'Creative hotbars',
 	},
-	screenshots: { id: 'instance.settings.sync.screenshots', defaultMessage: 'Screenshots' },
 	resourcePacks: { id: 'instance.settings.sync.resource-packs', defaultMessage: 'Resource packs' },
-	dataPacks: { id: 'instance.settings.sync.data-packs', defaultMessage: 'Data packs' },
 })
 
 const options: Array<{ key: SyncedOption; label: keyof typeof messages }> = [
@@ -54,15 +52,21 @@ const options: Array<{ key: SyncedOption; label: keyof typeof messages }> = [
 	{ key: 'command_history', label: 'commandHistory' },
 	{ key: 'multiplayer_servers', label: 'multiplayerServers' },
 	{ key: 'creative_hotbars', label: 'creativeHotbars' },
-	{ key: 'screenshots', label: 'screenshots' },
 	{ key: 'resource_packs', label: 'resourcePacks' },
-	{ key: 'data_packs', label: 'dataPacks' },
 ]
+
+const visibleOptionKeys = new Set(options.map((option) => option.key))
 
 const overviewQuery = useQuery({
 	queryKey: computed(() => ['instance-synced-options', instance.value.id, 'overview']),
 	queryFn: () => get_synced_options_overview(instance.value.id),
 })
+
+const hasUnsupportedVisibleOption = computed(() =>
+	overviewQuery.data.value?.capabilities.some(
+		(capability) => visibleOptionKeys.has(capability.option) && capability.supported === false,
+	) ?? false,
+)
 
 const mutation = useMutation({
 	mutationFn: ({ option, enabled }: { option: SyncedOption; enabled: boolean }) =>
@@ -99,7 +103,7 @@ function enabled(option: SyncedOption) {
 			/>
 		</div>
 		<p
-			v-if="overviewQuery.data.value?.capabilities.some((item) => item.supported === false)"
+			v-if="hasUnsupportedVisibleOption"
 			class="m-0 text-secondary"
 		>
 			{{ formatMessage(messages.unsupported) }}
