@@ -1,30 +1,12 @@
 <script setup lang="ts">
-import { CheckIcon, ChevronDownIcon, XIcon } from '@modrinth/assets'
+import { CheckIcon } from '@modrinth/assets'
 import { defineMessages, useVIntl } from '@modrinth/ui'
-import {
-	CheckboxIndicator,
-	CheckboxRoot,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogOverlay,
-	DialogPortal,
-	DialogRoot,
-	DialogTitle,
-	DialogTrigger,
-	SelectContent,
-	SelectItem,
-	SelectItemIndicator,
-	SelectItemText,
-	SelectPortal,
-	SelectRoot,
-	SelectTrigger,
-	SelectValue,
-	SelectViewport,
-} from 'reka-ui'
+import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 import { ref } from 'vue'
 
 import HeadlessButton from '@/components/ui/headless/HeadlessButton.vue'
+import HeadlessDialog from '@/components/ui/headless/HeadlessDialog.vue'
+import HeadlessSelect from '@/components/ui/headless/HeadlessSelect.vue'
 import HeadlessTooltip from '@/components/ui/headless/HeadlessTooltip.vue'
 import { headlessTokenClasses } from '@/components/ui/headless/token-classes'
 
@@ -92,13 +74,6 @@ const messages = defineMessages({
 	brandButton: { id: 'app.headless-demo.brand-button', defaultMessage: 'Brand button' },
 	standardButton: { id: 'app.headless-demo.standard-button', defaultMessage: 'Standard button' },
 })
-
-function loaderLabel(value: string) {
-	const option = loaderOptions.find((item) => item.value === value)
-	return option
-		? formatMessage(messages[option.labelKey])
-		: formatMessage(messages.selectPlaceholder)
-}
 </script>
 
 <template>
@@ -131,40 +106,28 @@ function loaderLabel(value: string) {
 			</h2>
 
 			<div class="flex flex-wrap items-center gap-3">
-				<DialogRoot v-model:open="dialogOpen">
-					<DialogTrigger as-child>
-						<HeadlessButton color="brand">
-							{{ formatMessage(messages.openDialog) }}
-						</HeadlessButton>
-					</DialogTrigger>
-					<DialogPortal>
-						<DialogOverlay :class="headlessTokenClasses.dialogOverlay" />
-						<DialogContent :class="headlessTokenClasses.dialogContent">
-							<div class="flex items-start justify-between gap-3">
-								<DialogTitle :class="headlessTokenClasses.dialogTitle">
-									{{ formatMessage(messages.dialogTitle) }}
-								</DialogTitle>
-								<DialogClose as-child>
-									<HeadlessButton
-										type="button"
-										class="!h-8 !w-8 !px-0"
-										:aria-label="formatMessage(messages.dialogClose)"
-									>
-										<XIcon class="size-4" />
-									</HeadlessButton>
-								</DialogClose>
-							</div>
-							<DialogDescription :class="headlessTokenClasses.dialogDescription">
-								{{ formatMessage(messages.dialogDescription) }}
-							</DialogDescription>
-							<div class="mt-4 flex justify-end">
-								<DialogClose as-child>
-									<HeadlessButton>{{ formatMessage(messages.dialogClose) }}</HeadlessButton>
-								</DialogClose>
-							</div>
-						</DialogContent>
-					</DialogPortal>
-				</DialogRoot>
+				<HeadlessDialog
+					v-model:open="dialogOpen"
+					:close-label="formatMessage(messages.dialogClose)"
+					data-onboarding-id="headless-demo-dialog"
+				>
+					<HeadlessButton color="brand">
+						{{ formatMessage(messages.openDialog) }}
+					</HeadlessButton>
+					<template #title>
+						{{ formatMessage(messages.dialogTitle) }}
+					</template>
+					<template #description>
+						{{ formatMessage(messages.dialogDescription) }}
+					</template>
+					<template #body>
+						<div class="mt-4 flex justify-end">
+							<HeadlessButton @click="dialogOpen = false">
+								{{ formatMessage(messages.dialogClose) }}
+							</HeadlessButton>
+						</div>
+					</template>
+				</HeadlessDialog>
 
 				<HeadlessTooltip>
 					<HeadlessButton>{{ formatMessage(messages.tooltipTrigger) }}</HeadlessButton>
@@ -177,35 +140,18 @@ function loaderLabel(value: string) {
 			<div class="flex flex-wrap items-end gap-4">
 				<label class="flex min-w-40 flex-col gap-1 text-sm text-secondary">
 					<span>{{ formatMessage(messages.selectLabel) }}</span>
-					<SelectRoot v-model="selectedLoader">
-						<SelectTrigger :class="headlessTokenClasses.selectTrigger">
-							<SelectValue :placeholder="formatMessage(messages.selectPlaceholder)">
-								{{ loaderLabel(selectedLoader) }}
-							</SelectValue>
-							<ChevronDownIcon class="size-4 shrink-0 text-secondary" />
-						</SelectTrigger>
-						<SelectPortal>
-							<SelectContent
-								:class="headlessTokenClasses.selectContent"
-								position="popper"
-								:side-offset="4"
-							>
-								<SelectViewport>
-									<SelectItem
-										v-for="option in loaderOptions"
-										:key="option.value"
-										:value="option.value"
-										:class="headlessTokenClasses.selectItem"
-									>
-										<SelectItemText>{{ formatMessage(messages[option.labelKey]) }}</SelectItemText>
-										<SelectItemIndicator class="absolute right-2 flex items-center">
-											<CheckIcon class="size-3.5 text-brand" />
-										</SelectItemIndicator>
-									</SelectItem>
-								</SelectViewport>
-							</SelectContent>
-						</SelectPortal>
-					</SelectRoot>
+					<HeadlessSelect
+						id="headless-demo-loader"
+						v-model="selectedLoader"
+						:name="formatMessage(messages.selectLabel)"
+						:placeholder="formatMessage(messages.selectPlaceholder)"
+						:options="
+							loaderOptions.map((option) => ({
+								value: option.value,
+								label: formatMessage(messages[option.labelKey]),
+							}))
+						"
+					/>
 				</label>
 
 				<label class="flex cursor-pointer items-center gap-2 text-sm text-contrast">

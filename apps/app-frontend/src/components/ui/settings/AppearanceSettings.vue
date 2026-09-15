@@ -26,6 +26,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { exists, mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import HeadlessSelect from '@/components/ui/headless/HeadlessSelect.vue'
 import HeadlessTooltip from '@/components/ui/headless/HeadlessTooltip.vue'
 import { getShowScrollTop, setShowScrollTop } from '@/helpers/scroll-top-state'
 import { get, set } from '@/helpers/settings.ts'
@@ -1045,7 +1046,7 @@ watch(
 				}}</template>
 				<template #control>
 					<div class="w-full">
-						<Combobox
+						<HeadlessSelect
 							id="opening-page"
 							v-model="settings.default_page"
 							:name="formatMessage(messages.defaultLandingPageTitle)"
