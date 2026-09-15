@@ -23,6 +23,7 @@ export function instanceListQueryOptions() {
 export const screenshotKeys = {
 	all: ['screenshots'] as const,
 	global: () => ['screenshots', 'global'] as const,
+	synced: () => ['screenshots', 'synced'] as const,
 	instance: (instanceId: string) => ['screenshots', 'instance', instanceId] as const,
 	groups: () => ['screenshots', 'groups'] as const,
 }
@@ -43,7 +44,7 @@ export function allScreenshotsQueryOptions() {
 
 export function syncedScreenshotsQueryOptions() {
 	return queryOptions({
-		queryKey: [...screenshotKeys.all, 'synced'] as const,
+		queryKey: screenshotKeys.synced(),
 		queryFn: list_synced_screenshots,
 	})
 }

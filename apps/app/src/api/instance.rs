@@ -1186,7 +1186,9 @@ fn serialize_screenshot<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     s: theseus::instance::InstanceScreenshot,
 ) -> Result<InstanceScreenshot> {
-    let url = super::utils::tauri_convert_file_src(&s.path)?.to_string();
+    let mut url = super::utils::tauri_convert_file_src(&s.path)?;
+    url.query_pairs_mut()
+        .append_pair("revision", &s.modified_at.to_string());
     Ok(InstanceScreenshot {
         id: s.id,
         instance_id: s.instance_id,
@@ -1196,7 +1198,7 @@ fn serialize_screenshot<R: tauri::Runtime>(
         modified_at: s.modified_at,
         group_id: s.group_id,
         path: s.path,
-        url,
+        url: url.to_string(),
     })
 }
 fn serialize_screenshots<R: tauri::Runtime>(

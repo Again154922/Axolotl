@@ -1008,6 +1008,7 @@ async function invalidateScreenshots(instanceIds: string[]) {
 	const uniqueInstanceIds = [...new Set(instanceIds)]
 	await Promise.all([
 		queryClient.invalidateQueries({ queryKey: screenshotKeys.global() }),
+		queryClient.invalidateQueries({ queryKey: screenshotKeys.synced() }),
 		...uniqueInstanceIds.map((instanceId) =>
 			queryClient.invalidateQueries({ queryKey: screenshotKeys.instance(instanceId) }),
 		),
