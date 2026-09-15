@@ -5,6 +5,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useNavigationReturnStore } from '@/store/navigation-return'
 
 import { discoverRoutes } from './discover'
+import { headlessDemoRoutes } from './headless-demo'
 import { homeRoutes } from './home'
 import { instanceRoutes } from './instance'
 import { labRoutes } from './lab'
@@ -26,6 +27,7 @@ export default createRouter({
 		...labRoutes,
 		...libraryRoutes,
 		...instanceRoutes,
+		...headlessDemoRoutes,
 	],
 	linkActiveClass: 'router-link-active',
 	linkExactActiveClass: 'router-link-exact-active',
