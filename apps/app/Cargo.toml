@@ -69,7 +69,10 @@ cc = { workspace = true }
 tauri-build = { workspace = true, features = ["codegen"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ashpd = { version = "0.13.13", features = ["settings"] }
+ashpd = { version = "0.13.13", default-features = false, features = [
+  "async-io",
+  "settings",
+] }
 tauri-plugin-updater = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
