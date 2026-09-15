@@ -16,6 +16,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::Row;
+use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone, Debug, Serialize)]
@@ -100,9 +101,9 @@ fn version_compatible(
 ) -> bool {
     let versions = game_versions(row);
     versions.is_empty()
-        || versions
-            .iter()
-            .any(|version| version == &metadata.applied_content_set.game_version)
+        || versions.iter().any(|version| {
+            version == &metadata.applied_content_set.game_version
+        })
 }
 
 fn safe_relative_path(path: &str) -> Option<PathBuf> {
@@ -111,7 +112,9 @@ fn safe_relative_path(path: &str) -> Option<PathBuf> {
         || path.components().any(|component| {
             matches!(
                 component,
-                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                Component::ParentDir
+                    | Component::RootDir
+                    | Component::Prefix(_)
             )
         })
     {
@@ -144,7 +147,8 @@ fn normalize_tracked_path(
     let relative = normalized
         .strip_prefix(&format!("{instance_path}/"))
         .unwrap_or(&normalized);
-    safe_relative_path(relative).map(|path| path.to_string_lossy().replace('\\', "/"))
+    safe_relative_path(relative)
+        .map(|path| path.to_string_lossy().replace('\\', "/"))
 }
 
 async fn file_matches_sha1(path: &Path, expected: &str) -> bool {
@@ -161,12 +165,9 @@ async fn cleanup_materialization(
     row: &PackRow,
     metadata: &crate::state::InstanceMetadata,
 ) -> crate::Result<()> {
-    let Some(tracked) = tracked_materialized_path(
-        state,
-        &row.id,
-        &metadata.instance.id,
-    )
-    .await?
+    let Some(tracked) =
+        tracked_materialized_path(state, &row.id, &metadata.instance.id)
+            .await?
     else {
         return Ok(());
     };
@@ -328,18 +329,13 @@ async fn materialize(
         || !version_compatible(row, &metadata)
     {
         cleanup_materialization(state, row, &metadata).await?;
-        record_materialization(
-            state,
-            &row.id,
-            instance_id,
-            excluded,
-            None,
-        )
-        .await?;
+        record_materialization(state, &row.id, instance_id, excluded, None)
+            .await?;
         return Ok(());
     }
 
-    let tracked = tracked_materialized_path(state, &row.id, instance_id).await?;
+    let tracked =
+        tracked_materialized_path(state, &row.id, instance_id).await?;
     let owns_destination = tracked
         .as_deref()
         .and_then(|path| normalize_tracked_path(&metadata, path))
@@ -519,11 +515,16 @@ pub async fn get_pack_sync_preview(
         .map(|item| {
             let participating = item.synced_options_for(project_type)
                 || item.instance.id == instance_id;
+            let versions = game_versions(&preview_row);
+            let compatible = versions.is_empty()
+                || versions.iter().any(|version| {
+                    version == &item.applied_content_set.game_version
+                });
             PackSyncTarget {
                 instance_id: item.instance.id,
                 name: item.instance.name,
                 game_version: item.applied_content_set.game_version,
-                compatible: true,
+                compatible,
                 participating,
             }
         })
@@ -620,7 +621,29 @@ pub async fn desync_pack(
     let row = load_row(pack_id, &state).await?;
     materialize(&state, &row, instance_id, true).await?;
     if mode == DesyncServerMode::RemoveFromOtherInstances {
-        sqlx::query("DELETE FROM synced_pack_instances WHERE pack_id = ? AND instance_id != ?").bind(pack_id).bind(instance_id).execute(&state.pool).await?;
+        let targets = sqlx::query(
+            "SELECT instance_id FROM synced_pack_instances
+             WHERE pack_id = ? AND instance_id != ?",
+        )
+        .bind(pack_id)
+        .bind(instance_id)
+        .fetch_all(&state.pool)
+        .await?;
+        for target in targets {
+            let target_id: String = target.try_get("instance_id")?;
+            if let Some(metadata) =
+                crate::state::get_instance(&target_id, &state.pool).await?
+            {
+                cleanup_materialization(&state, &row, &metadata).await?;
+            }
+        }
+        sqlx::query(
+            "DELETE FROM synced_pack_instances WHERE pack_id = ? AND instance_id != ?",
+        )
+        .bind(pack_id)
+        .bind(instance_id)
+        .execute(&state.pool)
+        .await?;
     }
     Ok(())
 }
@@ -635,7 +658,12 @@ pub async fn remove_synced_pack(pack_id: &str) -> crate::Result<()> {
     .fetch_all(&state.pool)
     .await?;
     for target in targets {
-        materialize(&state, &row, target.try_get("instance_id")?, true).await?;
+        let target_id: String = target.try_get("instance_id")?;
+        if let Some(metadata) =
+            crate::state::get_instance(&target_id, &state.pool).await?
+        {
+            cleanup_materialization(&state, &row, &metadata).await?;
+        }
     }
     sqlx::query("DELETE FROM synced_pack_catalog WHERE id = ?")
         .bind(pack_id)
@@ -662,7 +690,25 @@ pub(crate) async fn detach(
     .fetch_all(&state.pool)
     .await?;
     for row in rows {
-        materialize(state, &row, &metadata.instance.id, true).await?;
+        let excluded = sqlx::query_scalar::<_, i64>(
+            "SELECT excluded FROM synced_pack_instances
+             WHERE pack_id = ? AND instance_id = ?",
+        )
+        .bind(&row.id)
+        .bind(&metadata.instance.id)
+        .fetch_optional(&state.pool)
+        .await?
+        .unwrap_or(0)
+            != 0;
+        cleanup_materialization(state, &row, metadata).await?;
+        record_materialization(
+            state,
+            &row.id,
+            &metadata.instance.id,
+            excluded,
+            None,
+        )
+        .await?;
     }
     Ok(())
 }
@@ -734,6 +780,7 @@ pub(crate) async fn seed_from_instance(
     };
     let game_versions_json =
         serde_json::to_string(&[&metadata.applied_content_set.game_version])?;
+    let mut seen_sha1 = HashSet::new();
 
     while let Some(entry) = entries.next_entry().await? {
         if !entry.file_type().await?.is_file() {
@@ -746,6 +793,7 @@ pub(crate) async fn seed_from_instance(
         };
         let bytes = Bytes::from(tokio::fs::read(&path).await?);
         let sha1 = crate::util::fetch::sha1_async(bytes.clone()).await?;
+        seen_sha1.insert(sha1.clone());
         write_cache(state, &bytes, &sha1).await?;
         let enabled = !file_name.ends_with(".disabled");
         let file_name = file_name.trim_end_matches(".disabled");
@@ -783,6 +831,70 @@ pub(crate) async fn seed_from_instance(
         .execute(&mut *transaction)
         .await?;
         transaction.commit().await?;
+    }
+
+    // A watcher event can report a directory after a file was removed. Reconcile
+    // catalog entries materialized in this source instance so stale files do not
+    // remain in other participating instances.
+    let tracked = sqlx::query(
+        "SELECT c.id, c.project_type, c.file_name, c.sha1, c.size,
+                c.game_versions_json, c.enabled, i.materialized_path
+         FROM synced_pack_catalog c
+         JOIN synced_pack_instances i ON i.pack_id = c.id
+         WHERE c.project_type = ? AND i.instance_id = ?
+           AND i.materialized_path IS NOT NULL",
+    )
+    .bind(project_type.get_name())
+    .bind(&metadata.instance.id)
+    .fetch_all(&state.pool)
+    .await?;
+    for tracked_row in tracked {
+        let row = PackRow {
+            id: tracked_row.try_get("id")?,
+            project_type: tracked_row.try_get("project_type")?,
+            file_name: tracked_row.try_get("file_name")?,
+            sha1: tracked_row.try_get("sha1")?,
+            size: tracked_row.try_get("size")?,
+            game_versions_json: tracked_row.try_get("game_versions_json")?,
+            enabled: tracked_row.try_get("enabled")?,
+        };
+        if seen_sha1.contains(&row.sha1) {
+            continue;
+        }
+        let Some(path) = tracked_row
+            .try_get::<Option<String>, _>("materialized_path")?
+            .and_then(|path| normalize_tracked_path(metadata, &path))
+        else {
+            continue;
+        };
+        if tokio::fs::try_exists(
+            &state
+                .directories
+                .instance_game_dir(&metadata.instance)
+                .join(path),
+        )
+        .await?
+        {
+            continue;
+        }
+        let targets = sqlx::query(
+            "SELECT instance_id FROM synced_pack_instances WHERE pack_id = ?",
+        )
+        .bind(&row.id)
+        .fetch_all(&state.pool)
+        .await?;
+        for target in targets {
+            let target_id: String = target.try_get("instance_id")?;
+            if let Some(target_metadata) =
+                crate::state::get_instance(&target_id, &state.pool).await?
+            {
+                cleanup_materialization(state, &row, &target_metadata).await?;
+            }
+        }
+        sqlx::query("DELETE FROM synced_pack_catalog WHERE id = ?")
+            .bind(&row.id)
+            .execute(&state.pool)
+            .await?;
     }
 
     Ok(())
