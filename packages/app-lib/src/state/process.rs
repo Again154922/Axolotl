@@ -1263,10 +1263,11 @@ impl Process {
         // files) are captured instead of being left pending indefinitely.
         let reconcile_instance_id = instance_id.clone();
         tokio::spawn(async move {
-            if let Err(error) = crate::api::instance::synced_options::reconcile_instance(
-                &reconcile_instance_id,
-            )
-            .await
+            if let Err(error) =
+                crate::api::instance::synced_options::reconcile_instance(
+                    &reconcile_instance_id,
+                )
+                .await
             {
                 tracing::warn!(
                     instance = %reconcile_instance_id,

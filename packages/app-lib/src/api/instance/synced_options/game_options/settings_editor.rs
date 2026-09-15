@@ -508,7 +508,6 @@ pub async fn save_changes(
     }
     tx.commit().await?;
 
-
     let write_result = if changed {
         sync_all_participating_instances(&state).await
     } else {
