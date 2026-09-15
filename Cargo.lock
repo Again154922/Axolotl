@@ -125,7 +125,6 @@ dependencies = [
  "futures-util",
  "getrandom 0.4.3",
  "serde",
- "tokio",
  "zbus",
 ]
 
@@ -6810,7 +6809,7 @@ dependencies = [
 
 [[package]]
 name = "theseus"
-version = "1.9.6-beta.7"
+version = "1.9.7-beta.1"
 dependencies = [
  "ariadne",
  "async-minecraft-ping",
@@ -6915,7 +6914,7 @@ dependencies = [
 
 [[package]]
 name = "theseus_gui"
-version = "1.9.6-beta.7"
+version = "1.9.7-beta.1"
 dependencies = [
  "ashpd",
  "async_zip",
@@ -7100,7 +7099,6 @@ dependencies = [
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
- "tracing",
  "windows-sys 0.61.2",
 ]
 
@@ -8865,7 +8863,6 @@ dependencies = [
  "rustix",
  "serde",
  "serde_repr",
- "tokio",
  "tracing",
  "uds_windows",
  "uuid 1.24.0",

@@ -9,7 +9,19 @@
 				top: top,
 			}"
 		>
-			<div v-for="(option, index) in options" :key="index" @click.stop="optionClicked(option.name)">
+			<template v-if="modernMode">
+				<div v-for="(option, index) in modernOptions" :key="option.id ?? index" @click.stop="modernOptionClicked(option)">
+					<hr v-if="option.type === 'divider'" class="divider" />
+					<div v-else class="item clickable" :class="option.tone === 'red' ? 'red' : 'base'">
+						<slot :name="option.id" :option="option">
+							<component :is="option.icon" v-if="option.icon" aria-hidden="true" />
+							{{ option.label }}
+						</slot>
+					</div>
+				</div>
+			</template>
+			<template v-else>
+						<div v-for="(option, index) in options" :key="index" @click.stop="optionClicked(option.name)">
 				<hr v-if="option.type === 'divider'" class="divider" />
 				<div
 					v-else-if="!(isInstanceLink(item) && option.name === `add_content`)"
@@ -19,6 +31,7 @@
 					<slot :name="option.name" />
 				</div>
 			</div>
+			</template>
 		</div>
 	</transition>
 </template>
@@ -34,9 +47,23 @@ const options = ref([])
 const left = ref('0px')
 const top = ref('0px')
 const shown = ref(false)
+const modernOptions = ref([])
+const modernMode = ref(false)
 
 defineExpose({
+	open: (event, passedOptions) => {
+		modernMode.value = true
+		modernOptions.value = passedOptions
+		shown.value = true
+		nextTick(() => {
+			left.value = event.pageX + 'px'
+			top.value = event.pageY + 'px'
+		})
+	},
+	close: () => hideContextMenu(),
 	showMenu: (event, passedItem, passedOptions) => {
+		modernMode.value = false
+		modernOptions.value = []
 		item.value = passedItem
 		options.value = passedOptions
 
@@ -74,8 +101,15 @@ const isInstanceLink = (item) => {
 }
 
 const hideContextMenu = () => {
+	modernMode.value = false
+	modernOptions.value = []
 	shown.value = false
 	emit('menu-closed')
+}
+
+const modernOptionClicked = (option) => {
+	if (typeof option.action === 'function') option.action()
+	if (!option.remainOpen) hideContextMenu()
 }
 
 const optionClicked = (option) => {

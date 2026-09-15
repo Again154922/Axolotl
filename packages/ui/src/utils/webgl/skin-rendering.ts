@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-import { createSolidSkinLayerGeometry } from './solid-skin-layer'
+import { createSolidSkinLayerGeometry } from './solid-skin-layer.ts'
 
 export interface SkinRendererConfig {
 	textureColorSpace?: THREE.ColorSpace
@@ -14,6 +14,24 @@ export interface SkinRendererConfig {
 const ENABLE_VOXEL_LAYER_GEOMETRY = true
 const MODEL_PIXEL_SIZE = 1 / 16
 const NON_LEG_VERTICAL_OFFSET = -MODEL_PIXEL_SIZE / 2
+// Skin textures use 8-bit alpha. Keep every non-zero alpha value while still
+// discarding fully transparent fragments before they can write to the depth buffer.
+const SKIN_LAYER_ALPHA_TEST = 0.5 / 255
+
+export function configureSkinMaterial(
+	material: THREE.MeshStandardMaterial,
+	hasTranslucentPixels: boolean,
+): void {
+	material.transparent = hasTranslucentPixels
+	material.alphaTest = hasTranslucentPixels ? SKIN_LAYER_ALPHA_TEST : 0.1
+	// Treat the player as a textured surface, not a glass volume: the nearest
+	// face writes depth so hidden inner and back faces do not accumulate color.
+	material.depthWrite = true
+	// Three.js rewrites fragment alpha through smoothstep when alpha-to-coverage
+	// is enabled. Use it only for binary cutouts, never for translucent texels.
+	material.alphaToCoverage = !hasTranslucentPixels
+	material.needsUpdate = true
+}
 
 /** Aligns the torso, arms, head, and cape with the stationary legs. */
 function offsetNonLegModelParts(model: THREE.Object3D): void {
@@ -65,6 +83,17 @@ function readSkinPixels(texture: THREE.Texture): Uint8ClampedArray | null {
 	}
 }
 
+function hasTranslucentSkinPixels(pixels: Uint8ClampedArray | null): boolean {
+	if (!pixels) return true
+
+	for (let alphaIndex = 3; alphaIndex < pixels.length; alphaIndex += 4) {
+		const alpha = pixels[alphaIndex]
+		if (alpha > 0 && alpha < 255) return true
+	}
+
+	return false
+}
+
 function scaleLayerGeometry(geometry: THREE.BufferGeometry, name: string): void {
 	geometry.computeBoundingBox()
 	const bounds = geometry.boundingBox
@@ -98,20 +127,27 @@ function scaleLayerGeometry(geometry: THREE.BufferGeometry, name: string): void 
 export function applyThreeDSkinLayers(model: THREE.Object3D, texture?: THREE.Texture): void {
 	offsetNonLegModelParts(model)
 	const pixels = texture ? readSkinPixels(texture) : null
+	const hasTranslucentPixels = hasTranslucentSkinPixels(pixels)
 	if (!pixels || !texture) return
 	model.traverse((child) => {
 		const mesh = child as THREE.Mesh
-		if (
-			!mesh.isMesh ||
-			!mesh.name.endsWith('_Layer') ||
-			!mesh.geometry ||
-			mesh.userData.threeDSkinLayersApplied
-		)
-			return
+		if (!mesh.isMesh || !mesh.name.endsWith('_Layer') || !mesh.geometry) return
 
-		// GLTF clones share BufferGeometry objects. Clone before changing vertex data
-		// so one preview (or cached model) cannot affect another.
-		mesh.geometry = mesh.geometry.clone()
+		// Voxel occupancy depends on the current texture's alpha channel. Preserve an
+		// untouched source geometry and rebuild from it whenever the skin changes;
+		// otherwise a new texture is mapped onto the previous skin's voxel silhouette.
+		const sourceGeometry = mesh.userData.skinLayerSourceGeometry as
+			| THREE.BufferGeometry
+			| undefined
+		if (sourceGeometry) {
+			mesh.geometry.dispose()
+			mesh.geometry = sourceGeometry.clone()
+		} else {
+			// GLTF clones share BufferGeometry objects. Keep both the renderer's working
+			// copy and a pristine source owned by this preview instance.
+			mesh.geometry = mesh.geometry.clone()
+			mesh.userData.skinLayerSourceGeometry = mesh.geometry.clone()
+		}
 		const definition = getSkinLayerDefinition(mesh.name)
 		if (ENABLE_VOXEL_LAYER_GEOMETRY && pixels && definition) {
 			const meshBounds = new THREE.Box3().setFromBufferAttribute(
@@ -126,16 +162,10 @@ export function applyThreeDSkinLayers(model: THREE.Object3D, texture?: THREE.Tex
 				const voxelMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
 				voxelMaterials.forEach((material) => {
 					if (!(material instanceof THREE.MeshStandardMaterial)) return
-					// The mod renders these as alpha-tested cutouts. Keeping depth writes
-					// deterministic avoids transparent-surface sorting cracks between voxels.
-					material.transparent = false
-					material.alphaTest = 0.1
-					material.depthWrite = true
-					material.alphaToCoverage = true
+					configureSkinMaterial(material, hasTranslucentPixels)
 					material.polygonOffset = false
 					material.polygonOffsetFactor = 0
 					material.polygonOffsetUnits = 0
-					material.needsUpdate = true
 				})
 				mesh.geometry.dispose()
 				mesh.geometry = voxelGeometry
@@ -298,10 +328,12 @@ function setCommonMaterialProperties(mat: THREE.MeshStandardMaterial): void {
 }
 
 export function applyTexture(model: THREE.Object3D, texture: THREE.Texture): void {
+	const hasTranslucentPixels = hasTranslucentSkinPixels(readSkinPixels(texture))
 	model.traverse((child) => {
 		if ((child as THREE.Mesh).isMesh) {
 			const mesh = child as THREE.Mesh
 			const isSkinLayer = mesh.name.endsWith('_Layer')
+			mesh.renderOrder = isSkinLayer ? 1 : 0
 			const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
 
 			materials.forEach((mat: THREE.Material) => {
@@ -309,18 +341,15 @@ export function applyTexture(model: THREE.Object3D, texture: THREE.Texture): voi
 					if (mat.name !== 'cape') {
 						const mapNeedsUpdate = applyMap(mat, texture)
 						const propertiesNeedUpdate = setShaderMaterialProperties(mat, {
-							alphaTest: 0.1,
+							alphaTest: hasTranslucentPixels ? SKIN_LAYER_ALPHA_TEST : 0.1,
 							flatShading: true,
 							side: THREE.FrontSide,
 							toneMapped: false,
-							transparent: isSkinLayer,
+							transparent: hasTranslucentPixels,
 						})
-						if (mat.alphaToCoverage !== isSkinLayer) {
-							mat.alphaToCoverage = isSkinLayer
-							mat.needsUpdate = true
-						}
 
 						setCommonMaterialProperties(mat)
+						configureSkinMaterial(mat, hasTranslucentPixels)
 
 						if (mapNeedsUpdate || propertiesNeedUpdate) {
 							mat.needsUpdate = true
