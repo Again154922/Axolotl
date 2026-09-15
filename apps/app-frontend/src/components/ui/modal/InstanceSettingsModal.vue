@@ -44,6 +44,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
 	unlinked: []
+	updated: [instance: GameInstance]
 }>()
 
 const isMinecraftServer = ref(false)
@@ -62,6 +63,7 @@ provideInstanceSettings({
 	offline: props.offline,
 	isMinecraftServer,
 	onUnlinked: handleUnlinked,
+	onInstanceUpdated: (instance) => emit('updated', instance),
 	closeModal: hide,
 })
 

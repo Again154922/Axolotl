@@ -11,7 +11,7 @@ import {
 import { instanceKeys } from '@/pages/instance/query-options'
 import { injectInstanceSettings } from '@/providers/instance-settings'
 
-const { instance } = injectInstanceSettings()
+const { instance, onInstanceUpdated } = injectInstanceSettings()
 const { formatMessage } = useVIntl()
 const { handleError } = injectNotificationManager()
 const queryClient = useQueryClient()
@@ -69,6 +69,7 @@ const mutation = useMutation({
 		set_instance_synced_option(instance.value.id, option, enabled),
 	onSuccess: async (updatedInstance) => {
 		syncedOptions.value = updatedInstance.synced_options
+		onInstanceUpdated(updatedInstance)
 		await Promise.all([
 			queryClient.invalidateQueries({ queryKey: instanceKeys.all }),
 			queryClient.invalidateQueries({ queryKey: ['instance-synced-options'] }),

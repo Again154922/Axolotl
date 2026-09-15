@@ -8,6 +8,7 @@ export interface InstanceSettingsContext {
 	offline?: boolean
 	isMinecraftServer: Ref<boolean>
 	onUnlinked: () => void
+	onInstanceUpdated: (instance: GameInstance) => void
 	closeModal?: (onAfterClose?: () => void) => void
 }
 
