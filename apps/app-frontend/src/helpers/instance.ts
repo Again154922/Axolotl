@@ -149,8 +149,8 @@ export async function set_instance_synced_option(
 	option: SyncedOption,
 	enabled: boolean,
 	resolution?: string | null,
-): Promise<void> {
-	await invoke('plugin:instance|instance_set_instance_synced_option', {
+): Promise<GameInstance> {
+	return await invoke('plugin:instance|instance_set_instance_synced_option', {
 		instanceId,
 		option,
 		enabled,

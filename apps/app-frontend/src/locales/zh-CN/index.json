@@ -10998,7 +10998,7 @@
     "message": "未匹配到任何截图"
   },
   "app.screenshots.preview.instance-and-date": {
-    "message": "{instance} · {date}"
+    "message": "实例：{instance} · {date}"
   },
   "app.screenshots.search": {
     "message": "搜索"
@@ -11277,7 +11277,7 @@
     "message": "开启"
   },
   "app.settings.game-options.choice.opengl": {
-    "message": "OpenGL"
+    "message": "OpenGL 渲染器"
   },
   "app.settings.game-options.choice.pause": {
     "message": "暂停菜单"
@@ -11304,7 +11304,7 @@
     "message": "极小"
   },
   "app.settings.game-options.choice.vulkan": {
-    "message": "Vulkan"
+    "message": "Vulkan 渲染器"
   },
   "app.settings.game-options.choice.when-minimized": {
     "message": "最小化时"
@@ -11448,19 +11448,19 @@
     "message": "各实例不同"
   },
   "app.settings.game-options.keybind.modifier.alt": {
-    "message": "Alt"
+    "message": "Alt 键"
   },
   "app.settings.game-options.keybind.modifier.command": {
-    "message": "Command"
+    "message": "Command 键"
   },
   "app.settings.game-options.keybind.modifier.control": {
-    "message": "Ctrl"
+    "message": "Ctrl 键"
   },
   "app.settings.game-options.keybind.modifier.shift": {
-    "message": "Shift"
+    "message": "Shift 键"
   },
   "app.settings.game-options.keybind.modifier.super": {
-    "message": "Super"
+    "message": "Super 键"
   },
   "app.settings.game-options.keybind.mouse.button": {
     "message": "鼠标 {button}"
@@ -12315,7 +12315,7 @@
     "message": "复制地址"
   },
   "app.settings.synced-options.multiplayer-servers.count": {
-    "message": "{count, plural, one {# server} other {# servers}}"
+    "message": "{count, number} 个服务器"
   },
   "app.settings.synced-options.multiplayer-servers.description": {
     "message": "在不同的实例直接同步多人模式服务器列表。"
@@ -12345,10 +12345,10 @@
     "message": "暂无已同步的服务器"
   },
   "app.settings.synced-options.multiplayer-servers.players-online": {
-    "message": "{count, number} online"
+    "message": "{count, number} 人在线"
   },
   "app.settings.synced-options.multiplayer-servers.search": {
-    "message": "Search {count, number} {count, plural, one {synced server} other {synced servers}}..."
+    "message": "搜索 {count, number} 个已同步服务器……"
   },
   "app.settings.synced-options.multiplayer-servers.status": {
     "message": "状态"
@@ -12381,16 +12381,16 @@
     "message": "移除"
   },
   "app.settings.synced-packs.resource-packs": {
-    "message": "Resource packs"
+    "message": "资源包"
   },
   "app.settings.tabs.instance-sync": {
     "message": "实例同步"
   },
   "app.sync-instances-update.choose-source.data-packs": {
-    "message": "Choose which instance to copy your data packs from. These packs are only used for the initial sync, and you can edit them from any instance afterward."
+    "message": "选择要从哪个实例复制数据包。这些包仅用于初始化同步，之后可从任意实例进行编辑。"
   },
   "app.sync-instances-update.choose-source.resource-packs": {
-    "message": "Choose which instance to copy your resource packs from. These packs are only used for the initial sync, and you can edit them from any instance afterward."
+    "message": "选择要从哪个实例复制资源包。这些包仅用于初始化同步，之后可从任意实例进行编辑。"
   },
   "instance.settings.sync.command-history": {
     "message": "命令历史"

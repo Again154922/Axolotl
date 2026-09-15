@@ -125,6 +125,7 @@ pub async fn init_watcher() -> crate::Result<FileWatcher> {
                                             | "hotbar.nbt"
                                             | "options.txt"
                                             | "servers.dat"
+                                            | "resourcepacks"
                                     )
                                 })
                             {
@@ -143,8 +144,12 @@ pub async fn init_watcher() -> crate::Result<FileWatcher> {
                                 })
                                 .collect::<Vec<_>>()
                                 .join("/");
-                            if first_file_name.as_ref().is_some_and(|x| *x == "screenshots") {
-                                let screenshot_instance_id = instance_id.clone();
+                            if first_file_name
+                                .as_ref()
+                                .is_some_and(|x| *x == "screenshots")
+                            {
+                                let screenshot_instance_id =
+                                    instance_id.clone();
                                 tokio::spawn(async move {
                                     if let Err(error) = crate::api::instance::reconcile_screenshots(&screenshot_instance_id).await {
                                         tracing::debug!(%error, "Screenshot index reconciliation failed");
@@ -193,7 +198,9 @@ pub async fn init_watcher() -> crate::Result<FileWatcher> {
                                     .as_ref()
                                     .is_some_and(|x| *x == "screenshots")
                                 {
-                                    Some(InstancePayloadType::ScreenshotsUpdated)
+                                    Some(
+                                        InstancePayloadType::ScreenshotsUpdated,
+                                    )
                                 } else if first_file_name.as_ref().is_some_and(
                                     |x| {
                                         *x == "saves"
@@ -419,7 +426,11 @@ pub(crate) async fn watch_instances_init(
         .await;
         let screenshot_instance_id = instance.id.clone();
         tokio::spawn(async move {
-            if let Err(error) = crate::api::instance::reconcile_screenshots(&screenshot_instance_id).await {
+            if let Err(error) = crate::api::instance::reconcile_screenshots(
+                &screenshot_instance_id,
+            )
+            .await
+            {
                 tracing::debug!(%error, "Initial screenshot index reconciliation failed");
             }
         });

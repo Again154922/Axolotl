@@ -484,7 +484,7 @@ where
 		ORDER BY relative_path ASC
 		",
     )
-	.bind(instance_id)
+    .bind(instance_id)
     .fetch_all(exec)
     .await?;
 
@@ -648,8 +648,8 @@ pub(crate) async fn get_instance_file_by_relative_path(
 		WHERE instance_id = ? AND relative_path = ?
 		",
     )
-	.bind(instance_id)
-	.bind(relative_path)
+    .bind(instance_id)
+    .bind(relative_path)
     .fetch_optional(pool)
     .await?;
 

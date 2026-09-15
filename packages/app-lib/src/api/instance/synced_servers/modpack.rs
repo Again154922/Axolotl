@@ -5,7 +5,7 @@ use super::operations::{compose_instance, effective};
 use super::storage::{load_local, write_local_rows};
 use super::types::{LocalServer, ServerSource};
 use crate::state::{CachedEntry, InstanceLink, InstanceMetadata};
-use crate::util::fetch::{DownloadMeta, DownloadReason, fetch_mirrors};
+use crate::util::fetch::{DownloadMeta, DownloadReason, fetch};
 use crate::{ErrorKind, State};
 use async_zip::base::read::seek::ZipFileReader;
 use quartz_nbt::NbtCompound;
@@ -129,8 +129,10 @@ pub(super) async fn reconstruct_modpack_servers(
                 .to_string(),
         )
     })?;
+    let typed_version_id =
+        crate::state::ModrinthVersionId::new(version_id.to_string())?;
     let version = CachedEntry::get_version(
-        version_id,
+        &typed_version_id,
         None,
         &state.pool,
         &state.api_semaphore,
@@ -157,8 +159,8 @@ pub(super) async fn reconstruct_modpack_servers(
         loader: metadata.applied_content_set.loader.as_str().to_string(),
         dependent_on: Some(version_id.to_string()),
     };
-    let mrpack = fetch_mirrors(
-        &[&primary_file.url],
+    let mrpack = fetch(
+        &primary_file.url,
         primary_file.hashes.get("sha1").map(String::as_str),
         Some(&download_meta),
         None,
@@ -201,8 +203,8 @@ pub(super) fn is_modpack_link(link: &InstanceLink) -> bool {
     matches!(
         link,
         InstanceLink::ModrinthModpack { .. }
+            | InstanceLink::ServerProjectModpack { .. }
             | InstanceLink::ImportedModpack { .. }
-            | InstanceLink::SharedInstance { .. }
     )
 }
 
@@ -214,10 +216,6 @@ fn modpack_version_id(link: &InstanceLink) -> Option<&str> {
         } => Some(content_version_id),
         InstanceLink::ImportedModpack {
             version_id: Some(version_id),
-            ..
-        } => Some(version_id),
-        InstanceLink::SharedInstance {
-            modpack_version_id: Some(version_id),
             ..
         } => Some(version_id),
         _ => None,

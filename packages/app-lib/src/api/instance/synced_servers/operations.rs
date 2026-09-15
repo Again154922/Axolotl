@@ -3,7 +3,6 @@ use super::super::synced_options::{
     instance_dir, instance_is_running, instance_option_enabled,
     instance_option_supported, sha1_bytes, sha1_file, sync_files_are_protected,
 };
-use crate::api::worlds::time_world_load;
 use crate::state::{InstanceMetadata, SyncedOption};
 use crate::{ErrorKind, State};
 use quartz_nbt::NbtCompound;
@@ -395,24 +394,12 @@ pub(crate) async fn list_server_records(
     metadata: &InstanceMetadata,
     state: &State,
 ) -> crate::Result<Vec<ServerRecord>> {
-    if time_world_load(
-        "server_sync_participation",
-        participating(metadata, state),
-    )
-    .await?
-    {
-        let (canonical, locals) = time_world_load(
-            "server_records_snapshot",
-            read_server_snapshot(&metadata.instance.id, state),
-        )
-        .await?;
+    if participating(metadata, state).await? {
+        let (canonical, locals) =
+            read_server_snapshot(&metadata.instance.id, state).await?;
         return Ok(merge_server_records(canonical, locals));
     }
-    time_world_load(
-        "read_local_server_records",
-        list_local_server_records(metadata, state),
-    )
-    .await
+    list_local_server_records(metadata, state).await
 }
 
 async fn list_server_records_locked(
@@ -952,4 +939,100 @@ async fn participating(
         state,
     )
     .await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server(name: &str, address: &str) -> NbtCompound {
+        super::super::codec::server_data(
+            name.to_string(),
+            address.to_string(),
+            None,
+        )
+    }
+
+    #[test]
+    fn merge_preserves_local_entries_and_synced_exclusions() {
+        let records = merge_server_records(
+            vec![
+                CanonicalServer {
+                    id: "synced-a".to_string(),
+                    data: server("Synced A", "a.example.test"),
+                },
+                CanonicalServer {
+                    id: "synced-b".to_string(),
+                    data: server("Synced B", "b.example.test"),
+                },
+            ],
+            vec![
+                LocalServer {
+                    id: "local".to_string(),
+                    source: ServerSource::Modpack,
+                    excluded_synced_server_id: None,
+                    data: server("Pack server", "pack.example.test"),
+                    position: 1,
+                },
+                LocalServer {
+                    id: "desynced-b".to_string(),
+                    source: ServerSource::LocalDesynced,
+                    excluded_synced_server_id: Some("synced-b".to_string()),
+                    data: server("Private B", "b.example.test"),
+                    position: 2,
+                },
+            ],
+        );
+
+        assert_eq!(
+            records
+                .iter()
+                .map(|record| (record.id.as_str(), record.source))
+                .collect::<Vec<_>>(),
+            vec![
+                ("synced-a", ServerSource::UserSynced),
+                ("local", ServerSource::Modpack),
+                ("desynced-b", ServerSource::LocalDesynced),
+            ]
+        );
+    }
+
+    #[test]
+    fn projection_matching_prefers_exact_then_address_then_name() {
+        let projections = vec![
+            ProjectionEntry {
+                id: "exact".to_string(),
+                owner: ProjectionOwner::Synced,
+                data: server("Exact", "exact.example.test"),
+                position: 2,
+            },
+            ProjectionEntry {
+                id: "address".to_string(),
+                owner: ProjectionOwner::Synced,
+                data: server("Old name", "same.example.test"),
+                position: 0,
+            },
+            ProjectionEntry {
+                id: "name".to_string(),
+                owner: ProjectionOwner::Instance,
+                data: server("Same name", "old.example.test"),
+                position: 1,
+            },
+        ];
+        let current = vec![
+            server("Exact", "exact.example.test"),
+            server("New name", "same.example.test"),
+            server("Same name", "new.example.test"),
+        ];
+
+        let matches = match_projection_entries(&current, &projections);
+        assert_eq!(
+            matches
+                .into_iter()
+                .map(|projection| projection
+                    .map(|projection| projection.id.as_str()))
+                .collect::<Vec<_>>(),
+            vec![Some("exact"), Some("address"), Some("name")]
+        );
+    }
 }

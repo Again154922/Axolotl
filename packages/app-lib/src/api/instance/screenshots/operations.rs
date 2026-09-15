@@ -9,8 +9,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
 use super::reconciliation::{
-    list_indexed_source_screenshots,
-    reconcile_source_screenshots,
+    list_indexed_source_screenshots, reconcile_source_screenshots,
     scan_source_screenshots,
 };
 use crate::State;

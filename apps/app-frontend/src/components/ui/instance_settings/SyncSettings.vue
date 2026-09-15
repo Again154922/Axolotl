@@ -67,8 +67,8 @@ const overviewQuery = useQuery({
 const mutation = useMutation({
 	mutationFn: ({ option, enabled }: { option: SyncedOption; enabled: boolean }) =>
 		set_instance_synced_option(instance.value.id, option, enabled),
-	onSuccess: async (_data, variables) => {
-		syncedOptions.value = { ...syncedOptions.value, [variables.option]: variables.enabled }
+	onSuccess: async (updatedInstance) => {
+		syncedOptions.value = updatedInstance.synced_options
 		await Promise.all([
 			queryClient.invalidateQueries({ queryKey: instanceKeys.all }),
 			queryClient.invalidateQueries({ queryKey: ['instance-synced-options'] }),

@@ -406,26 +406,7 @@ const globalOptionMutation = useMutation({
 	mutationKey: syncedOptionsKeys.set,
 	mutationFn: ({ option, enabled, baseInstanceId }: GlobalOptionMutationVariables) =>
 		set_global_synced_option(option, enabled, baseInstanceId),
-	onMutate: async ({ option, enabled }) => {
-		await queryClient.cancelQueries({ queryKey: syncedOptionsKeys.global })
-		const previous = globalOptions.value[option]
-
-		if (option !== 'game_options' || !enabled) {
-			queryClient.setQueryData<GlobalSyncedOptions>(syncedOptionsKeys.global, (current) => ({
-				...(current ?? defaultGlobalOptions),
-				[option]: enabled,
-			}))
-		}
-
-		return { previous }
-	},
-	onError: (error, { option }, context) => {
-		queryClient.setQueryData<GlobalSyncedOptions>(syncedOptionsKeys.global, (current) => ({
-			...(current ?? defaultGlobalOptions),
-			[option]: context?.previous ?? defaultGlobalOptions[option],
-		}))
-		handleError(error)
-	},
+	onError: handleError,
 	onSuccess: async (options, { option, enabled }) => {
 		queryClient.setQueryData(syncedOptionsKeys.global, options)
 		if (option === 'game_options') {

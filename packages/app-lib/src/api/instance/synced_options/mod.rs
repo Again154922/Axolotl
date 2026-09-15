@@ -27,5 +27,6 @@ pub use self::orchestration::{
 };
 pub(crate) use self::orchestration::{
     monitor_persisted_processes, prepare_instance_update,
-    reconcile_instance_after_pack_update, remove_generated_instance_files,
+    reconcile_instance_after_pack_update_with_state,
+    remove_generated_instance_files,
 };

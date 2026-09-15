@@ -107,7 +107,8 @@ pub(super) async fn list_indexed_source_screenshots(
     source: &InstanceScreenshotSource,
 ) -> crate::Result<Vec<InstanceScreenshot>> {
     let directory = source_screenshots_dir(state, source).await?;
-    let rows = screenshot_rows::list_screenshots(&source.id, &state.pool).await?;
+    let rows =
+        screenshot_rows::list_screenshots(&source.id, &state.pool).await?;
     let mut screenshots = Vec::with_capacity(rows.len());
     for row in rows {
         let path = directory.join(&row.file_name);

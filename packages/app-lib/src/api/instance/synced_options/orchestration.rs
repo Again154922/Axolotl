@@ -4,6 +4,7 @@ use crate::util::io;
 use crate::{ErrorKind, State};
 use quartz_nbt::NbtCompound;
 use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
 use std::future::Future;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -466,7 +467,16 @@ async fn set_global_option_enabled(
     enabled: bool,
     state: &State,
 ) -> crate::Result<()> {
+    set_global_option_enabled_in_pool(option, enabled, &state.pool).await
+}
+
+async fn set_global_option_enabled_in_pool(
+    option: SyncedOption,
+    enabled: bool,
+    pool: &SqlitePool,
+) -> crate::Result<()> {
     let option_name = option.as_str();
+    let mut transaction = pool.begin().await?;
     sqlx::query(
         "
 		INSERT INTO sync_feature_settings
@@ -480,15 +490,22 @@ async fn set_global_option_enabled(
     .bind(option_name)
     .bind(enabled)
     .bind(enabled)
-    .execute(&state.pool)
+    .execute(&mut *transaction)
     .await?;
+    // Upsert every current instance instead of assuming an older migration or
+    // import populated the complete instance/feature matrix. An UPDATE alone
+    // silently leaves instances without a preference row disabled.
     sqlx::query(
-        "UPDATE instance_sync_preferences SET enabled = ? WHERE feature = ?",
+        "INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
+         SELECT id, ?, ? FROM instances
+         WHERE 1
+         ON CONFLICT(instance_id, feature) DO UPDATE SET enabled = excluded.enabled",
     )
-    .bind(enabled)
     .bind(option_name)
-    .execute(&state.pool)
+    .bind(enabled)
+    .execute(&mut *transaction)
     .await?;
+    transaction.commit().await?;
     Ok(())
 }
 async fn enable_global_option_from_base(
@@ -529,7 +546,14 @@ async fn enable_global_option_from_base(
         )
         .await?;
         set_global_option_enabled(option, true, state).await?;
-        synced_packs::schedule_reconciliation();
+        for metadata in crate::state::list_instances(&state.pool).await? {
+            if sync_files_are_protected(&metadata) {
+                continue;
+            }
+            if instance_option_enabled(&metadata, option) {
+                synced_packs::reconcile(&metadata, option, state).await?;
+            }
+        }
         return get_global_options_with_state(state).await;
     }
 
@@ -745,11 +769,18 @@ pub async fn set_instance_option(
         &state.pool,
     )
     .await?;
+    // The projection code must see the preference that was just persisted.
+    // In particular, game-settings reconciliation checks
+    // `metadata.synced_options` before applying anything, so using the stale
+    // pre-write metadata would turn a successful enable into a no-op.
+    let updated_metadata = crate::state::get_instance(instance_id, &state.pool)
+        .await?
+        .ok_or_else(|| ErrorKind::InputError("Unknown instance".to_string()))?;
     if can_reconcile {
         let result = if enabled {
-            ensure_option(&metadata, option, &state).await
+            ensure_option(&updated_metadata, option, &state).await
         } else {
-            detach_option(&metadata, option, &state).await
+            detach_option(&updated_metadata, option, &state).await
         };
         if let Err(error) = result {
             if option == SyncedOption::GameOptions
@@ -774,14 +805,10 @@ pub async fn set_instance_option(
             SyncedOption::ResourcePacks | SyncedOption::DataPacks
         )
     {
-        detach_option(&metadata, option, &state).await?;
+        detach_option(&updated_metadata, option, &state).await?;
     }
 
-    crate::state::get_instance(instance_id, &state.pool)
-        .await?
-        .ok_or_else(|| {
-            ErrorKind::InputError("Unknown instance".to_string()).into()
-        })
+    Ok(updated_metadata)
 }
 
 pub async fn get_instance_option_join_preview(
@@ -1021,15 +1048,15 @@ async fn reconcile_instance_inner(instance_id: &str) -> crate::Result<()> {
     reconcile_instance_with_state(&metadata, &state, false).await
 }
 
-pub(crate) async fn reconcile_instance_after_pack_update(
+pub(crate) async fn reconcile_instance_after_pack_update_with_state(
     instance_id: &str,
+    state: &State,
 ) -> crate::Result<()> {
-    let state = State::get().await?;
     let _guard = state.lock_synced_options().await;
     let metadata = crate::state::get_instance(instance_id, &state.pool)
         .await?
         .ok_or_else(|| ErrorKind::InputError("Unknown instance".to_string()))?;
-    reconcile_instance_with_state(&metadata, &state, true).await
+    reconcile_instance_with_state(&metadata, state, true).await
 }
 
 pub(crate) async fn prepare_instance_update(
@@ -1195,6 +1222,21 @@ pub async fn reconcile_changed_file(
         HOTBAR_FILE => reconcile_hotbar(&metadata, &state).await,
         "servers.dat" => {
             synced_servers::reconcile_servers(&metadata, &state).await
+        }
+        "resourcepacks" => {
+            let option = SyncedOption::ResourcePacks;
+            if !option_participates(&metadata, option, &state).await? {
+                return Ok(());
+            }
+            synced_packs::seed_from_instance(&metadata, option, &state).await?;
+            for target in crate::state::list_instances(&state.pool).await? {
+                if !sync_files_are_protected(&target)
+                    && option_participates(&target, option, &state).await?
+                {
+                    synced_packs::reconcile(&target, option, &state).await?;
+                }
+            }
+            Ok(())
         }
         _ => Ok(()),
     }
@@ -1481,5 +1523,91 @@ fn option_from_str(value: &str) -> Option<SyncedOption> {
         "resource_packs" => Some(SyncedOption::ResourcePacks),
         "data_packs" => Some(SyncedOption::DataPacks),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    #[tokio::test]
+    async fn global_toggle_upserts_every_instance_preference() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::raw_sql(
+            r#"
+            CREATE TABLE instances (id TEXT PRIMARY KEY NOT NULL);
+            CREATE TABLE sync_feature_settings (
+                feature TEXT PRIMARY KEY NOT NULL,
+                globally_enabled INTEGER NOT NULL,
+                new_instance_default INTEGER NOT NULL
+            );
+            CREATE TABLE instance_sync_preferences (
+                instance_id TEXT NOT NULL,
+                feature TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                PRIMARY KEY (instance_id, feature)
+            );
+            INSERT INTO instances (id) VALUES ('one'), ('two');
+            INSERT INTO sync_feature_settings
+                (feature, globally_enabled, new_instance_default)
+            VALUES ('multiplayer_servers', 0, 0);
+            INSERT INTO instance_sync_preferences
+                (instance_id, feature, enabled)
+            VALUES ('one', 'multiplayer_servers', 0);
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        set_global_option_enabled_in_pool(
+            SyncedOption::MultiplayerServers,
+            true,
+            &pool,
+        )
+        .await
+        .unwrap();
+
+        let global: (bool, bool) = sqlx::query_as(
+            "SELECT globally_enabled, new_instance_default
+             FROM sync_feature_settings WHERE feature = 'multiplayer_servers'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(global, (true, true));
+
+        let preferences: Vec<(String, bool)> = sqlx::query_as(
+            "SELECT instance_id, enabled FROM instance_sync_preferences
+             WHERE feature = 'multiplayer_servers' ORDER BY instance_id",
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            preferences,
+            vec![("one".to_string(), true), ("two".to_string(), true)]
+        );
+
+        set_global_option_enabled_in_pool(
+            SyncedOption::MultiplayerServers,
+            false,
+            &pool,
+        )
+        .await
+        .unwrap();
+        let enabled_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM instance_sync_preferences
+             WHERE feature = 'multiplayer_servers' AND enabled = 1",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(enabled_count, 0);
     }
 }

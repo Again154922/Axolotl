@@ -18,21 +18,11 @@ pub(crate) mod synced_options;
 pub(crate) mod synced_packs {
     pub(crate) use super::synced_packs_axolotl::{
         capture_resource_pack_selection_change, detach,
-        prepare_instance_update, reconcile, schedule_reconciliation,
-        seed_from_instance,
-    };
-}
-#[path = "instance/synced_servers/types.rs"]
-mod synced_server_types;
-pub(crate) mod synced_servers {
-    pub(crate) use super::synced_server_types::DesyncServerMode;
-    pub(crate) use super::synced_servers_axolotl::{
-        canonical_exists, detach_servers, ensure_servers,
-        merge_servers_from_instance, reconcile_servers, seed_servers,
+        prepare_instance_update, reconcile, seed_from_instance,
     };
 }
 mod synced_packs_axolotl;
-mod synced_servers_axolotl;
+pub(crate) mod synced_servers;
 mod upgrade;
 
 pub use self::content::{
@@ -144,10 +134,9 @@ pub use self::synced_packs_axolotl::{
     list_synced_packs, remove_synced_pack, set_synced_pack_enabled, sync_pack,
     upload_synced_pack,
 };
-pub use self::synced_server_types::DesyncServerMode;
-pub use self::synced_servers_axolotl::{
-    SyncedServer, list_synced_servers, remove_synced_server,
-    update_synced_server,
+pub use self::synced_servers::{
+    DesyncServerMode, ServerSource, SyncedServer, desync_server,
+    list_synced_servers, remove_synced_server, update_synced_server,
 };
 pub use self::upgrade::{
     dismiss_instance_post_upgrade_notice, execute_instance_upgrade,
@@ -156,5 +145,5 @@ pub use self::upgrade::{
     resolve_custom_instance_upgrade_solution, select_instance_upgrade_solution,
     update_instance_upgrade_resolution, update_instance_upgrade_resolutions,
 };
-pub use crate::state::SyncedOption;
 pub use crate::state::{DailyPlaytime, DailyPlaytimeEntry};
+pub use crate::state::{InstanceSyncedOptions, SyncedOption};
