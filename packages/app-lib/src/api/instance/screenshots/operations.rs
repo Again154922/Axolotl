@@ -357,13 +357,11 @@ pub async fn save_edited_screenshot(
         crate::ErrorKind::InputError("Unknown screenshot".to_string())
     })?;
 
-    let source_path = source_screenshot.path.clone();
-    let (edited_dimensions, png_bytes) =
-        tokio::task::spawn_blocking(move || {
-            let edited_dimensions = validate_png_dimensions(&png_bytes)?;
-            Ok::<_, crate::Error>((edited_dimensions, png_bytes))
-        })
-        .await??;
+    let png_bytes = tokio::task::spawn_blocking(move || {
+        validate_png_dimensions(&png_bytes)?;
+        Ok::<_, crate::Error>(png_bytes)
+    })
+    .await??;
 
     let screenshots_dir = source_screenshots_dir(&state, &source).await?;
     let (target_path, copy_group) = match mode {
