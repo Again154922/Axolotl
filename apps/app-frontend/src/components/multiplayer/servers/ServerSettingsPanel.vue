@@ -45,6 +45,14 @@ const messages = defineMessages({
 		id: 'app.servers.settings.jvm-args-hint',
 		defaultMessage: 'Space-separated arguments, e.g. -XX:+UseG1GC',
 	},
+	preLaunchHook: {
+		id: 'app.settings.defaults.pre-launch-hook',
+		defaultMessage: 'Pre-launch hook',
+	},
+	preLaunchHookHint: {
+		id: 'app.servers.settings.pre-launch-hook-hint',
+		defaultMessage: 'Runs in the server directory before the server starts. A non-zero exit code cancels the start.',
+	},
 	save: { id: 'app.servers.settings.save', defaultMessage: 'Save changes' },
 	saved: { id: 'app.servers.settings.saved', defaultMessage: 'Server settings saved' },
 	cancel: { id: 'app.servers.settings.cancel', defaultMessage: 'Cancel' },
@@ -81,6 +89,7 @@ const javaSelection = ref<{ path: string; version: string }>({
 })
 const memoryMb = ref(props.server.memoryMb ?? 2048)
 const jvmArgsText = ref((props.server.jvmArgs ?? []).join(' '))
+const preLaunchHookText = ref(props.server.preLaunchHook ?? '')
 const isSaving = ref(false)
 const deleteModal = useTemplateRef<ComponentExposed<typeof ConfirmModal>>('deleteModal')
 const editor = useTemplateRef<ComponentExposed<typeof ServerPropertiesEditor>>('editor')
@@ -99,6 +108,7 @@ const baseline = ref({
 	javaVersion: '',
 	memoryMb: props.server.memoryMb ?? 2048,
 	jvmArgs: (props.server.jvmArgs ?? []).join(' '),
+	preLaunchHook: props.server.preLaunchHook ?? '',
 })
 
 onMounted(async () => {
@@ -130,7 +140,8 @@ const generalDirty = computed(
 		javaSelection.value.path !== baseline.value.javaPath ||
 		javaSelection.value.version !== baseline.value.javaVersion ||
 		memoryMb.value !== baseline.value.memoryMb ||
-		jvmArgsText.value !== baseline.value.jvmArgs,
+		jvmArgsText.value !== baseline.value.jvmArgs ||
+		preLaunchHookText.value !== baseline.value.preLaunchHook,
 )
 
 const isDirty = computed(() => generalDirty.value || (editor.value?.isDirty ?? false))
@@ -147,6 +158,7 @@ async function save() {
 			javaPath: javaSelection.value.path,
 			memoryMb: memoryMbValue,
 			jvmArgs,
+			preLaunchHook: preLaunchHookText.value,
 		})
 		if (iconPath.value !== baseline.value.iconPath) {
 			await serversApi.setIcon(props.server.id, iconPath.value)
@@ -156,6 +168,7 @@ async function save() {
 		name.value = name.value.trim()
 		memoryMb.value = memoryMbValue
 		jvmArgsText.value = jvmArgs.join(' ')
+		preLaunchHookText.value = preLaunchHookText.value.trim()
 		baseline.value = {
 			name: name.value,
 			iconPath: iconPath.value,
@@ -163,6 +176,7 @@ async function save() {
 			javaVersion: javaSelection.value.version,
 			memoryMb: memoryMbValue,
 			jvmArgs: jvmArgsText.value,
+			preLaunchHook: preLaunchHookText.value,
 		}
 		await refresh()
 		addNotification({ type: 'success', title: formatMessage(messages.saved) })
@@ -179,6 +193,7 @@ function cancel() {
 	javaSelection.value = { path: baseline.value.javaPath, version: baseline.value.javaVersion }
 	memoryMb.value = baseline.value.memoryMb
 	jvmArgsText.value = baseline.value.jvmArgs
+	preLaunchHookText.value = baseline.value.preLaunchHook
 	editor.value?.cancel()
 }
 
@@ -272,6 +287,22 @@ async function confirmDelete() {
 						<span class="font-semibold text-contrast">{{ formatMessage(messages.jvmArgs) }}</span>
 						<StyledInput id="server-settings-jvm" v-model="jvmArgsText" />
 						<span class="text-xs text-secondary">{{ formatMessage(messages.jvmArgsHint) }}</span>
+					</label>
+
+					<label
+						class="flex min-w-0 flex-col gap-2 sm:col-span-2 xl:col-span-4"
+						for="server-settings-pre-launch-hook"
+					>
+						<span class="font-semibold text-contrast">{{
+							formatMessage(messages.preLaunchHook)
+						}}</span>
+						<StyledInput
+							id="server-settings-pre-launch-hook"
+							v-model="preLaunchHookText"
+						/>
+						<span class="text-xs text-secondary">{{
+							formatMessage(messages.preLaunchHookHint)
+						}}</span>
 					</label>
 				</div>
 			</Card>
