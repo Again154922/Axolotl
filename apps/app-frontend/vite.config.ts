@@ -1,13 +1,14 @@
 import vue from '@vitejs/plugin-vue'
 import { existsSync, readFileSync, statSync } from 'fs'
 import { extname, resolve, sep } from 'path'
+import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
 
-import tauriConf from '../app/tauri.conf.json'
+import tauriConf from '../app/tauri.conf.json' with { type: 'json' }
 
-const projectRootDir = resolve(__dirname)
+const projectRootDir = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const appLibEnvDir = resolve(projectRootDir, '../../packages/app-lib')
 const apiClientSource = resolve(projectRootDir, '../../packages/api-client/src/index.ts')
 const blockbenchRoot = resolve(projectRootDir, '../../third-party/blockbench')

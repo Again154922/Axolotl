@@ -550,8 +550,10 @@ impl State {
     /// Get the current launcher state, waiting for initialization
     pub async fn get() -> crate::Result<Arc<Self>> {
         if !LAUNCHER_STATE.initialized() {
-            tracing::error!(
-                "Attempted to get state before it is initialized - this should never happen!"
+            // Frontend commands routinely race initialize_state; wait instead of
+            // treating the first poll as a hard error.
+            tracing::debug!(
+                "State not ready yet; waiting for launcher initialization before serving command"
             );
             while !LAUNCHER_STATE.initialized() {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
