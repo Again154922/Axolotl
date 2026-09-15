@@ -170,8 +170,10 @@ export function createContentInstall(opts: {
 	const incompatibilityWarningMessage = ref<string | undefined>(undefined)
 	const incompatibilityWarningInstalling = ref(false)
 
-	const { addInstallingItem, updateInstallingItem, removeInstallingItems } =
-		createInstallingItemsRegistry(installingItems, debugState)
+	const { addInstallingItem, removeInstallingItems } = createInstallingItemsRegistry(
+		installingItems,
+		debugState,
+	)
 
 	async function notifyInstalledDependencies(instanceId: string, dependencyProjectIds: string[]) {
 		if (dependencyProjectIds.length === 0) return
