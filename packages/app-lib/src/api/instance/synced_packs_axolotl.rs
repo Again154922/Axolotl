@@ -128,14 +128,15 @@ async fn tracked_materialized_path(
     pack_id: &str,
     instance_id: &str,
 ) -> crate::Result<Option<String>> {
-    Ok(sqlx::query_scalar::<_, String>(
+    Ok(sqlx::query_scalar::<_, Option<String>>(
         "SELECT materialized_path FROM synced_pack_instances
          WHERE pack_id = ? AND instance_id = ?",
     )
     .bind(pack_id)
     .bind(instance_id)
     .fetch_optional(&state.pool)
-    .await?)
+    .await?
+    .flatten())
 }
 
 fn normalize_tracked_path(
