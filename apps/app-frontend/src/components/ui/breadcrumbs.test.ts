@@ -57,7 +57,9 @@ test('upgrade route paths, internal names, and breadcrumb depth stay unchanged',
 test('breadcrumb component resolves Upgrade through formatMessage on each render', () => {
 	const source = readFileSync(new URL('./Breadcrumbs.vue', import.meta.url), 'utf8')
 	assert.match(source, /Upgrade: messages\.upgradeInstance/)
+	assert.match(source, /Screenshots: messages\.screenshots/)
 	assert.match(source, /Upgrade: ArrowBigUpDashIcon/)
+	assert.match(source, /screenshots: \{ id: 'app\.navigation\.screenshots'/)
 	assert.match(source, /id: 'app\.instance\.upgrade-instance'/)
 	assert.match(source, /resolveBreadcrumbLabel\([\s\S]*?\(message\) => formatMessage\(message\)/)
 })
