@@ -24,7 +24,7 @@ function cloneUpgradeFlowSnapshot(snapshot: UpgradeFlowSnapshot): UpgradeFlowSna
 	return structuredClone(toPlainUpgradeDto(snapshot)) as UpgradeFlowSnapshot
 }
 
-function isBrowseReturnSourcePath(path: string): boolean {
+export function isBrowseReturnSourcePath(path: string): boolean {
 	return path === '/downloads' || path.startsWith('/project/') || path.startsWith('/instance/')
 }
 

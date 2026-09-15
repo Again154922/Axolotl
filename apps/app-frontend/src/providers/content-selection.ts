@@ -1,21 +1,13 @@
 import type { Labrinth } from '@modrinth/api-client'
 import {
-	type BrowseInstallPreferences,
 	type BrowseSelectedProject,
-	createContext,
-	defineMessages,
 	usesTargetGameVersion,
 	useVIntl,
 } from '@modrinth/ui'
-import { computed, type ComputedRef, type Ref, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import type ContentInstallPreviewModal from '@/components/ui/ContentInstallPreviewModal.vue'
-import type {
-	ContentInstallPreviewData,
-	ContentInstallPreviewDependency,
-	ContentInstallPreviewPrimary,
-	ContentInstallPreviewSkipped,
-} from '@/components/ui/ContentInstallPreviewModal.vue'
+import type { ContentInstallPreviewData } from '@/components/ui/ContentInstallPreviewModal.vue'
 import { get_project_many, get_version_many } from '@/helpers/cache.js'
 import {
 	compareContentIdentities,
@@ -26,7 +18,6 @@ import {
 	resolveContentIdentities,
 } from '@/helpers/content-identity'
 import {
-	type CurseForgeInstallPreview,
 	getCurseForgeFile,
 	getCurseForgeProjects,
 	previewCurseForgeFile,
@@ -40,128 +31,38 @@ import {
 	preview_project_with_dependencies,
 	queue_content_batch,
 	queue_project_with_dependencies,
-	type ResolveContentPlan,
 } from '@/helpers/instance'
 import { getBrowseDefaultInstanceId, setBrowseDefaultInstanceId } from '@/helpers/settings'
 import type { GameInstance } from '@/helpers/types'
 import { aggregateContentSelectionDependencies } from '@/providers/content-selection-logic'
-import type { DownloadManager } from '@/providers/download-manager'
+import {
+	type ContentSelectionContext,
+	type ContentSelectionItem,
+	contentSelectionMessages as messages,
+	type ContentSelectionProvider,
+	type ContentSelectionState,
+	type ContentSelectionType,
+	type CreateContentSelectionOptions,
+	curseForgeLoaderType,
+	injectContentSelection,
+	type PreparedSelection,
+	provideContentSelection,
+	toModrinthContentType,
+} from '@/providers/content-selection-types'
 import { useTheming } from '@/store/state'
 
-export type ContentSelectionProvider = 'modrinth' | 'curseforge'
-export type ContentSelectionType = 'mod' | 'resourcepack' | 'datapack' | 'shader' | 'world'
-export type ContentSelectionState = 'idle' | 'validating' | 'reviewing' | 'queueing' | 'error'
-
-export interface ContentSelectionItem {
-	key: string
-	provider: ContentSelectionProvider
-	projectId: string
-	providerProjectId: string
-	versionId: string
-	contentType: ContentSelectionType
-	title: string
-	iconUrl?: string | null
-	preferences?: BrowseInstallPreferences
-	targetInstanceId?: string
-	slug?: string | null
-	fileName?: string | null
-	sha1?: string | null
-	identity?: ContentIdentity
+export {
+	type ContentSelectionContext,
+	type ContentSelectionItem,
+	type ContentSelectionProvider,
+	type ContentSelectionState,
+	type ContentSelectionType,
+	type CreateContentSelectionOptions,
+	injectContentSelection,
+	provideContentSelection,
 }
 
-interface PreparedSelection {
-	item: ContentSelectionItem
-	primary: ContentInstallPreviewPrimary
-	dependencies: ContentInstallPreviewDependency[]
-	skipped: ContentInstallPreviewSkipped[]
-	modrinthPlan?: ResolveContentPlan
-	curseForgePreview?: CurseForgeInstallPreview
-}
-
-export interface ContentSelectionContext {
-	instances: Ref<GameInstance[]>
-	targetInstance: Ref<GameInstance | null>
-	items: Ref<Map<string, ContentSelectionItem>>
-	selectedProjects: ComputedRef<BrowseSelectedProject[]>
-	selectedCount: ComputedRef<number>
-	state: Ref<ContentSelectionState>
-	progress: Ref<{ completed: number; total: number }>
-	errorKeys: Ref<Set<string>>
-	refreshInstances: (preferredId?: string | null) => Promise<GameInstance | null>
-	refreshInstalledIdentities: () => Promise<void>
-	setTarget: (instance: GameInstance | null) => void
-	add: (item: ContentSelectionItem) => Promise<boolean>
-	remove: (key: string) => void
-	clear: () => void
-	isSelected: (key: string) => boolean
-	isInstalledIdentity: (
-		provider: ContentSelectionProvider,
-		projectId: string,
-		slug?: string | null,
-	) => boolean
-	isInstalling: (key: string) => boolean
-	installSelected: () => Promise<boolean>
-	setPreviewModal: (modal: InstanceType<typeof ContentInstallPreviewModal> | null) => void
-}
-
-export interface CreateContentSelectionOptions {
-	addNotification: (notification: { title: string; type: 'error' }) => void
-	handleError: (error: unknown) => void
-	downloadManager: DownloadManager
-}
-
-export const [injectContentSelection, provideContentSelection] =
-	createContext<ContentSelectionContext>('App', 'contentSelection')
-
-const messages = defineMessages({
-	previewFailed: {
-		id: 'app.content-selection.preview-failed',
-		defaultMessage: 'Some selected content could not be prepared. Remove it or try again.',
-	},
-	queueFailed: {
-		id: 'app.content-selection.queue-failed',
-		defaultMessage: 'Some content could not be added to the install queue. It remains selected.',
-	},
-	dependencyConflict: {
-		id: 'app.content-selection.dependency-conflict',
-		defaultMessage: '{dependency} resolves to conflicting versions in this selection.',
-	},
-	unknownDependency: {
-		id: 'app.content-selection.unknown-dependency',
-		defaultMessage: 'Dependency {id}',
-	},
-	unknownReason: {
-		id: 'app.content-selection.unknown-reason',
-		defaultMessage: 'Could not be resolved',
-	},
-	targetChanged: {
-		id: 'app.content-selection.target-changed',
-		defaultMessage:
-			'The selected content belongs to another instance. Switch back or clear it first.',
-	},
-	duplicateContent: {
-		id: 'app.content-selection.duplicate-content',
-		defaultMessage: '{project} is already installed or selected from another source.',
-	},
-	conflictUnavailable: {
-		id: 'app.content-selection.conflict-unavailable',
-		defaultMessage: 'Could not verify whether this content duplicates another source.',
-	},
-})
-
-const activeJobStatuses = new Set(['queued', 'running', 'canceling', 'waiting_for_user'])
-
-function curseForgeLoaderType(loader: string): number | undefined {
-	if (loader === 'forge') return 1
-	if (loader === 'fabric') return 4
-	if (loader === 'quilt') return 5
-	if (loader === 'neoforge') return 6
-	return undefined
-}
-
-function toModrinthContentType(contentType: ContentSelectionType): Labrinth.Content.v3.ContentType {
-	return contentType as Labrinth.Content.v3.ContentType
-}
+export const activeJobStatuses = new Set(['queued', 'running', 'canceling', 'waiting_for_user'])
 
 function dependencyKey(provider: ContentSelectionProvider, projectId: string, versionId: string) {
 	return `${provider}:${projectId}:${versionId}`
@@ -946,10 +847,25 @@ export function createContentSelection({
 		const preview = selection.curseForgePreview
 		if (!preview) throw new Error('Missing CurseForge install preview')
 		const excludedDependencyProjectIds = preview.dependencies
-			.filter((dependency) => !approvedIds.has(dependencyKey('curseforge', String(dependency.projectId), String(dependency.fileId))))
+			.filter(
+				(dependency) =>
+					!approvedIds.has(
+						dependencyKey('curseforge', String(dependency.projectId), String(dependency.fileId)),
+					),
+			)
 			.map((dependency) => dependency.projectId)
 		const forceDependencyProjectIds = preview.skipped
-			.filter((skipped) => skipped.reason === 'already_installed' && approvedIds.has(dependencyKey('curseforge', String(skipped.projectId), String(skipped.fileId ?? 'skipped'))))
+			.filter(
+				(skipped) =>
+					skipped.reason === 'already_installed' &&
+					approvedIds.has(
+						dependencyKey(
+							'curseforge',
+							String(skipped.projectId),
+							String(skipped.fileId ?? 'skipped'),
+						),
+					),
+			)
 			.map((skipped) => skipped.projectId)
 		for (const fallback of preview.modrinthFallbacks ?? []) {
 			if (!approvedIds.has(dependencyKey('modrinth', fallback.projectId, fallback.versionId))) {
@@ -963,7 +879,9 @@ export function createContentSelection({
 			projectType: selection.item.contentType,
 			ownershipKind: 'user_added',
 			manualOperationKind: 'content_install',
-			gameVersion: usesTargetGameVersion(selection.item.contentType) ? instance.game_version : undefined,
+			gameVersion: usesTargetGameVersion(selection.item.contentType)
+				? instance.game_version
+				: undefined,
 			modLoaderType: curseForgeLoaderType(instance.loader),
 			installDependencies: true,
 			excludedDependencyProjectIds: [...new Set(excludedDependencyProjectIds)],
@@ -1053,14 +971,33 @@ export function createContentSelection({
 							loaders: selection.item.preferences?.loaders ?? [],
 						},
 						excluded_project_ids: plan.dependencies
-							.filter((dependency) => !approvedIds.has(dependencyKey('modrinth', dependency.project_id, dependency.version_id)))
+							.filter(
+								(dependency) =>
+									!approvedIds.has(
+										dependencyKey('modrinth', dependency.project_id, dependency.version_id),
+									),
+							)
 							.map((dependency) => dependency.project_id),
 						force_project_ids: plan.skipped
-							.filter((skipped) => skipped.reason === 'already_installed' && !!skipped.version_id && approvedIds.has(dependencyKey('modrinth', skipped.project_id, skipped.version_id)))
+							.filter(
+								(skipped) =>
+									skipped.reason === 'already_installed' &&
+									!!skipped.version_id &&
+									approvedIds.has(
+										dependencyKey('modrinth', skipped.project_id, skipped.version_id),
+									),
+							)
 							.map((skipped) => skipped.project_id),
 					})
 				} else if (selection.item.contentType === 'world') {
-					batchItems.push({ type: 'curse_forge_world', request: { instanceId: instance.id, projectId: Number(selection.item.providerProjectId), fileId: Number(selection.item.versionId) } })
+					batchItems.push({
+						type: 'curse_forge_world',
+						request: {
+							instanceId: instance.id,
+							projectId: Number(selection.item.providerProjectId),
+							fileId: Number(selection.item.versionId),
+						},
+					})
 				} else {
 					const request = await buildCurseForgeRequest(selection, instance, approvedIds)
 					batchItems.push({ type: 'curse_forge', request })

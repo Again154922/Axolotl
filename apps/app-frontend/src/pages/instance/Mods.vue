@@ -2542,7 +2542,7 @@ function getOverflowOptions(item: ContentItem): OverflowMenuOption[] {
 
 function openSchematicInWorkshop(item: ContentItem) {
 	void router.push({
-		name: 'Schematic workshop',
+		name: 'SchematicWorkshop',
 		query: { instance: props.instance.id, path: item.file_path ?? item.file_name },
 	})
 }

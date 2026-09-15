@@ -2,7 +2,7 @@ import { createPinia, getActivePinia, setActivePinia } from 'pinia'
 
 import {
 	type BrowseReturnSnapshot,
-	upgradeProjectPath,
+	isBrowseReturnSourcePath,
 	useNavigationReturnStore,
 } from '../store/navigation-return.ts'
 
@@ -14,6 +14,7 @@ function store() {
 }
 
 export type { BrowseReturnSnapshot }
+export { isBrowseReturnSourcePath }
 
 export function saveBrowseReturnSnapshot<T>(snapshot: BrowseReturnSnapshot<T>): void {
 	store().saveBrowseReturnSnapshot(snapshot)
@@ -31,10 +32,6 @@ export function clearBrowseReturnSnapshot(): void {
 	store().clearBrowseReturnSnapshot()
 }
 
-export function isBrowseReturnSourcePath(path: string): boolean {
-	return path === '/downloads' || path.startsWith('/project/') || path.startsWith('/instance/')
-}
-
 export function prepareBrowseReturnNavigation(url: string, sourcePath: string): boolean {
 	return store().prepareBrowseReturnNavigation(url, sourcePath)
 }
@@ -46,5 +43,3 @@ export function isBrowseReturnNavigation(url: string): boolean {
 export function completeBrowseReturnNavigation(url: string): void {
 	store().completeBrowseReturnNavigation(url)
 }
-
-export { upgradeProjectPath }
