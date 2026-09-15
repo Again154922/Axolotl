@@ -55,18 +55,27 @@ const options: Array<{ key: SyncedOption; label: keyof typeof messages }> = [
 	{ key: 'resource_packs', label: 'resourcePacks' },
 ]
 
-const visibleOptionKeys = new Set(options.map((option) => option.key))
-
 const overviewQuery = useQuery({
 	queryKey: computed(() => ['instance-synced-options', instance.value.id, 'overview']),
 	queryFn: () => get_synced_options_overview(instance.value.id),
 })
 
-const hasUnsupportedVisibleOption = computed(() =>
-	overviewQuery.data.value?.capabilities.some(
-		(capability) => visibleOptionKeys.has(capability.option) && capability.supported === false,
-	) ?? false,
-)
+const optionSections = computed(() => {
+	const unsupportedOptionKeys = new Set(
+		overviewQuery.data.value?.capabilities
+			.filter((capability) => capability.supported === false)
+			.map((capability) => capability.option) ?? [],
+	)
+	const supported = options.filter((option) => !unsupportedOptionKeys.has(option.key))
+	const unsupported = options.filter((option) => unsupportedOptionKeys.has(option.key))
+
+	return [
+		{ key: 'supported', items: supported, disabled: false },
+		...(unsupported.length > 0
+			? [{ key: 'unsupported', items: unsupported, disabled: true }]
+			: []),
+	]
+})
 
 const mutation = useMutation({
 	mutationFn: ({ option, enabled }: { option: SyncedOption; enabled: boolean }) =>
@@ -93,20 +102,26 @@ function enabled(option: SyncedOption) {
 			<h2 class="m-0 text-lg font-semibold text-contrast">{{ formatMessage(messages.title) }}</h2>
 			<p class="m-0 text-secondary">{{ formatMessage(messages.description) }}</p>
 		</div>
-		<div v-for="item in options" :key="item.key" class="flex items-center justify-between gap-4">
-			<span class="text-contrast">{{ formatMessage(messages[item.label]) }}</span>
-			<Toggle
-				:model-value="enabled(item.key)"
-				:disabled="mutation.isPending.value"
-				:aria-label="formatMessage(messages[item.label])"
-				@update:model-value="(value) => mutation.mutate({ option: item.key, enabled: value })"
-			/>
-		</div>
-		<p
-			v-if="hasUnsupportedVisibleOption"
-			class="m-0 text-secondary"
-		>
-			{{ formatMessage(messages.unsupported) }}
-		</p>
+		<template v-for="section in optionSections" :key="section.key">
+			<h3
+				v-if="section.key === 'unsupported'"
+				class="m-0 text-sm font-semibold text-secondary"
+			>
+				{{ formatMessage(messages.unsupported) }}
+			</h3>
+			<div
+				v-for="item in section.items"
+				:key="item.key"
+				class="flex items-center justify-between gap-4"
+			>
+				<span class="text-contrast">{{ formatMessage(messages[item.label]) }}</span>
+				<Toggle
+					:model-value="enabled(item.key)"
+					:disabled="section.disabled || mutation.isPending.value"
+					:aria-label="formatMessage(messages[item.label])"
+					@update:model-value="(value) => mutation.mutate({ option: item.key, enabled: value })"
+				/>
+			</div>
+		</template>
 	</div>
 </template>
