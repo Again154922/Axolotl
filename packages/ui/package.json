@@ -11,6 +11,7 @@
 	"exports": {
 		".": {
 			"types": "./index.ts",
+			"node": "./node.ts",
 			"default": "./index.ts"
 		},
 		"./src/*": "./src/*"
