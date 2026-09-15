@@ -14,7 +14,15 @@ import {
 } from '@modrinth/assets'
 import { Avatar, defineMessages, NewButton as Button, useVIntl } from '@modrinth/ui'
 import { getVersion } from '@tauri-apps/api/app'
-import { inject, nextTick, onScopeDispose, ref, shallowRef } from 'vue'
+import {
+	defineAsyncComponent,
+	inject,
+	nextTick,
+	onMounted,
+	onScopeDispose,
+	ref,
+	shallowRef,
+} from 'vue'
 
 import AfdianIcon from '@/assets/external/afdian.png'
 import QqIcon from '@/assets/external/qq.svg?component'
@@ -23,12 +31,15 @@ import EasterEggGameModal from '@/components/ui/easteregg/EasterEggGameModal.vue
 import { AxolotlBrandConfig } from '@/config'
 import { contributors, type TeamMember, teamMembers } from '@/data/about'
 
-import AboutScene from '../AboutScene.vue'
 import { type AboutMemberExperience, getAboutMemberExperience } from './about-member-experiences'
 import QqChannelIcon from './QqChannelIcon.vue'
 
+// Lazy so three.js does not sit on the Suspense critical path for this settings
+// category (dev builds hang the skeleton while the chunk loads).
+const AboutScene = defineAsyncComponent(() => import('../AboutScene.vue'))
+
 const { formatMessage } = useVIntl()
-const version = await getVersion()
+const version = ref('')
 const copied = ref(false)
 const experienceHost = ref<HTMLElement>()
 const activeMemberExperience = shallowRef<AboutMemberExperience>()
@@ -41,6 +52,12 @@ const replayOnboarding = inject<(mode: 'main' | 'instance') => Promise<void>>('r
 const licenseUrl = `${AxolotlBrandConfig.repositoryUrl}/blob/main/LICENSE`
 const copyingUrl = `${AxolotlBrandConfig.repositoryUrl}/blob/main/COPYING.md`
 const thirdPartyLicensesUrl = `${AxolotlBrandConfig.repositoryUrl}/tree/main/third-party/licenses`
+
+onMounted(() => {
+	void getVersion().then((resolved) => {
+		version.value = resolved
+	})
+})
 
 async function copyQqGroupNumber() {
 	await navigator.clipboard.writeText(AxolotlBrandConfig.qqGroupNumber)

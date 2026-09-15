@@ -70,6 +70,8 @@ let categoryTransitionToken = 0
 
 const SEARCH_DEBOUNCE_MS = 120
 const CATEGORY_SKELETON_MIN_MS = 160
+/** Hard cap so a stuck async settings chunk cannot pin the skeleton forever (dev). */
+const CATEGORY_SKELETON_MAX_MS = 4000
 
 const isContentLoading = computed(() => showContentSkeleton.value || settingsContentPending.value)
 
@@ -94,12 +96,20 @@ watch(selectedCategoryId, () => {
 	const tick = () => {
 		if (token !== categoryTransitionToken) return
 
+		const elapsed = Date.now() - startedAt
+		if (elapsed >= CATEGORY_SKELETON_MAX_MS) {
+			// Never pin the overlay on a hung async chunk (seen with About + three in dev).
+			settingsContentPending.value = false
+			showContentSkeleton.value = false
+			return
+		}
+
 		if (settingsContentPending.value) {
 			window.setTimeout(tick, 32)
 			return
 		}
 
-		const remaining = Math.max(0, CATEGORY_SKELETON_MIN_MS - (Date.now() - startedAt))
+		const remaining = Math.max(0, CATEGORY_SKELETON_MIN_MS - elapsed)
 		window.setTimeout(() => {
 			if (token !== categoryTransitionToken) return
 			if (!settingsContentPending.value) {
