@@ -19,7 +19,6 @@ import {
 import {
 	Button,
 	commonMessages,
-	ConfirmLeaveModal,
 	defineMessages,
 	FloatingActionBar,
 	Input,
@@ -122,7 +121,6 @@ const messages = defineMessages({
 })
 
 const modal = ref<InstanceType<typeof TabbedModal> | null>(null)
-const confirmLeaveModal = ref<InstanceType<typeof ConfirmLeaveModal> | null>(null)
 const activeCategoryId = ref('')
 const search = ref('')
 const opened = ref(false)
@@ -142,6 +140,7 @@ const {
 	setSyncEnabled,
 	setCanonicalValue,
 	save,
+	saveAndWait,
 } = useGameSettingsEditor(
 	() => props.instanceId,
 	() => emit('saved'),
@@ -315,13 +314,13 @@ function reset() {
 
 function beforeHide(): boolean {
 	if (allowClose || !isDirty.value) return true
-	void confirmDiscard()
+	void saveBeforeClose()
 	return false
 }
 
-async function confirmDiscard() {
-	const discard = await confirmLeaveModal.value?.prompt()
-	if (!discard) return
+async function saveBeforeClose() {
+	const saved = await saveAndWait()
+	if (!saved) return
 	allowClose = true
 	modal.value?.hide()
 }
@@ -482,5 +481,4 @@ defineExpose({ show, hide })
 		</template>
 	</TabbedModal>
 
-	<ConfirmLeaveModal ref="confirmLeaveModal" />
 </template>

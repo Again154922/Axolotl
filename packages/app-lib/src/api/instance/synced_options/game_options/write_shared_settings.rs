@@ -219,10 +219,33 @@ pub(super) async fn apply_shared_settings_to_instance(
     let output_bytes = document.serialize()?;
     let output_sha1 = sha1_bytes(&output_bytes);
     let changed = file_was_missing || output_bytes != input_bytes;
+
+    // Register the expected bytes before touching the file. The filesystem
+    // watcher can observe the write immediately on some platforms; recording
+    // the checkpoint first prevents that event from being misclassified as a
+    // user edit and importing stale data back into the shared store.
+    synced_options::begin_checkpoint(
+        &metadata.instance.id,
+        SyncedOption::GameOptions,
+        "default",
+        &output_sha1,
+        None,
+        load_game_options_sync_state(&state.pool, CATALOG_REVISION)
+            .await?
+            .0 as i64,
+        state,
+    )
+    .await?;
     if changed {
         io::write(&path, output_bytes).await?;
     }
-    remember_processed_sha(&metadata.instance.id, &output_sha1, state).await?;
+    synced_options::finish_plain_checkpoint(
+        &metadata.instance.id,
+        SyncedOption::GameOptions,
+        "default",
+        state,
+    )
+    .await?;
 
     Ok(if changed && applied.used_migration {
         SyncOutcome::Migrated

@@ -361,9 +361,6 @@ async fn set_global_option_with_state(
     base_instance_id: Option<&str>,
     state: &State,
 ) -> crate::Result<GlobalSyncedOptions> {
-    let initializing_game_options_from_base = enabled
-        && option == SyncedOption::GameOptions
-        && base_instance_id.is_some();
     if enabled
         && option != SyncedOption::Screenshots
         && let Some(base_instance_id) = base_instance_id
@@ -399,9 +396,12 @@ async fn set_global_option_with_state(
         }
     }
 
-    if !initializing_game_options_from_base {
-        set_global_option_enabled(option, enabled, state).await?;
-    }
+    // Always persist the global flag and propagate the instance-level default.
+    // The game-options base-instance path seeds the shared values above, but
+    // must still enable the feature for every existing instance; otherwise
+    // only the selected source participates and all other instance toggles
+    // remain disabled.
+    set_global_option_enabled(option, enabled, state).await?;
 
     // Reload metadata after updating the global preference. The initial list
     // may contain stale per-instance sync flags, which would otherwise make

@@ -28,6 +28,7 @@ const props = withDefaults(
 		width?: string
 		closable?: boolean
 		beforeTabChange?: (fromIndex: number, toIndex: number) => boolean
+		beforeHide?: () => boolean
 		onHide?: () => void
 		onShow?: () => void
 	}>(),
@@ -37,6 +38,7 @@ const props = withDefaults(
 		width: undefined,
 		closable: true,
 		beforeTabChange: undefined,
+		beforeHide: undefined,
 		onHide: undefined,
 		onShow: undefined,
 	},
@@ -76,6 +78,7 @@ defineExpose({ show, hide, selectedTab, setTab })
 		:width="width"
 		:closable="closable"
 		:on-hide="onHide"
+		:before-hide="beforeHide"
 		:on-show="onShow"
 		no-padding
 	>

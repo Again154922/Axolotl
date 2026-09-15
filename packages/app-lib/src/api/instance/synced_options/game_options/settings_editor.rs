@@ -508,6 +508,7 @@ pub async fn save_changes(
     }
     tx.commit().await?;
 
+
     let write_result = if changed {
         sync_all_participating_instances(&state).await
     } else {
@@ -521,9 +522,10 @@ pub async fn save_changes(
             conflicts: Vec::new(),
         }
     };
-    Ok(SaveGameSettingsResult {
+    let result = SaveGameSettingsResult {
         state: Some(load_settings_editor(&state).await?),
         conflicts,
         ..write_result
-    })
+    };
+    Ok(result)
 }

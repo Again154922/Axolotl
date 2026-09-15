@@ -186,6 +186,16 @@ export function useGameSettingsEditor(
 		saveMutation.mutate()
 	}
 
+	async function saveAndWait(): Promise<boolean> {
+		if (loading.value || hasBlockingDraft.value || !isDirty.value) return !hasBlockingDraft.value
+		try {
+			await saveMutation.mutateAsync()
+			return true
+		} catch {
+			return false
+		}
+	}
+
 	function editorRequest(): UpdateGameSettingsRequest | null {
 		if (!baseState.value || !draftState.value) return null
 		return {
@@ -433,5 +443,6 @@ export function useGameSettingsEditor(
 		setSyncEnabled,
 		setCanonicalValue,
 		save,
+		saveAndWait,
 	}
 }
