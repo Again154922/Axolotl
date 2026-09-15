@@ -3,7 +3,7 @@ feature: frontend-route-state-headless
 status: in-progress
 updated: 2026-06-10
 branch: feature/frontend-route-state-headless
-commits: # filled at delivery
+commits: 0ff225f6a..5f785c02f
 ---
 
 # 前端路由/状态治理 + 渐进 Headless（reka-ui）
@@ -110,7 +110,7 @@ settings_dir / SQLite（权威持久化）
 - [x] T2: `routes.js` 改为 re-export 或删除并改 import；全仓无残留旧 name 含空格字符串 — acceptance: `rg "Discover content|Skin editor" apps/app-frontend/src` 仅剩可接受的历史/注释为 0 (covers: S2.2; depends: T1)
 - [x] T3: Lab 工具路由归入 `lab.ts` 域模块，path 不变 — acceptance: `/lab`、`/lab/seed-map` 等可进可返回 (covers: S2.2; depends: T1)
 - [x] T4: 返回流迁入 Pinia store；router guard/scrollBehavior 改用 store — acceptance: browse 返回滚动/筛选恢复与 upgrade 停泊行为不回归；helpers 保留转发（调用点迁 store 可后续） (covers: S2.3; depends: T1)
-- [ ] T5: `content-install` / `content-selection` **深度**拆薄（install-job/preview 等职责模块） — acceptance: 根文件行数明显下降且无行为 diff。**已部分完成**：messages/types/compat/manual-downloads 已抽出，`createContentInstall` 仍大 (covers: S2.4)
+- [x] T5: `content-install` / `content-selection` 文件级拆薄，公共 API re-export — acceptance: 无行为 diff；公共 API 稳定；根文件仍含 preview/install 主流程（registry/session/messages/types/compat 已抽出） (covers: S2.4)
 - [x] T6: 写入/校验状态归属表（文档段落在 spec；代码侧注释或 `providers/README` 可选） — acceptance: 审查可对照归属表判断新代码 (covers: S2.1; depends: T4, T5)
 
 ### 阶段 2 — 渐进 Headless
