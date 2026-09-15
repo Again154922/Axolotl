@@ -28,6 +28,29 @@ export const ANNOUNCEMENT_CHANGE_TYPES: readonly AnnouncementChangeType[] = [
 
 export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 	{
+		id: 'launcher-1.9.7-beta.1',
+		version: '1.9.7-beta.1',
+		publishedAt: '2026-09-15',
+		title: {
+			'en-US': 'Axolotl Launcher 1.9.7-beta.1',
+			'zh-CN': 'Axolotl Launcher 1.9.7-beta.1',
+		},
+		changes: {
+			added: [
+				{
+					'en-US': 'Add screenshot center and cross-instances synchronization (Beta).',
+					'zh-CN': '添加截图中心和跨实例同步（Beta）。',
+				},
+			],
+			fixed: [
+				{
+					'en-US': 'Fixed the issue where the launcher would crash on startup due to ashpd.',
+					'zh-CN': '修复启动时因 ashpd 导致崩溃的问题。',
+				},
+			],
+		},
+	},
+	{
 		id: 'launcher-1.9.6',
 		version: '1.9.6',
 		publishedAt: '2026-09-15',
