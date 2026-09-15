@@ -18,6 +18,7 @@ import {
 	defineAsyncComponent,
 	inject,
 	nextTick,
+	onErrorCaptured,
 	onMounted,
 	onScopeDispose,
 	ref,
@@ -36,7 +37,19 @@ import QqChannelIcon from './QqChannelIcon.vue'
 
 // Lazy so three.js does not sit on the Suspense critical path for this settings
 // category (dev builds hang the skeleton while the chunk loads).
-const AboutScene = defineAsyncComponent(() => import('../AboutScene.vue'))
+const AboutScene = defineAsyncComponent({
+	loader: () => import('../AboutScene.vue'),
+	onError(error, retry, fail) {
+		// one retry, then leave the scene slot empty instead of tearing down Settings
+		if ((error as { __aboutSceneRetried?: boolean }).__aboutSceneRetried) {
+			fail()
+			return
+		}
+		;(error as { __aboutSceneRetried?: boolean }).__aboutSceneRetried = true
+		retry()
+	},
+})
+const aboutSceneFailed = ref(false)
 
 const { formatMessage } = useVIntl()
 const version = ref('')
@@ -54,9 +67,19 @@ const copyingUrl = `${AxolotlBrandConfig.repositoryUrl}/blob/main/COPYING.md`
 const thirdPartyLicensesUrl = `${AxolotlBrandConfig.repositoryUrl}/tree/main/third-party/licenses`
 
 onMounted(() => {
-	void getVersion().then((resolved) => {
-		version.value = resolved
-	})
+	void getVersion()
+		.then((resolved) => {
+			version.value = resolved
+		})
+		.catch(() => {
+			// keep empty version string; do not fail the settings category
+		})
+})
+
+// Keep a failing 3D scene from bubbling into Settings Suspense / the shell.
+onErrorCaptured(() => {
+	aboutSceneFailed.value = true
+	return false
 })
 
 async function copyQqGroupNumber() {
@@ -308,7 +331,7 @@ const projectLinks = [
 						-webkit-mask-image: linear-gradient(to bottom, black 97%, transparent 100%);
 					"
 				>
-					<AboutScene />
+					<AboutScene v-if="!aboutSceneFailed" />
 					<component
 						:is="activeMemberExperience?.component"
 						v-if="activeMemberExperience"

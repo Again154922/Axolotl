@@ -10,7 +10,7 @@ import {
 import { getVersion } from '@tauri-apps/api/app'
 import { platform as getOsPlatform, version as getOsVersion } from '@tauri-apps/plugin-os'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
 	getVisibleSettingsCategories,
@@ -40,6 +40,7 @@ interface SettingsSearchResult {
 
 const themeStore = useTheming()
 const route = useRoute()
+const router = useRouter()
 const { formatMessage } = useVIntl()
 const { progress, version: downloadingVersion } = injectAppUpdateDownloadProgress()
 
@@ -98,8 +99,8 @@ watch(selectedCategoryId, () => {
 
 		const elapsed = Date.now() - startedAt
 		if (elapsed >= CATEGORY_SKELETON_MAX_MS) {
-			// Never pin the overlay on a hung async chunk (seen with About + three in dev).
-			settingsContentPending.value = false
+			// Soft timeout: drop the overlay only. Do not force Suspense out of
+			// pending — that desyncs the async child and can tear down the page.
 			showContentSkeleton.value = false
 			return
 		}
@@ -236,6 +237,11 @@ function selectCategory(categoryId: string) {
 	const category = visibleCategories.value.find((item) => item.id === categoryId)
 	if (category) expandedGroups.value[category.group] = true
 	contentContainer.value?.scrollTo({ top: 0 })
+	// Keep the URL hash in sync so a remount (error recovery, HMR) restores
+	// this tab instead of falling back to the default category.
+	if (route.hash !== `#${categoryId}`) {
+		void router.replace({ hash: `#${categoryId}` })
+	}
 }
 
 function toggleGroup(groupId: string) {
