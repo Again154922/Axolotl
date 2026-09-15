@@ -32,7 +32,7 @@ export function isBrowseReturnSourcePath(path: string): boolean {
  * Owns browse/upgrade return navigation state that used to live in module-level
  * helpers. UI and router read this store instead of hidden module globals.
  */
-export const useNavigationReturnStore = defineStore('navigation-return', () => {
+export const useNavigationReturnStore = defineStore('navigationReturnStore', () => {
 	const browseSnapshot = ref<BrowseReturnSnapshot<unknown> | null>(null)
 	const browseReturnUrl = ref<string | null>(null)
 	const parkedUpgrade = ref<UpgradeFlowSnapshot | null>(null)
