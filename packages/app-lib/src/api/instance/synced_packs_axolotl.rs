@@ -194,15 +194,18 @@ async fn cleanup_materialization(
     let mut transaction = state.pool.begin().await?;
     sqlx::query(
         "DELETE FROM instance_pack_members
-         WHERE content_set_id = ? AND member_key = ?",
+         WHERE member_key = ?
+           AND content_set_id IN (
+             SELECT id FROM instance_content_sets WHERE instance_id = ?
+           )",
     )
-    .bind(&metadata.applied_content_set.id)
     .bind(format!("shared:{}", row.id))
+    .bind(&metadata.instance.id)
     .execute(&mut *transaction)
     .await?;
     sqlx::query(
         "DELETE FROM instance_content_entries
-         WHERE instance_id = ? AND content_set_id = ?
+         WHERE instance_id = ?
            AND source_kind = 'shared_instance'
            AND file_id IN (
              SELECT id FROM instance_files
@@ -210,7 +213,6 @@ async fn cleanup_materialization(
            )",
     )
     .bind(&metadata.instance.id)
-    .bind(&metadata.applied_content_set.id)
     .bind(&metadata.instance.id)
     .bind(&relative_path)
     .execute(&mut *transaction)
