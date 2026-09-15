@@ -116,6 +116,6 @@ settings_dir / SQLite（权威持久化）
 ### 阶段 2 — 渐进 Headless
 
 - [x] T7: 引入 `reka-ui`，新增隔离 demo 路由/页面验证 token 映射 — acceptance: demo 结构完成（`/headless-demo`）；light/dark/OLED **目视待用户确认** (covers: S2.5; depends: T1)
-- [ ] T8: 叶子原语 adapter（≥ Tooltip + Button/Input 或 Checkbox）接入现有 `ButtonStyled` 风格 — acceptance: 至少一处生产 UI 使用 adapter；视觉与 token 一致 (covers: S2.5; depends: T7)
+- [x] T8: 叶子原语 adapter（≥ Tooltip + Button/Input 或 Checkbox）接入现有 `ButtonStyled` 风格 — acceptance: 至少一处生产 UI 使用 adapter；视觉与 token 一致 (covers: S2.5; depends: T7)
 - [ ] T9: Dialog/Select adapter 对接 `MODALS.md` 与 FormatJS — acceptance: 一处模态或下拉替换；`data-onboarding-id` 仍可命中 (covers: S2.5; depends: T8)
 - [ ] T10: 设置表单等低耦合区至少一处理替换 + prepr — acceptance: `pnpm prepr:frontend:app` 过；无 MC 领域组件被替换 (covers: S2.5; depends: T9)

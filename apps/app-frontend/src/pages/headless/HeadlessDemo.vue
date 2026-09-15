@@ -21,14 +21,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 	SelectViewport,
-	TooltipContent,
-	TooltipPortal,
-	TooltipProvider,
-	TooltipRoot,
-	TooltipTrigger,
 } from 'reka-ui'
 import { ref } from 'vue'
 
+import HeadlessButton from '@/components/ui/headless/HeadlessButton.vue'
+import HeadlessTooltip from '@/components/ui/headless/HeadlessTooltip.vue'
 import { headlessTokenClasses } from '@/components/ui/headless/token-classes'
 
 const { formatMessage } = useVIntl()
@@ -71,7 +68,7 @@ const messages = defineMessages({
 	dialogDescription: {
 		id: 'app.headless-demo.dialog-description',
 		defaultMessage:
-			'This dialog content uses bg-surface-2, text-contrast, and border-surface-5. Overlay and focus ring stay readable in every theme.',
+			'This dialog content uses bg-surface-3, text-contrast, and border-surface-5. Overlay and focus ring stay readable in every theme.',
 	},
 	dialogClose: { id: 'app.headless-demo.dialog-close', defaultMessage: 'Close' },
 	tooltipTrigger: { id: 'app.headless-demo.tooltip-trigger', defaultMessage: 'Hover tooltip' },
@@ -136,9 +133,9 @@ function loaderLabel(value: string) {
 			<div class="flex flex-wrap items-center gap-3">
 				<DialogRoot v-model:open="dialogOpen">
 					<DialogTrigger as-child>
-						<button type="button" :class="headlessTokenClasses.buttonBrand">
+						<HeadlessButton color="brand">
 							{{ formatMessage(messages.openDialog) }}
-						</button>
+						</HeadlessButton>
 					</DialogTrigger>
 					<DialogPortal>
 						<DialogOverlay :class="headlessTokenClasses.dialogOverlay" />
@@ -148,13 +145,13 @@ function loaderLabel(value: string) {
 									{{ formatMessage(messages.dialogTitle) }}
 								</DialogTitle>
 								<DialogClose as-child>
-									<button
+									<HeadlessButton
 										type="button"
-										aria-label="Close"
-										class="flex size-8 shrink-0 items-center justify-center rounded-md text-secondary transition-colors hover:text-contrast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+										class="!h-8 !w-8 !px-0"
+										:aria-label="formatMessage(messages.dialogClose)"
 									>
 										<XIcon class="size-4" />
-									</button>
+									</HeadlessButton>
 								</DialogClose>
 							</div>
 							<DialogDescription :class="headlessTokenClasses.dialogDescription">
@@ -162,29 +159,19 @@ function loaderLabel(value: string) {
 							</DialogDescription>
 							<div class="mt-4 flex justify-end">
 								<DialogClose as-child>
-									<button type="button" :class="headlessTokenClasses.buttonStandard">
-										{{ formatMessage(messages.dialogClose) }}
-									</button>
+									<HeadlessButton>{{ formatMessage(messages.dialogClose) }}</HeadlessButton>
 								</DialogClose>
 							</div>
 						</DialogContent>
 					</DialogPortal>
 				</DialogRoot>
 
-				<TooltipProvider>
-					<TooltipRoot>
-						<TooltipTrigger as-child>
-							<button type="button" :class="headlessTokenClasses.buttonStandard">
-								{{ formatMessage(messages.tooltipTrigger) }}
-							</button>
-						</TooltipTrigger>
-						<TooltipPortal>
-							<TooltipContent :class="headlessTokenClasses.tooltipContent" :side-offset="6">
-								{{ formatMessage(messages.tooltipContent) }}
-							</TooltipContent>
-						</TooltipPortal>
-					</TooltipRoot>
-				</TooltipProvider>
+				<HeadlessTooltip>
+					<HeadlessButton>{{ formatMessage(messages.tooltipTrigger) }}</HeadlessButton>
+					<template #content>
+						{{ formatMessage(messages.tooltipContent) }}
+					</template>
+				</HeadlessTooltip>
 			</div>
 
 			<div class="flex flex-wrap items-end gap-4">
@@ -232,12 +219,12 @@ function loaderLabel(value: string) {
 			</div>
 
 			<div class="flex flex-wrap gap-3">
-				<button type="button" :class="headlessTokenClasses.buttonBrand">
+				<HeadlessButton color="brand">
 					{{ formatMessage(messages.brandButton) }}
-				</button>
-				<button type="button" :class="headlessTokenClasses.buttonStandard">
+				</HeadlessButton>
+				<HeadlessButton>
 					{{ formatMessage(messages.standardButton) }}
-				</button>
+				</HeadlessButton>
 			</div>
 		</section>
 	</main>

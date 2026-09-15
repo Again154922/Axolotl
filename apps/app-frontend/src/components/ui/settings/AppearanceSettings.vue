@@ -26,6 +26,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { exists, mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import HeadlessTooltip from '@/components/ui/headless/HeadlessTooltip.vue'
 import { getShowScrollTop, setShowScrollTop } from '@/helpers/scroll-top-state'
 import { get, set } from '@/helpers/settings.ts'
 import { getOS } from '@/helpers/utils'
@@ -884,10 +885,15 @@ watch(
 							v-if="customBackgroundPreview && !isBackgroundDragActive"
 							class="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-surface-1/80 p-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
 						>
-							<Button type="base" native-type="button" @click.stop="chooseCustomBackground">
-								<UploadIcon />
-								{{ formatMessage(messages.customBackgroundReplace) }}
-							</Button>
+							<HeadlessTooltip side="top">
+								<Button type="base" native-type="button" @click.stop="chooseCustomBackground">
+									<UploadIcon />
+									{{ formatMessage(messages.customBackgroundReplace) }}
+								</Button>
+								<template #content>
+									{{ formatMessage(messages.customBackgroundChooseOrDrop) }}
+								</template>
+							</HeadlessTooltip>
 							<Button
 								type="outlined"
 								color="red"
