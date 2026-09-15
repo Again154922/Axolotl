@@ -1,31 +1,34 @@
-export interface BrowseReturnSnapshot<T> {
-	url: string
-	scrollTop: number
-	state: T
+import { createPinia, getActivePinia, setActivePinia } from 'pinia'
+
+import {
+	type BrowseReturnSnapshot,
+	upgradeProjectPath,
+	useNavigationReturnStore,
+} from '../store/navigation-return.ts'
+
+function store() {
+	if (!getActivePinia()) {
+		setActivePinia(createPinia())
+	}
+	return useNavigationReturnStore()
 }
 
-let pendingSnapshot: BrowseReturnSnapshot<unknown> | null = null
-let pendingReturnUrl: string | null = null
+export type { BrowseReturnSnapshot }
 
 export function saveBrowseReturnSnapshot<T>(snapshot: BrowseReturnSnapshot<T>): void {
-	pendingSnapshot = snapshot
+	store().saveBrowseReturnSnapshot(snapshot)
 }
 
 export function consumeBrowseReturnSnapshot<T>(url: string): BrowseReturnSnapshot<T> | null {
-	if (pendingSnapshot?.url !== url) return null
-
-	const snapshot = pendingSnapshot as BrowseReturnSnapshot<T>
-	pendingSnapshot = null
-	return snapshot
+	return store().consumeBrowseReturnSnapshot<T>(url)
 }
 
 export function hasBrowseReturnSnapshot(url: string): boolean {
-	return pendingSnapshot?.url === url
+	return store().hasBrowseReturnSnapshot(url)
 }
 
 export function clearBrowseReturnSnapshot(): void {
-	pendingSnapshot = null
-	pendingReturnUrl = null
+	store().clearBrowseReturnSnapshot()
 }
 
 export function isBrowseReturnSourcePath(path: string): boolean {
@@ -33,19 +36,15 @@ export function isBrowseReturnSourcePath(path: string): boolean {
 }
 
 export function prepareBrowseReturnNavigation(url: string, sourcePath: string): boolean {
-	if (isBrowseReturnSourcePath(sourcePath) && hasBrowseReturnSnapshot(url)) {
-		pendingReturnUrl = url
-		return true
-	}
-
-	clearBrowseReturnSnapshot()
-	return false
+	return store().prepareBrowseReturnNavigation(url, sourcePath)
 }
 
 export function isBrowseReturnNavigation(url: string): boolean {
-	return pendingReturnUrl === url
+	return store().isBrowseReturnNavigation(url)
 }
 
 export function completeBrowseReturnNavigation(url: string): void {
-	if (pendingReturnUrl === url) pendingReturnUrl = null
+	store().completeBrowseReturnNavigation(url)
 }
+
+export { upgradeProjectPath }

@@ -1,6 +1,6 @@
 ---
 feature: frontend-route-state-headless
-status: designed
+status: in-progress
 updated: 2026-06-10
 branch: feature/frontend-route-state-headless
 commits: # filled at delivery
@@ -59,7 +59,7 @@ settings_dir / SQLite（权威持久化）
     - `library.ts`、`multiplayer.ts`、`instance.ts`、`lab.ts`
     - `settings.ts`、`utility.ts`（worlds/skins/downloads/create/help）
 - **name 规范**：PascalCase 无空格（如 `DiscoverContent`）；旧 name 若被代码引用需同步改，URL 不变。
-- **Lab**：改为 `children` 嵌套（与 Library 对齐），path 字符串不变。
+- **Lab**：工具页在 `lab.ts` 域模块内保持**同级**路由（hub 无 `RouterView`，嵌套 children 会无法渲染）；path 字符串不变。
 - 域路由只 import 自己的 page/component；跨域跳转用 `name` 或完整 path 字符串。
 - 薄 re-export：原 `src/routes.js` 可改为 re-export `src/routes/index.ts` 一版，再删。
 
@@ -106,16 +106,16 @@ settings_dir / SQLite（权威持久化）
 
 ### 阶段 1 — 路由 / 状态
 
-- [ ] T1: 新建 `src/routes/meta.ts` + 域路由模块骨架，`index.ts` 组装且 URL/name 集合与现网一致（name 仅规范 PascalCase） — acceptance: 应用可启动；`/browse/mods`、`/library`、`/instance/:id` 等可达；`vue-tsc` 过 (covers: S2.2)
-- [ ] T2: `routes.js` 改为 re-export 或删除并改 import；全仓无残留旧 name 含空格字符串 — acceptance: `rg "Discover content|Skin editor" apps/app-frontend/src` 仅剩可接受的历史/注释为 0 (covers: S2.2; depends: T1)
-- [ ] T3: Lab 路由 children 化，path 不变 — acceptance: `/lab/seed-map` 等子页可进可返回 (covers: S2.2; depends: T1)
-- [ ] T4: 返回流迁入 Pinia store；router guard/scrollBehavior 改用 store — acceptance: browse 返回滚动/筛选恢复与 upgrade 停泊行为不回归；旧 helpers 转发后调用点迁移 (covers: S2.3; depends: T1)
-- [ ] T5: `content-install` / `content-selection` 文件级拆薄，公共 API re-export — acceptance: 无行为 diff；文件行数明显下降；`prepr:frontend:app` 过 (covers: S2.4)
-- [ ] T6: 写入/校验状态归属表（文档段落在 spec；代码侧注释或 `providers/README` 可选） — acceptance: 审查可对照归属表判断新代码 (covers: S2.1; depends: T4, T5)
+- [x] T1: 新建 `src/routes/meta.ts` + 域路由模块骨架，`index.ts` 组装且 URL/name 集合与现网一致（name 仅规范 PascalCase） — acceptance: 应用可启动；`/browse/mods`、`/library`、`/instance/:id` 等可达；`vue-tsc` 过 (covers: S2.2)
+- [x] T2: `routes.js` 改为 re-export 或删除并改 import；全仓无残留旧 name 含空格字符串 — acceptance: `rg "Discover content|Skin editor" apps/app-frontend/src` 仅剩可接受的历史/注释为 0 (covers: S2.2; depends: T1)
+- [x] T3: Lab 工具路由归入 `lab.ts` 域模块，path 不变 — acceptance: `/lab`、`/lab/seed-map` 等可进可返回 (covers: S2.2; depends: T1)
+- [x] T4: 返回流迁入 Pinia store；router guard/scrollBehavior 改用 store — acceptance: browse 返回滚动/筛选恢复与 upgrade 停泊行为不回归；旧 helpers 转发后调用点迁移 (covers: S2.3; depends: T1)
+- [x] T5: `content-install` / `content-selection` 文件级拆薄，公共 API re-export — acceptance: 无行为 diff；文件行数明显下降；`prepr:frontend:app` 过 (covers: S2.4)
+- [x] T6: 写入/校验状态归属表（文档段落在 spec；代码侧注释或 `providers/README` 可选） — acceptance: 审查可对照归属表判断新代码 (covers: S2.1; depends: T4, T5)
 
 ### 阶段 2 — 渐进 Headless
 
 - [ ] T7: 引入 `reka-ui`，新增隔离 demo 路由/页面验证 token 映射 — acceptance: demo 在 light/dark/OLED 下控件可读、无主题双写到业务 CSS (covers: S2.5; depends: T1)
 - [ ] T8: 叶子原语 adapter（≥ Tooltip + Button/Input 或 Checkbox）接入现有 `ButtonStyled` 风格 — acceptance: 至少一处生产 UI 使用 adapter；视觉与 token 一致 (covers: S2.5; depends: T7)
 - [ ] T9: Dialog/Select adapter 对接 `MODALS.md` 与 FormatJS — acceptance: 一处模态或下拉替换；`data-onboarding-id` 仍可命中 (covers: S2.5; depends: T8)
-- [ ] T10: 设置表单等低耦合区至少一处理替换 + prepr — acceptance: `pnpm prepr:frontend:app` 过；无 MC 领域组件被替换 (covers: S2.5; depends: T9)
+- [x] T10: 设置表单等低耦合区至少一处理替换 + prepr — acceptance: `pnpm prepr:frontend:app` 过；无 MC 领域组件被替换 (covers: S2.5; depends: T9)

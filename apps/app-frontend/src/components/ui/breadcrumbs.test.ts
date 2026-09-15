@@ -39,7 +39,7 @@ test('upgrade breadcrumb reuses localized Upgrade instance message at runtime', 
 })
 
 test('upgrade route paths, internal names, and breadcrumb depth stay unchanged', () => {
-	const routes = readFileSync(new URL('../../routes.js', import.meta.url), 'utf8')
+	const routes = readFileSync(new URL('../../routes/instance.ts', import.meta.url), 'utf8')
 	assert.match(routes, /useRootContext: true,[\s\S]*?breadcrumb: \[\{ name: 'Upgrade' \}\]/)
 	assert.doesNotMatch(routes, /breadcrumb: \[\{ name: '\?Instance'[^\]]*\{ name: 'Upgrade' \}\]/)
 	for (const [path, name] of [
