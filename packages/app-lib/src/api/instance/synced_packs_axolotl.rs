@@ -714,9 +714,45 @@ pub(crate) async fn detach(
 }
 
 pub(crate) async fn prepare_instance_update(
-    _: &crate::state::InstanceMetadata,
-    _: &State,
+    metadata: &crate::state::InstanceMetadata,
+    state: &State,
 ) -> crate::Result<()> {
+    // Remove only files owned by the shared catalog before an install or
+    // upgrade writes the instance directory. User-owned files are preserved by
+    // cleanup_materialization's content hash check and remain local overrides.
+    for project_type in [ProjectType::ResourcePack, ProjectType::DataPack] {
+        if !metadata.synced_options_for(project_type) {
+            continue;
+        }
+        let rows = sqlx::query_as::<_, PackRow>(
+            "SELECT id, project_type, file_name, sha1, size, game_versions_json, enabled
+             FROM synced_pack_catalog WHERE project_type = ?",
+        )
+        .bind(project_type.get_name())
+        .fetch_all(&state.pool)
+        .await?;
+        for row in rows {
+            let excluded = sqlx::query_scalar::<_, i64>(
+                "SELECT excluded FROM synced_pack_instances
+                 WHERE pack_id = ? AND instance_id = ?",
+            )
+            .bind(&row.id)
+            .bind(&metadata.instance.id)
+            .fetch_optional(&state.pool)
+            .await?
+            .unwrap_or(0)
+                != 0;
+            cleanup_materialization(state, &row, metadata).await?;
+            record_materialization(
+                state,
+                &row.id,
+                &metadata.instance.id,
+                excluded,
+                None,
+            )
+            .await?;
+        }
+    }
     Ok(())
 }
 
