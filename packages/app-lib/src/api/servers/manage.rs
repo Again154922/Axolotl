@@ -89,6 +89,7 @@ pub async fn create(
         install_state: None,
         install_error: None,
         jvm_args: Vec::new(),
+        pre_launch_hook: None,
         created_at: Utc::now(),
         last_started_at: None,
         last_exit_crashed: false,
@@ -115,6 +116,7 @@ pub async fn update_settings(
     java_path: Option<String>,
     memory_mb: Option<u32>,
     jvm_args: Option<Vec<String>>,
+    pre_launch_hook: Option<String>,
 ) -> Result<ServerManifest> {
     let path = server_path(server_id).await?;
     let mut manifest = read_manifest(&path).await?;
@@ -140,6 +142,14 @@ pub async fn update_settings(
     }
     if let Some(jvm_args) = jvm_args {
         manifest.jvm_args = jvm_args;
+    }
+    if let Some(pre_launch_hook) = pre_launch_hook {
+        let pre_launch_hook = pre_launch_hook.trim();
+        manifest.pre_launch_hook = if pre_launch_hook.is_empty() {
+            None
+        } else {
+            Some(pre_launch_hook.to_string())
+        };
     }
     write_manifest(&path, &manifest).await?;
     Ok(manifest)
