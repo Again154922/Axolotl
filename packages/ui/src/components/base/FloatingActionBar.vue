@@ -119,13 +119,12 @@ function updateIntercomBubbleClearance() {
 function getBottomClearance() {
 	if (
 		typeof window === 'undefined' ||
-		!barEl.value ||
 		(props.position !== undefined && props.position !== 'bottom')
 	) {
 		return 0
 	}
 
-	return Math.max(0, Math.ceil(window.innerHeight - barEl.value.getBoundingClientRect().top))
+	return 44
 }
 
 function updateFloatingActionBarState(isShown = shown.value) {

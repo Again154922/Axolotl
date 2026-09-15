@@ -27,16 +27,13 @@ const SKIN_LAYER_DEPTH_BIAS = -1
 
 function configureSkinPreviewMesh(mesh: THREE.Mesh) {
 	const isSkinLayer = mesh.name.endsWith('_Layer')
-	mesh.renderOrder = 0
+	mesh.renderOrder = isSkinLayer ? 1 : 0
 
 	const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
 	materials.forEach((material) => {
 		if (!(material instanceof THREE.MeshStandardMaterial) || material.name === 'cape') return
 
-		material.transparent = isSkinLayer
-		material.alphaTest = 0.1
 		material.depthTest = true
-		material.depthWrite = true
 		material.polygonOffset = isSkinLayer
 		material.polygonOffsetFactor = isSkinLayer ? SKIN_LAYER_DEPTH_BIAS : 0
 		material.polygonOffsetUnits = isSkinLayer ? SKIN_LAYER_DEPTH_BIAS : 0
@@ -75,6 +72,10 @@ function disposeSceneMaterials(root: THREE.Object3D | null) {
 		if (mesh.userData.threeDSkinLayersApplied) {
 			mesh.geometry.dispose()
 		}
+		const sourceGeometry = mesh.userData.skinLayerSourceGeometry as
+			| THREE.BufferGeometry
+			| undefined
+		sourceGeometry?.dispose()
 	})
 
 	materials.forEach((material) => material.dispose())

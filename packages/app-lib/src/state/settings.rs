@@ -184,6 +184,16 @@ pub struct Settings {
 
     pub developer_mode: bool,
     pub feature_flags: HashMap<FeatureFlag, bool>,
+    #[serde(default)]
+    pub sync_features_across_devices: bool,
+    #[serde(default = "default_true")]
+    pub show_files_tab_in_instances: bool,
+    #[serde(default = "default_true")]
+    pub show_worlds_tab_in_instances: bool,
+    #[serde(default)]
+    pub show_screenshots_tab_in_instances: bool,
+    #[serde(default = "default_true")]
+    pub show_skin_selector_in_sidebar: bool,
 
     pub skipped_update: Option<String>,
     pub pending_update_toast_for_version: Option<String>,
@@ -276,6 +286,18 @@ impl Settings {
             sqlx::query_scalar("SELECT log_level FROM settings WHERE id = 0")
                 .fetch_one(exec)
                 .await?;
+
+        let (
+            sync_features_across_devices,
+            show_files_tab_in_instances,
+            show_worlds_tab_in_instances,
+            show_screenshots_tab_in_instances,
+            show_skin_selector_in_sidebar,
+        ): (bool, bool, bool, bool, bool) = sqlx::query_as(
+            "SELECT sync_features_across_devices, show_files_tab_in_instances, show_worlds_tab_in_instances, show_screenshots_tab_in_instances, show_skin_selector_in_sidebar FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
 
         let engine_row =
             sqlx::query("SELECT download_engine FROM settings WHERE id = 0")
@@ -399,6 +421,11 @@ impl Settings {
                 .as_ref()
                 .and_then(|x| serde_json::from_str(x).ok())
                 .unwrap_or_default(),
+            sync_features_across_devices,
+            show_files_tab_in_instances,
+            show_worlds_tab_in_instances,
+            show_screenshots_tab_in_instances,
+            show_skin_selector_in_sidebar,
             skipped_update: res.skipped_update,
             pending_update_toast_for_version: res
                 .pending_update_toast_for_version,
@@ -623,6 +650,16 @@ impl Settings {
             .bind(self.memory.optimize_before_launch)
             .execute(exec)
             .await?;
+        sqlx::query(
+            "UPDATE settings SET sync_features_across_devices = ?, show_files_tab_in_instances = ?, show_worlds_tab_in_instances = ?, show_screenshots_tab_in_instances = ?, show_skin_selector_in_sidebar = ? WHERE id = 0",
+        )
+        .bind(self.sync_features_across_devices)
+        .bind(self.show_files_tab_in_instances)
+        .bind(self.show_worlds_tab_in_instances)
+        .bind(self.show_screenshots_tab_in_instances)
+        .bind(self.show_skin_selector_in_sidebar)
+        .execute(exec)
+        .await?;
 
         Ok(())
     }

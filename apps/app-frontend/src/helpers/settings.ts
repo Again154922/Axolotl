@@ -4,6 +4,7 @@
  *  and deserialized into a usable JS object.
  */
 import { invoke } from '@tauri-apps/api/core'
+import { queryOptions } from '@tanstack/vue-query'
 
 import type { HomeDashboardConfig } from '@/components/home/home-dashboard'
 import type { Hooks, MemorySettings } from '@/helpers/types'
@@ -48,7 +49,10 @@ export type UpdatePreferences = {
 	updatesPaused: boolean
 }
 export type DownloadSourceMode =
-	'auto' | 'official_only' | 'mirror_preferred' | 'official_preferred'
+	| 'auto'
+	| 'official_only'
+	| 'mirror_preferred'
+	| 'official_preferred'
 export type DownloadEngine = 'legacy' | 'xmcl'
 
 export type ProxyMode = 'none' | 'system' | 'custom'
@@ -101,7 +105,11 @@ export async function setUpdatePreferences(preferences: UpdatePreferences): Prom
 }
 
 export type BrowseContentSource =
-	'all' | 'modrinth' | 'curseforge' | 'mcarchive' | 'planet_minecraft'
+	| 'all'
+	| 'modrinth'
+	| 'curseforge'
+	| 'mcarchive'
+	| 'planet_minecraft'
 
 const BROWSE_CONTENT_SOURCE_STORAGE_KEY = 'axolotl-browse-content-source'
 const BROWSE_DEFAULT_INSTANCE_STORAGE_KEY = 'axolotl-browse-default-instance'
@@ -193,6 +201,11 @@ export type AppSettings = {
 
 	developer_mode: boolean
 	feature_flags: Record<FeatureFlag, boolean>
+	sync_features_across_devices: boolean
+	show_files_tab_in_instances: boolean
+	show_worlds_tab_in_instances: boolean
+	show_screenshots_tab_in_instances: boolean
+	show_skin_selector_in_sidebar: boolean
 
 	skipped_update: string | null
 	pending_update_toast_for_version: string | null
@@ -215,7 +228,7 @@ type LegacyMirrorSettings = {
 
 function normalizeDownloadSettings(settings: AppSettings & LegacyMirrorSettings): AppSettings {
 	settings.close_behavior ??= 'ask'
-	settings.log_level ??= 'trace'
+	settings.log_level ??= 'info'
 	const hasLegacySettings =
 		typeof settings.use_minecraft_mirror === 'boolean' &&
 		typeof settings.use_modrinth_mirror === 'boolean' &&
@@ -243,6 +256,11 @@ function normalizeDownloadSettings(settings: AppSettings & LegacyMirrorSettings)
 	settings.mojang_auth_source ??= 'auto'
 	settings.terracotta_public_nodes ??= ['wss://center.node.1tmc.top']
 	settings.feature_flags ??= { ...DEFAULT_FEATURE_FLAGS }
+	settings.sync_features_across_devices ??= false
+	settings.show_files_tab_in_instances ??= true
+	settings.show_worlds_tab_in_instances ??= true
+	settings.show_screenshots_tab_in_instances ??= false
+	settings.show_skin_selector_in_sidebar ??= true
 	for (const [key, value] of Object.entries(DEFAULT_FEATURE_FLAGS)) {
 		settings.feature_flags[key as FeatureFlag] ??= value
 	}
@@ -275,6 +293,35 @@ function syncLegacyMirrorSettings(settings: AppSettings & LegacyMirrorSettings) 
 			settings.use_curseforge_mirror,
 		)
 	}
+}
+
+export const appSettingsKeys = {
+	all: ['app-settings'] as const,
+	update: ['app-settings', 'update'] as const,
+}
+
+export function appSettingsQueryOptions() {
+	return queryOptions({
+		queryKey: appSettingsKeys.all,
+		queryFn: get,
+		staleTime: 0,
+	})
+}
+
+export function serializeEnvVars(vars: [string, string][] | undefined | null): string {
+	return (vars ?? []).map(([key, value]) => `${key}=${value}`).join(' ')
+}
+
+export function parseEnvVars(input: string | undefined | null): [string, string][] {
+	if (!input?.trim()) return []
+
+	const vars: [string, string][] = []
+	for (const entry of input.trim().split(/\s+/)) {
+		const separator = entry.indexOf('=')
+		if (separator <= 0) continue
+		vars.push([entry.slice(0, separator), entry.slice(separator + 1)])
+	}
+	return vars
 }
 
 // Get full settings object
