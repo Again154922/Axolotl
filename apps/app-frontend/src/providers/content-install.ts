@@ -98,6 +98,8 @@ import {
 import { useTheming } from '@/store/state'
 
 import * as contentInstallMessages from './content-install-messages'
+import { createInstallingItemsRegistry } from './content-install-registry'
+import { createInstallSession } from './content-install-session'
 
 export {
 	type ContentInstallCallback,
@@ -168,129 +170,8 @@ export function createContentInstall(opts: {
 	const incompatibilityWarningMessage = ref<string | undefined>(undefined)
 	const incompatibilityWarningInstalling = ref(false)
 
-	function addInstallingItem(
-		instanceId: string,
-		project: {
-			id: string
-			slug?: string | null
-			title: string
-			icon_url?: string | null
-			project_type?: string
-			organization?: string | null
-			team?: string
-		},
-		version?: Labrinth.Versions.v2.Version,
-	) {
-		const primaryFile = version?.files?.find((f) => f.primary) ?? version?.files?.[0]
-		const placeholder: ContentItem = {
-			id: `__installing_${project.id}`,
-			file_name: `__installing_${project.id}`,
-			project: {
-				id: project.id,
-				slug: project.slug ?? '',
-				title: project.title,
-				icon_url: project.icon_url ?? undefined,
-			},
-			version: version
-				? {
-						id: version.id,
-						version_number: version.version_number,
-						file_name: primaryFile?.filename ?? '',
-					}
-				: undefined,
-			project_type: project.project_type ?? 'mod',
-			provider_refs: [],
-			origin_provider: null,
-			update: null,
-			enabled: true,
-			installing: true,
-		}
-		const next = new Map(installingItems.value)
-		const items = next.get(instanceId) ?? []
-		if (items.some((i) => i.file_name === placeholder.file_name)) return
-		next.set(instanceId, [...items, placeholder])
-		installingItems.value = next
-		debugState('addInstallingItem', {
-			instanceId,
-			projectId: project.id,
-			fileName: placeholder.file_name,
-		})
-
-		if (project.organization) {
-			get_organization(project.organization)
-				.then((org: { id: string; slug: string; name: string; icon_url?: string }) => {
-					updateInstallingItem(instanceId, placeholder.file_name, {
-						owner: {
-							id: org.id,
-							name: org.name,
-							avatar_url: org.icon_url,
-							type: 'organization',
-						},
-					})
-				})
-				.catch(() => {})
-		} else if (project.team) {
-			get_team(project.team)
-				.then(
-					(
-						members: {
-							user: { id: string; username: string; avatar_url?: string }
-							is_owner: boolean
-						}[],
-					) => {
-						const owner = members.find((m) => m.is_owner)
-						if (owner) {
-							updateInstallingItem(instanceId, placeholder.file_name, {
-								owner: {
-									id: owner.user.id,
-									name: owner.user.username,
-									avatar_url: owner.user.avatar_url,
-									type: 'user',
-								},
-							})
-						}
-					},
-				)
-				.catch(() => {})
-		}
-	}
-
-	function updateInstallingItem(
-		instanceId: string,
-		fileName: string,
-		updates: Partial<ContentItem>,
-	) {
-		const next = new Map(installingItems.value)
-		const items = next.get(instanceId)
-		if (!items) return
-		const index = items.findIndex((i) => i.file_name === fileName)
-		if (index === -1) return
-		const updated = [...items]
-		updated[index] = { ...updated[index], ...updates }
-		next.set(instanceId, updated)
-		installingItems.value = next
-	}
-
-	function removeInstallingItems(instanceId: string, projectIds: string[]) {
-		const next = new Map(installingItems.value)
-		const items = next.get(instanceId)
-		debugState('removeInstallingItems call', {
-			instanceId,
-			projectIds,
-			hadItems: !!items,
-			count: items?.length,
-		})
-		if (items) {
-			const idsToRemove = new Set(projectIds.map((id) => `__installing_${id}`))
-			const filtered = items.filter((i) => !idsToRemove.has(i.file_name))
-			if (filtered.length > 0) {
-				next.set(instanceId, filtered)
-			} else {
-				next.delete(instanceId)
-			}
-			installingItems.value = next
-		}
-	}
+	const { addInstallingItem, updateInstallingItem, removeInstallingItems } =
+		createInstallingItemsRegistry(installingItems, debugState)
 
 	async function notifyInstalledDependencies(instanceId: string, dependencyProjectIds: string[]) {
 		if (dependencyProjectIds.length === 0) return
@@ -363,9 +244,6 @@ export function createContentInstall(opts: {
 	let currentCurseForgeProject: CurseForgeProject | null = null
 	let currentCurseForgeFiles = new Map<string, CurseForgeFile>()
 	let currentWorldFileId: string | null = null
-	let currentCallback: ContentInstallCallback = () => {}
-	let currentSessionId = 0
-	let currentCallbackSettled = true
 	let contentInstallModalOpen = false
 	let instanceMap: Record<string, InstallTargetInstance> = {}
 	let incompatibilityWarningInstance: InstallTargetInstance | null = null
@@ -382,37 +260,32 @@ export function createContentInstall(opts: {
 		provider: InstallProvider
 	} | null = null
 
-	function beginInstallSession(callback: ContentInstallCallback) {
-		if (!currentCallbackSettled) currentCallback()
-		currentSessionId += 1
-		currentCallback = callback
-		currentCallbackSettled = false
-		return currentSessionId
-	}
+	const installSession = createInstallSession()
+	const {
+		beginInstallSession,
+		settleCurrentCallback,
+		settleInstallSession,
+		currentId: currentInstallSessionId,
+		setCallback: setCurrentInstallCallback,
+	} = installSession
 
-	function settleCurrentCallback(...args: Parameters<ContentInstallCallback>) {
-		if (currentCallbackSettled) return
-		currentCallbackSettled = true
-		currentCallback(...args)
-	}
-
-	function settleInstallSession(sessionId: number, ...args: Parameters<ContentInstallCallback>) {
-		if (sessionId !== currentSessionId) return
-		settleCurrentCallback(...args)
+	// Back-compat name used throughout this factory for the live session id.
+	function currentSessionId() {
+		return currentInstallSessionId()
 	}
 
 	async function guardInstallRequest<T>(
 		request: () => Promise<T>,
 		callback: ContentInstallCallback,
 	) {
-		const previousSessionId = currentSessionId
+		const previousSessionId = currentSessionId()
 		const promise = request()
-		const sessionId = currentSessionId !== previousSessionId ? currentSessionId : null
+		const sessionId = currentSessionId() !== previousSessionId ? currentSessionId() : null
 		try {
 			return await promise
 		} catch (error) {
 			if (sessionId !== null) {
-				if (sessionId === currentSessionId) {
+				if (sessionId === currentSessionId()) {
 					hideContentInstallModal()
 					settleInstallSession(sessionId)
 				}
@@ -491,12 +364,12 @@ export function createContentInstall(opts: {
 		hints?: { preferredLoader?: string; preferredGameVersion?: string; showProjectInfo?: boolean },
 		modalAlreadyOpen = false,
 	) {
-		const sessionId = currentSessionId
+		const sessionId = currentSessionId()
 		currentTargetMode = 'content'
 		currentWorldFileId = null
 		currentProject = project
 		currentVersions = versions
-		currentCallback = onInstall
+		setCurrentInstallCallback(onInstall)
 
 		instances.value = []
 		loading.value = true
@@ -591,7 +464,7 @@ export function createContentInstall(opts: {
 
 		if (!modalAlreadyOpen) {
 			await nextTick()
-			if (sessionId !== currentSessionId) return
+			if (sessionId !== currentSessionId()) return
 			contentInstallModalOpen = true
 			modalRef?.show()
 			trackEvent('ProjectInstallStart', { source: 'ProjectInstallModal' })
@@ -599,7 +472,7 @@ export function createContentInstall(opts: {
 
 		get_game_versions()
 			.then((allGameVersions) => {
-				if (sessionId !== currentSessionId) return
+				if (sessionId !== currentSessionId()) return
 				const releases = new Set<string>()
 				const ordered: string[] = []
 				for (const gv of allGameVersions) {
@@ -621,7 +494,7 @@ export function createContentInstall(opts: {
 				project.project_type,
 				getInstallTargets(versions),
 			)
-			if (sessionId !== currentSessionId) return
+			if (sessionId !== currentSessionId()) return
 			const newInstanceMap: Record<string, InstallTargetInstance> = {}
 			const newInstances: ContentInstallInstance[] = candidates.map((instance) => {
 				newInstanceMap[instance.id] = instance
@@ -1703,21 +1576,21 @@ export function createContentInstall(opts: {
 		currentCurseForgeFiles = new Map()
 		const shouldShowInstallTargetModal = !instanceId
 		const project: Labrinth.Projects.v2.Project = await get_project(projectId).catch((error) => {
-			if (modalSessionId === currentSessionId) {
+			if (modalSessionId === currentSessionId()) {
 				hideContentInstallModal()
 				settleCurrentCallback()
 			}
 			throw error
 		})
 		if (!project) {
-			if (modalSessionId === currentSessionId) {
+			if (modalSessionId === currentSessionId()) {
 				hideContentInstallModal()
 				settleCurrentCallback()
 			}
 			opts.handleError(`Project not found: '${projectId}'`)
 			return
 		}
-		if (modalSessionId !== null && modalSessionId !== currentSessionId) return
+		if (modalSessionId !== null && modalSessionId !== currentSessionId()) return
 		let requestCallback: ContentInstallCallback = callback
 
 		if (project.project_type === 'modpack') {
@@ -1853,13 +1726,13 @@ export function createContentInstall(opts: {
 			getCurseForgeProject(numericProjectId),
 			getCurseForgeFiles(numericProjectId, { index: 0, pageSize: 50 }),
 		]).catch((error) => {
-			if (modalSessionId === currentSessionId) {
+			if (modalSessionId === currentSessionId()) {
 				hideContentInstallModal()
 				settleCurrentCallback()
 			}
 			throw error
 		})
-		if (modalSessionId !== null && modalSessionId !== currentSessionId) return
+		if (modalSessionId !== null && modalSessionId !== currentSessionId()) return
 		let requestCallback: ContentInstallCallback = callback
 		const availableFiles = fileResponse.files.filter((file) => file.isAvailable)
 		const project = mapCurseForgeProject(curseForgeProject, availableFiles)
@@ -1960,7 +1833,7 @@ export function createContentInstall(opts: {
 		currentCurseForgeProject = curseForgeProject
 		currentCurseForgeFiles = new Map([[file.id.toString(), file]])
 		currentWorldFileId = file.id.toString()
-		currentCallback = callback
+		setCurrentInstallCallback(callback)
 	}
 
 	async function showCurseForgeWorldInstallModal(
@@ -1968,7 +1841,7 @@ export function createContentInstall(opts: {
 		file: CurseForgeFile,
 		callback: ContentInstallCallback,
 	) {
-		const sessionId = currentSessionId
+		const sessionId = currentSessionId()
 		setCurseForgeWorldInstallState(curseForgeProject, file, callback)
 		instances.value = []
 		compatibleLoaders.value = []
@@ -1981,7 +1854,7 @@ export function createContentInstall(opts: {
 		projectInfo.value = null
 
 		await nextTick()
-		if (sessionId !== currentSessionId) return
+		if (sessionId !== currentSessionId()) return
 		contentInstallModalOpen = true
 		modalRef?.show()
 		trackEvent('ProjectInstallStart', { source: 'ProjectInstallModal' })
@@ -1991,7 +1864,7 @@ export function createContentInstall(opts: {
 				(candidate) => candidate.install_stage === 'installed',
 			)
 			if (
-				sessionId !== currentSessionId ||
+				sessionId !== currentSessionId() ||
 				currentTargetMode !== 'world' ||
 				currentCurseForgeProject?.id !== curseForgeProject.id ||
 				currentWorldFileId !== file.id.toString()
@@ -2053,7 +1926,7 @@ export function createContentInstall(opts: {
 		if (!file?.isAvailable) {
 			throw new Error(formatMessage(curseForgeWorldUnavailableMessage))
 		}
-		if (modalSessionId !== null && modalSessionId !== currentSessionId) return
+		if (modalSessionId !== null && modalSessionId !== currentSessionId()) return
 
 		if (!instanceId) {
 			await showCurseForgeWorldInstallModal(curseForgeProject, file, callback)
