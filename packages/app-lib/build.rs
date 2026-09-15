@@ -158,7 +158,8 @@ fn newest_mtime(path: &PathBuf) -> Option<std::time::SystemTime> {
         if let Ok(entries) = fs::read_dir(path) {
             for entry in entries.flatten() {
                 if let Some(time) = newest_mtime(&entry.path().to_path_buf()) {
-                    newest = Some(newest.map_or(time, |current| current.max(time)));
+                    newest =
+                        Some(newest.map_or(time, |current| current.max(time)));
                 }
             }
         }
@@ -169,10 +170,12 @@ fn newest_mtime(path: &PathBuf) -> Option<std::time::SystemTime> {
 fn java_jars_are_fresh(out_dir: &PathBuf) -> bool {
     let theseus_jar = out_dir.join("java/libs/theseus.jar");
     let authlib_jar = out_dir.join("java/libs/authlib-injector.jar");
-    let Ok(theseus_time) = theseus_jar.metadata().and_then(|m| m.modified()) else {
+    let Ok(theseus_time) = theseus_jar.metadata().and_then(|m| m.modified())
+    else {
         return false;
     };
-    let Ok(authlib_time) = authlib_jar.metadata().and_then(|m| m.modified()) else {
+    let Ok(authlib_time) = authlib_jar.metadata().and_then(|m| m.modified())
+    else {
         return false;
     };
 
@@ -185,7 +188,9 @@ fn java_jars_are_fresh(out_dir: &PathBuf) -> bool {
     ];
     input_paths.iter().all(|input| {
         newest_mtime(input)
-            .map(|input_time| input_time <= theseus_time && input_time <= authlib_time)
+            .map(|input_time| {
+                input_time <= theseus_time && input_time <= authlib_time
+            })
             .unwrap_or(true)
     })
 }
@@ -228,9 +233,7 @@ fn build_java_jars() {
         command.arg("--no-daemon");
     }
 
-    let exit_status = command
-        .status()
-        .expect("Failed to wait on Gradle build");
+    let exit_status = command.status().expect("Failed to wait on Gradle build");
 
     if !exit_status.success() {
         println!("cargo::error=Gradle build failed with {exit_status}");

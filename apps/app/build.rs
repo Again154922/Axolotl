@@ -25,7 +25,8 @@ fn newest_mtime(path: &std::path::Path) -> Option<std::time::SystemTime> {
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
                 if let Some(time) = newest_mtime(&entry.path()) {
-                    newest = Some(newest.map_or(time, |current| current.max(time)));
+                    newest =
+                        Some(newest.map_or(time, |current| current.max(time)));
                 }
             }
         }
@@ -41,7 +42,8 @@ fn blockbench_skin_is_fresh(
     let Ok(bundle_time) = bundle.metadata().and_then(|m| m.modified()) else {
         return false;
     };
-    let Ok(synced_time) = synced_bundle.metadata().and_then(|m| m.modified()) else {
+    let Ok(synced_time) = synced_bundle.metadata().and_then(|m| m.modified())
+    else {
         return false;
     };
     if synced_time < bundle_time {
@@ -72,7 +74,9 @@ fn build_blockbench_skin_editor() {
     if std::env::var_os("AXOLOTL_SKIP_BLOCKBENCH_BUILD").is_some_and(|value| {
         !value.is_empty() && value != "0" && value != "false"
     }) {
-        println!("cargo:warning=AXOLOTL_SKIP_BLOCKBENCH_BUILD set; skipping Blockbench skin editor build");
+        println!(
+            "cargo:warning=AXOLOTL_SKIP_BLOCKBENCH_BUILD set; skipping Blockbench skin editor build"
+        );
         return;
     }
 
@@ -82,7 +86,9 @@ fn build_blockbench_skin_editor() {
         "Blockbench skin editor submodule is missing. Run git submodule update --init --recursive."
     );
 
-    let synced_bundle = std::path::Path::new("resources/blockbench-skin/dist/skin.bundle.js.gz");
+    let synced_bundle = std::path::Path::new(
+        "resources/blockbench-skin/dist/skin.bundle.js.gz",
+    );
     if blockbench_skin_is_fresh(blockbench_dir, synced_bundle) {
         return;
     }
@@ -120,7 +126,9 @@ fn main() {
     println!("cargo:rerun-if-changed=tauri-release.conf.json");
     // Watch Blockbench inputs only. Watching the whole submodule (including
     // node_modules) made any npm install churn re-run the entire build script.
-    println!("cargo:rerun-if-changed=../../third-party/blockbench/package.json");
+    println!(
+        "cargo:rerun-if-changed=../../third-party/blockbench/package.json"
+    );
     println!(
         "cargo:rerun-if-changed=../../third-party/blockbench/package-lock.json"
     );
