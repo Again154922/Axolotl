@@ -938,3 +938,44 @@ pub(crate) async fn seed_from_instance(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn logical_paths_preserve_disabled_state() {
+        assert_eq!(
+            logical_path(ProjectType::ResourcePack, "example.zip", true),
+            "resourcepacks/example.zip"
+        );
+        assert_eq!(
+            logical_path(ProjectType::DataPack, "example.zip", false),
+            "datapacks/example.zip.disabled"
+        );
+    }
+
+    #[test]
+    fn unsafe_materialized_paths_are_rejected() {
+        assert!(safe_relative_path("resourcepacks/example.zip").is_some());
+        assert!(safe_relative_path("../outside.zip").is_none());
+        assert!(safe_relative_path("/absolute.zip").is_none());
+        assert!(
+            safe_relative_path("resourcepacks/../../outside.zip").is_none()
+        );
+    }
+
+    #[test]
+    fn malformed_game_version_metadata_is_treated_as_unrestricted() {
+        let row = PackRow {
+            id: "pack".to_string(),
+            project_type: "resourcepack".to_string(),
+            file_name: "example.zip".to_string(),
+            sha1: "sha1".to_string(),
+            size: 1,
+            game_versions_json: "not-json".to_string(),
+            enabled: 1,
+        };
+        assert!(game_versions(&row).is_empty());
+    }
+}
