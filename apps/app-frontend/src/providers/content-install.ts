@@ -1,14 +1,13 @@
 import type { Labrinth } from '@modrinth/api-client'
 import type { ContentInstallInstance, ContentInstallProjectInfo, ContentItem } from '@modrinth/ui'
-import { createContext, useDebugLogger, usesTargetGameVersion, useVIntl } from '@modrinth/ui'
+import { useDebugLogger, usesTargetGameVersion, useVIntl } from '@modrinth/ui'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import dayjs from 'dayjs'
-import { nextTick, type Ref, ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import type { Router } from 'vue-router'
 
 import type ContentInstallPreviewModal from '@/components/ui/ContentInstallPreviewModal.vue'
 import type { ContentInstallPreviewData } from '@/components/ui/ContentInstallPreviewModal.vue'
-import type { ModpackInstallModalData } from '@/components/ui/modal/ModpackInstallModal.vue'
 import { trackEvent } from '@/helpers/analytics'
 import {
 	get_organization,
@@ -61,40 +60,51 @@ import {
 import { getDisplayInstanceIcon } from '@/helpers/instance-icons'
 import { get_game_versions } from '@/helpers/tags'
 import type { GameInstance, InstanceLoader } from '@/helpers/types'
+import {
+	curseForgeLoaderType,
+	curseForgePageUrl,
+	findPreferredVersion,
+	getInstallTargets,
+	type InstallTargetInstance,
+	isVersionCompatible,
+	mapCurseForgeProject,
+	mapCurseForgeVersion,
+	projectPageUrl,
+	resolveContentType,
+	sortLoaders,
+	SUPPORTED_LOADERS,
+	VANILLA_COMPATIBLE_LOADERS,
+} from '@/providers/content-install-compat'
+import {
+	filterRemainingManualDownloads,
+	formatAutomaticDownloadsFailedNotification,
+	formatDependencyNotesNotification,
+	formatImportedManualDownloadsNotification,
+	formatManualDownloadsNotification,
+	mapInstallResultToManualItems,
+} from '@/providers/content-install-manual-downloads'
+import {
+	type ContentInstallCallback,
+	type ContentInstallContext,
+	type ContentInstallInstanceEvent,
+	type ContentInstallTargetMode,
+	type CurseForgeManualDownloadsModalRef,
+	injectContentInstall,
+	type InstallProvider,
+	type ModalRef,
+	type ModpackInstallModalRef,
+	provideContentInstall,
+} from '@/providers/content-install-types'
 import { useTheming } from '@/store/state'
 
 import * as contentInstallMessages from './content-install-messages'
-interface ModalRef {
-	show: (initialVersionId?: string) => void
-	hide: () => void
-}
 
-interface ModpackInstallModalRef {
-	show: (data: ModpackInstallModalData) => void
+export {
+	type ContentInstallCallback,
+	type ContentInstallContext,
+	injectContentInstall,
+	provideContentInstall,
 }
-
-interface CurseForgeManualDownloadsModalRef {
-	show: (payload: {
-		items: CurseForgeManualDownloadItem[]
-		installed?: number
-		instanceId?: string | null
-	}) => void
-}
-
-export type ContentInstallCallback = (versionId?: string, installedProjectIds?: string[]) => void
-type ContentInstallInstanceEvent = {
-	event: string
-	instance_id: string
-	project_ids?: string[]
-	dependency_project_ids?: string[]
-	message?: string
-}
-
-const LOADER_ORDER = ['vanilla', 'fabric', 'quilt', 'neoforge', 'forge']
-const SUPPORTED_LOADERS: Set<string> = new Set(['vanilla', 'forge', 'fabric', 'quilt', 'neoforge'])
-const VANILLA_COMPATIBLE_LOADERS: Set<string> = new Set(['minecraft', 'datapack'])
-type InstallProvider = 'modrinth' | 'curseforge'
-type ContentInstallTargetMode = 'content' | 'world'
 
 const noCompatibleVersionsMessage = contentInstallMessages.noCompatibleVersionsMessage
 const curseForgeWorldInvalidProjectMessage =
@@ -104,19 +114,6 @@ const curseForgeWorldInstanceNotReadyMessage =
 	contentInstallMessages.curseForgeWorldInstanceNotReadyMessage
 const curseForgeWorldUnknownInstanceMessage =
 	contentInstallMessages.curseForgeWorldUnknownInstanceMessage
-const manualDownloadsTitleMessage = contentInstallMessages.manualDownloadsTitleMessage
-const manualDownloadsPartialMessage = contentInstallMessages.manualDownloadsPartialMessage
-const manualDownloadsFailedMessage = contentInstallMessages.manualDownloadsFailedMessage
-const manualDownloadsListAndMoreMessage = contentInstallMessages.manualDownloadsListAndMoreMessage
-const manualDownloadsFilesCountMessage = contentInstallMessages.manualDownloadsFilesCountMessage
-const manualDownloadsImportedTitleMessage =
-	contentInstallMessages.manualDownloadsImportedTitleMessage
-const manualDownloadsImportedMessage = contentInstallMessages.manualDownloadsImportedMessage
-const automaticDownloadsFailedTitleMessage =
-	contentInstallMessages.automaticDownloadsFailedTitleMessage
-const automaticDownloadsFailedMessage = contentInstallMessages.automaticDownloadsFailedMessage
-const dependencyNotesTitleMessage = contentInstallMessages.dependencyNotesTitleMessage
-const dependencyNotesMessage = contentInstallMessages.dependencyNotesMessage
 const dependenciesInstalledTitleMessage = contentInstallMessages.dependenciesInstalledTitleMessage
 const dependenciesInstalledMessage = contentInstallMessages.dependenciesInstalledMessage
 const dependenciesSkippedTitleMessage = contentInstallMessages.dependenciesSkippedTitleMessage
@@ -131,265 +128,6 @@ const curseForgeNetworkFailureTitleMessage =
 const curseForgeNetworkFailureMessage = contentInstallMessages.curseForgeNetworkFailureMessage
 const modpackInstalledTitleMessage = contentInstallMessages.modpackInstalledTitleMessage
 const modpackInstalledBodyMessage = contentInstallMessages.modpackInstalledBodyMessage
-
-const RESOLVABLE_PROJECT_TYPES = new Set<Labrinth.Content.v3.ContentType>([
-	'mod',
-	'plugin',
-	'datapack',
-	'resourcepack',
-	'shader',
-	'modpack',
-])
-
-function resolveContentType(projectType?: Labrinth.Projects.v2.ProjectType) {
-	return projectType && RESOLVABLE_PROJECT_TYPES.has(projectType) ? projectType : 'mod'
-}
-
-function isVersionCompatible(
-	version: Labrinth.Versions.v2.Version,
-	project: Labrinth.Projects.v2.Project,
-	instance: GameInstance,
-) {
-	if (project.project_type === 'resourcepack') return true
-
-	return (
-		version.game_versions.includes(instance.game_version) &&
-		(project.project_type === 'mod'
-			? version.loaders.includes(instance.loader) || version.loaders.includes('datapack')
-			: true)
-	)
-}
-
-function findPreferredVersion(
-	versions: Labrinth.Versions.v2.Version[],
-	project: Labrinth.Projects.v2.Project,
-	instance: GameInstance,
-) {
-	const projectType = project.project_type ?? 'mod'
-	if (projectType === 'resourcepack') return versions[0]
-
-	return (
-		versions.find(
-			(v) =>
-				v.game_versions.includes(instance.game_version) &&
-				(projectType === 'mod' ? v.loaders.includes(instance.loader) : true),
-		) ?? versions.find((v) => isVersionCompatible(v, project, instance))
-	)
-}
-
-function sortLoaders(loaders: string[]): string[] {
-	return loaders.slice().sort((a, b) => {
-		const aIdx = LOADER_ORDER.indexOf(a)
-		const bIdx = LOADER_ORDER.indexOf(b)
-		if (aIdx === -1 && bIdx === -1) return a.localeCompare(b)
-		if (aIdx === -1) return 1
-		if (bIdx === -1) return -1
-		return aIdx - bIdx
-	})
-}
-
-function curseForgeProjectType(classId?: number): Labrinth.Projects.v2.ProjectType {
-	switch (classId) {
-		case 5:
-			return 'plugin'
-		case 12:
-			return 'resourcepack'
-		case 6945:
-			return 'datapack'
-		case 4471:
-			return 'modpack'
-		case 6552:
-			return 'shader'
-		default:
-			return 'mod'
-	}
-}
-
-function curseForgeLoader(value: string): string | null {
-	switch (value.toLowerCase().replaceAll(' ', '')) {
-		case 'forge':
-			return 'forge'
-		case 'fabric':
-		case 'fabricloader':
-			return 'fabric'
-		case 'quilt':
-			return 'quilt'
-		case 'neoforge':
-			return 'neoforge'
-		default:
-			return null
-	}
-}
-
-function curseForgeGameVersions(file: CurseForgeFile): string[] {
-	return file.gameVersions.filter(
-		(value) =>
-			!curseForgeLoader(value) &&
-			(/^(?:\d+\.\d+(?:\.\d+)?(?:-(?:pre|rc)\d+)?|\d{2}w\d{2}[a-z])$/i.test(value) ||
-				value.toLowerCase().includes('snapshot')),
-	)
-}
-
-function mapCurseForgeVersion(
-	file: CurseForgeFile,
-	projectId: number,
-	projectType: Labrinth.Projects.v2.ProjectType,
-): Labrinth.Versions.v2.Version {
-	const loaders = [...new Set(file.gameVersions.map(curseForgeLoader).filter(Boolean))] as string[]
-	return {
-		id: file.id.toString(),
-		project_id: `curseforge:${projectId}`,
-		name: file.displayName,
-		version_number: file.displayName,
-		game_versions: curseForgeGameVersions(file),
-		loaders:
-			loaders.length > 0 && (projectType === 'mod' || projectType === 'modpack')
-				? loaders
-				: ['minecraft'],
-		date_published: file.fileDate,
-		version_type: file.releaseType === 1 ? 'release' : file.releaseType === 2 ? 'beta' : 'alpha',
-		files: [
-			{
-				filename: file.fileName,
-				url: file.downloadUrl ?? '',
-				primary: true,
-				size: file.fileLength,
-				hashes: {},
-			},
-		],
-	} as unknown as Labrinth.Versions.v2.Version
-}
-
-function mapCurseForgeProject(
-	project: CurseForgeProject,
-	files: CurseForgeFile[],
-): Labrinth.Projects.v2.Project {
-	const projectType = curseForgeProjectType(project.classId)
-	const versions = files.map((file) => mapCurseForgeVersion(file, project.id, projectType))
-	return {
-		id: `curseforge:${project.id}`,
-		slug: project.slug,
-		title: project.name,
-		description: project.summary,
-		project_type: projectType,
-		icon_url: project.logo?.thumbnailUrl ?? project.logo?.url ?? null,
-		versions: versions.map((version) => version.id),
-		game_versions: [...new Set(versions.flatMap((version) => version.game_versions))],
-		loaders: [...new Set(versions.flatMap((version) => version.loaders))],
-		organization: null,
-		team: '',
-	} as unknown as Labrinth.Projects.v2.Project
-}
-
-function curseForgeLoaderType(loader: string): number | undefined {
-	switch (loader) {
-		case 'forge':
-			return 1
-		case 'fabric':
-			return 4
-		case 'quilt':
-			return 5
-		case 'neoforge':
-			return 6
-		default:
-			return undefined
-	}
-}
-
-function projectPageUrl(project: { project_type: string; slug: string }): string {
-	return `https://modrinth.com/${project.project_type}/${project.slug}`
-}
-
-function curseForgePageUrl(project: { slug: string; links?: { websiteUrl?: string } }): string {
-	if (project.links?.websiteUrl) return project.links.websiteUrl
-	return `https://www.curseforge.com/minecraft/mc-mods/${project.slug}`
-}
-
-type InstallTargetInstance = Pick<
-	GameInstance,
-	'id' | 'name' | 'icon_path' | 'game_version' | 'loader'
->
-
-export interface ContentInstallContext {
-	instances: Ref<ContentInstallInstance[]>
-	compatibleLoaders: Ref<string[]>
-	gameVersions: Ref<string[]>
-	loading: Ref<boolean>
-	defaultTab: Ref<'existing' | 'new'>
-	preferredLoader: Ref<string | null>
-	preferredGameVersion: Ref<string | null>
-	releaseGameVersions: Ref<Set<string>>
-	projectInfo: Ref<ContentInstallProjectInfo | null>
-	symlinkTarget: Ref<string | null | undefined>
-	handleInstallToInstance: (instance: ContentInstallInstance) => Promise<void>
-	handleCreateAndInstall: (data: {
-		name: string
-		iconPath: string | null
-		iconPreviewUrl: string | null
-		loader: string
-		gameVersion: string
-	}) => Promise<void>
-	handleNavigate: (instance: ContentInstallInstance) => void
-	handleCancel: () => void
-	setContentInstallModal: (ref: ModalRef) => void
-	setContentInstallPreviewModal: (
-		ref: InstanceType<typeof ContentInstallPreviewModal> | null,
-	) => void
-	setModpackInstallModal: (ref: ModpackInstallModalRef) => void
-	handleModpackInstall: (versionId: string, name: string) => Promise<void>
-	handleModpackInstallCancel: () => void
-	setCurseForgeManualDownloadsModal: (ref: CurseForgeManualDownloadsModalRef) => void
-	showCurseForgeManualDownloads: (instanceId: string, items: CurseForgeManualDownloadItem[]) => void
-	handleCurseForgeManualDownloadsImported: (
-		instanceId: string,
-		imported: CurseForgeManualDownloadImport[],
-	) => void
-	setIncompatibilityWarningModal: (ref: ModalRef) => void
-	incompatibilityWarningVersions: Ref<Labrinth.Versions.v2.Version[]>
-	incompatibilityWarningCurrentGameVersion: Ref<string>
-	incompatibilityWarningCurrentLoader: Ref<string>
-	incompatibilityWarningProjectType: Ref<string | undefined>
-	incompatibilityWarningProjectIconUrl: Ref<string | undefined>
-	incompatibilityWarningProjectName: Ref<string | undefined>
-	incompatibilityWarningMessage: Ref<string | undefined>
-	incompatibilityWarningInstalling: Ref<boolean>
-	handleIncompatibilityWarningInstall: (version: Labrinth.Versions.v2.Version) => Promise<void>
-	handleIncompatibilityWarningCancel: () => void
-	install: (
-		projectId: string,
-		versionId?: string | null,
-		instanceId?: string | null,
-		source?: string,
-		callback?: ContentInstallCallback,
-		createInstanceCallback?: (instanceId: string) => void,
-		hints?: { preferredLoader?: string; preferredGameVersion?: string; showProjectInfo?: boolean },
-	) => Promise<void>
-	installCurseForge: (
-		projectId: string,
-		versionId?: string | null,
-		instanceId?: string | null,
-		source?: string,
-		callback?: ContentInstallCallback,
-		createInstanceCallback?: (instanceId: string) => void,
-		hints?: { preferredLoader?: string; preferredGameVersion?: string; showProjectInfo?: boolean },
-	) => Promise<void>
-	installCurseForgeWorld: (
-		projectId: string | number,
-		fileId?: string | number | null,
-		instanceId?: string | null,
-		source?: string,
-		callback?: ContentInstallCallback,
-	) => Promise<void>
-	installingItems: Ref<Map<string, ContentItem[]>>
-	pendingManualDownloadsByInstance: Ref<Map<string, CurseForgeManualDownloadItem[]>>
-	installRevisionByInstance: Ref<Map<string, number>>
-	installFailureRevisionByInstance: Ref<Map<string, number>>
-}
-
-export const [injectContentInstall, provideContentInstall] = createContext<ContentInstallContext>(
-	'root',
-	'contentInstall',
-)
 
 export function createContentInstall(opts: {
 	router: Router
@@ -1056,24 +794,6 @@ export function createContentInstall(opts: {
 		modalRef?.hide()
 	}
 
-	function getInstallTargets(versions: Labrinth.Versions.v2.Version[]) {
-		const targets: { game_version: string; loader: string }[] = []
-		const seen = new Set<string>()
-
-		for (const version of versions) {
-			for (const gameVersion of version.game_versions) {
-				for (const loader of version.loaders) {
-					const key = `${gameVersion}\0${loader}`
-					if (seen.has(key)) continue
-					seen.add(key)
-					targets.push({ game_version: gameVersion, loader })
-				}
-			}
-		}
-
-		return targets
-	}
-
 	async function removeInstalledCurseForgeProject(instanceId: string, projectId: number) {
 		const content = await get_content_items(instanceId).catch(() => [])
 		for (const item of content) {
@@ -1091,22 +811,7 @@ export function createContentInstall(opts: {
 		instanceId: string,
 		result: CurseForgeInstallResult,
 	): CurseForgeManualDownloadItem[] {
-		const manualItems: CurseForgeManualDownloadItem[] = (result.manualDownloads ?? []).map(
-			(item) => ({
-				projectId: item.projectId,
-				fileId: item.fileId,
-				fileName: item.fileName,
-				websiteUrl: item.websiteUrl,
-				projectType: item.projectType,
-				projectSlug: item.projectSlug,
-				targetFolder: item.targetFolder,
-				hashes: item.hashes,
-				fileLength: item.fileLength,
-				fileFingerprint: item.fileFingerprint,
-				ownershipKind: item.ownershipKind,
-				operationKind: item.operationKind,
-			}),
-		)
+		const manualItems = mapInstallResultToManualItems(result)
 		setCurseForgeManualDownloads(instanceId, manualItems)
 		const next = new Map(pendingManualDownloadsByInstance.value)
 		if (manualItems.length > 0) {
@@ -1128,9 +833,9 @@ export function createContentInstall(opts: {
 		imported: CurseForgeManualDownloadImport[],
 	) {
 		if (imported.length === 0) return
-		const importedKeys = new Set(imported.map((item) => `${item.projectId}:${item.fileId}`))
-		const remaining = (pendingManualDownloadsByInstance.value.get(instanceId) ?? []).filter(
-			(item) => !importedKeys.has(`${item.projectId}:${item.fileId}`),
+		const remaining = filterRemainingManualDownloads(
+			pendingManualDownloadsByInstance.value.get(instanceId) ?? [],
+			imported,
 		)
 		setCurseForgeManualDownloads(instanceId, remaining)
 		const next = new Map(pendingManualDownloadsByInstance.value)
@@ -1138,11 +843,7 @@ export function createContentInstall(opts: {
 		else next.delete(instanceId)
 		pendingManualDownloadsByInstance.value = next
 		markInstanceContentChanged(instanceId)
-		opts.addNotification({
-			title: formatMessage(manualDownloadsImportedTitleMessage),
-			text: formatMessage(manualDownloadsImportedMessage, { count: imported.length }),
-			type: 'success',
-		})
+		opts.addNotification(formatImportedManualDownloadsNotification(formatMessage, imported.length))
 	}
 
 	function showManualCurseForgeDownloads(instanceId: string, result: CurseForgeInstallResult) {
@@ -1150,35 +851,13 @@ export function createContentInstall(opts: {
 		const manualItems = rememberManualDownloads(instanceId, result)
 		if (manualItems.length === 0) return
 
-		const manualNames = manualItems
-			.slice(0, 5)
-			.map((item) => item.fileName)
-			.filter(Boolean)
-		const extra = summary.manual > manualNames.length ? summary.manual - manualNames.length : 0
-		const listText = manualNames.length
-			? extra > 0
-				? formatMessage(manualDownloadsListAndMoreMessage, {
-						list: manualNames.join(', '),
-						count: extra,
-					})
-				: manualNames.join(', ')
-			: formatMessage(manualDownloadsFilesCountMessage, { count: summary.manual })
-
-		opts.addNotification({
-			title: formatMessage(manualDownloadsTitleMessage),
-			text:
-				summary.installed > 0
-					? formatMessage(manualDownloadsPartialMessage, {
-							installed: summary.installed,
-							manual: summary.manual,
-							list: listText,
-						})
-					: formatMessage(manualDownloadsFailedMessage, {
-							manual: summary.manual,
-							list: listText,
-						}),
-			type: summary.installed > 0 ? 'warning' : 'error',
-		})
+		opts.addNotification(
+			formatManualDownloadsNotification(
+				formatMessage,
+				summary,
+				manualItems.map((item) => item.fileName),
+			),
+		)
 
 		curseForgeManualDownloadsModalRef?.show({
 			items: manualItems,
@@ -1191,39 +870,21 @@ export function createContentInstall(opts: {
 		const failedDownloads = result.failedDownloads ?? []
 		if (failedDownloads.length === 0) return
 
-		const names = failedDownloads
-			.slice(0, 5)
-			.map((item) => item.fileName)
-			.filter(Boolean)
-		const extra = failedDownloads.length - names.length
-		const listText =
-			extra > 0
-				? formatMessage(manualDownloadsListAndMoreMessage, {
-						list: names.join(', '),
-						count: extra,
-					})
-				: names.join(', ')
-		opts.addNotification({
-			title: formatMessage(automaticDownloadsFailedTitleMessage),
-			text: formatMessage(automaticDownloadsFailedMessage, {
-				failed: failedDownloads.length,
-				list: listText,
-			}),
-			type: 'error',
-		})
+		opts.addNotification(
+			formatAutomaticDownloadsFailedNotification(
+				formatMessage,
+				failedDownloads.map((item) => item.fileName),
+			),
+		)
 	}
 
 	function showCurseForgeDependencyNotes(result: CurseForgeInstallResult) {
-		const optional = result.optionalDependencies?.length ?? 0
-		const incompatible = result.incompatibleDependencies?.length ?? 0
-		const skipped = result.skippedDependencies?.length ?? 0
-		if (optional === 0 && incompatible === 0 && skipped === 0) return
-
-		opts.addNotification({
-			title: formatMessage(dependencyNotesTitleMessage),
-			text: formatMessage(dependencyNotesMessage, { optional, incompatible, skipped }),
-			type: 'info',
+		const notification = formatDependencyNotesNotification(formatMessage, {
+			optional: result.optionalDependencies?.length ?? 0,
+			incompatible: result.incompatibleDependencies?.length ?? 0,
+			skipped: result.skippedDependencies?.length ?? 0,
 		})
+		if (notification) opts.addNotification(notification)
 	}
 
 	function handleContentInstallError(error: unknown) {
