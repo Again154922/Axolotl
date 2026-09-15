@@ -16,7 +16,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::Row;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct PackSyncTarget {
@@ -90,6 +90,171 @@ fn logical_path(
     )
 }
 
+fn game_versions(row: &PackRow) -> Vec<String> {
+    serde_json::from_str(&row.game_versions_json).unwrap_or_default()
+}
+
+fn version_compatible(
+    row: &PackRow,
+    metadata: &crate::state::InstanceMetadata,
+) -> bool {
+    let versions = game_versions(row);
+    versions.is_empty()
+        || versions
+            .iter()
+            .any(|version| version == &metadata.applied_content_set.game_version)
+}
+
+fn safe_relative_path(path: &str) -> Option<PathBuf> {
+    let path = Path::new(path);
+    if path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return None;
+    }
+    Some(path.to_path_buf())
+}
+
+async fn tracked_materialized_path(
+    state: &State,
+    pack_id: &str,
+    instance_id: &str,
+) -> crate::Result<Option<String>> {
+    Ok(sqlx::query_scalar::<_, String>(
+        "SELECT materialized_path FROM synced_pack_instances
+         WHERE pack_id = ? AND instance_id = ?",
+    )
+    .bind(pack_id)
+    .bind(instance_id)
+    .fetch_optional(&state.pool)
+    .await?)
+}
+
+fn normalize_tracked_path(
+    metadata: &crate::state::InstanceMetadata,
+    tracked: &str,
+) -> Option<String> {
+    let normalized = tracked.replace('\\', "/");
+    let instance_path = metadata.instance.path.replace('\\', "/");
+    let relative = normalized
+        .strip_prefix(&format!("{instance_path}/"))
+        .unwrap_or(&normalized);
+    safe_relative_path(relative).map(|path| path.to_string_lossy().replace('\\', "/"))
+}
+
+async fn file_matches_sha1(path: &Path, expected: &str) -> bool {
+    match tokio::fs::read(path).await {
+        Ok(bytes) => crate::util::fetch::sha1_async(Bytes::from(bytes))
+            .await
+            .is_ok_and(|sha1| sha1 == expected),
+        Err(_) => false,
+    }
+}
+
+async fn cleanup_materialization(
+    state: &State,
+    row: &PackRow,
+    metadata: &crate::state::InstanceMetadata,
+) -> crate::Result<()> {
+    let Some(tracked) = tracked_materialized_path(
+        state,
+        &row.id,
+        &metadata.instance.id,
+    )
+    .await?
+    else {
+        return Ok(());
+    };
+    let Some(relative_path) = normalize_tracked_path(metadata, &tracked) else {
+        tracing::warn!(
+            "Ignoring unsafe synced-pack materialized path for {}: {tracked}",
+            metadata.instance.id
+        );
+        return Ok(());
+    };
+    let absolute = state
+        .directories
+        .instance_game_dir(&metadata.instance)
+        .join(&relative_path);
+    if file_matches_sha1(&absolute, &row.sha1).await {
+        match tokio::fs::remove_file(&absolute).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+
+    let mut transaction = state.pool.begin().await?;
+    sqlx::query(
+        "DELETE FROM instance_pack_members
+         WHERE content_set_id = ? AND member_key = ?",
+    )
+    .bind(&metadata.applied_content_set.id)
+    .bind(format!("shared:{}", row.id))
+    .execute(&mut *transaction)
+    .await?;
+    sqlx::query(
+        "DELETE FROM instance_content_entries
+         WHERE instance_id = ? AND content_set_id = ?
+           AND source_kind = 'shared_instance'
+           AND file_id IN (
+             SELECT id FROM instance_files
+             WHERE instance_id = ? AND relative_path = ?
+           )",
+    )
+    .bind(&metadata.instance.id)
+    .bind(&metadata.applied_content_set.id)
+    .bind(&metadata.instance.id)
+    .bind(&relative_path)
+    .execute(&mut *transaction)
+    .await?;
+    sqlx::query(
+        "DELETE FROM instance_files
+         WHERE instance_id = ? AND relative_path = ?
+           AND NOT EXISTS (
+             SELECT 1 FROM instance_content_entries
+             WHERE file_id = instance_files.id
+           )",
+    )
+    .bind(&metadata.instance.id)
+    .bind(&relative_path)
+    .execute(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn record_materialization(
+    state: &State,
+    pack_id: &str,
+    instance_id: &str,
+    excluded: bool,
+    materialized_path: Option<&str>,
+) -> crate::Result<()> {
+    sqlx::query(
+        "INSERT INTO synced_pack_instances
+         (pack_id, instance_id, excluded, materialized_path, modified_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(pack_id, instance_id) DO UPDATE SET
+           excluded=excluded.excluded,
+           materialized_path=excluded.materialized_path,
+           modified_at=excluded.modified_at",
+    )
+    .bind(pack_id)
+    .bind(instance_id)
+    .bind(i64::from(excluded))
+    .bind(materialized_path)
+    .bind(Utc::now().timestamp())
+    .execute(&state.pool)
+    .await?;
+    Ok(())
+}
+
 fn row_item(row: &PackRow) -> crate::Result<ContentItem> {
     let project_type = parse_type(&row.project_type)?;
     let file_name = row.file_name.trim_end_matches(".disabled").to_string();
@@ -155,27 +320,47 @@ async fn materialize(
         .directories
         .instances_dir()
         .join(&metadata.instance.path);
-    let destination =
-        root.join(logical_path(project_type, &row.file_name, row.enabled != 0));
-    let old_destination =
-        root.join(logical_path(project_type, &row.file_name, row.enabled == 0));
-    if excluded || !metadata.synced_options_for(project_type) {
-        let _ = tokio::fs::remove_file(&destination).await;
-        let _ = tokio::fs::remove_file(&old_destination).await;
-        sqlx::query(
-            "INSERT INTO synced_pack_instances(pack_id, instance_id, excluded, materialized_path, modified_at)
-             VALUES (?, ?, 1, NULL, ?)
-             ON CONFLICT(pack_id, instance_id) DO UPDATE SET excluded=1,
-               materialized_path=NULL, modified_at=excluded.modified_at",
+    let relative_path =
+        logical_path(project_type, &row.file_name, row.enabled != 0);
+    let destination = root.join(&relative_path);
+    if excluded
+        || !metadata.synced_options_for(project_type)
+        || !version_compatible(row, &metadata)
+    {
+        cleanup_materialization(state, row, &metadata).await?;
+        record_materialization(
+            state,
+            &row.id,
+            instance_id,
+            excluded,
+            None,
         )
-        .bind(&row.id)
-        .bind(instance_id)
-        .bind(Utc::now().timestamp())
-        .execute(&state.pool)
         .await?;
         return Ok(());
     }
-    let _ = tokio::fs::remove_file(&old_destination).await;
+
+    let tracked = tracked_materialized_path(state, &row.id, instance_id).await?;
+    let owns_destination = tracked
+        .as_deref()
+        .and_then(|path| normalize_tracked_path(&metadata, path))
+        .is_some_and(|path| path == relative_path);
+    if tokio::fs::try_exists(&destination).await?
+        && !owns_destination
+        && !file_matches_sha1(&destination, &row.sha1).await
+    {
+        return Err(crate::ErrorKind::InputError(format!(
+            "Cannot sync {} because {} already contains a different local file.",
+            row.file_name,
+            destination.display()
+        ))
+        .into());
+    }
+    if tracked.as_deref().is_some_and(|path| {
+        normalize_tracked_path(&metadata, path)
+            .is_some_and(|path| path != relative_path)
+    }) {
+        cleanup_materialization(state, row, &metadata).await?;
+    }
     if let Some(parent) = destination.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -186,8 +371,6 @@ async fn materialize(
     if !destination_matches {
         tokio::fs::write(&destination, &bytes).await?;
     }
-    let relative_path =
-        logical_path(project_type, &row.file_name, row.enabled != 0);
     let file = crate::state::instances::adapters::sqlite::content_rows::upsert_instance_file_from_parts(
         crate::state::instances::adapters::sqlite::content_rows::UpsertInstanceFile {
             instance_id,
@@ -243,18 +426,13 @@ async fn materialize(
     .bind(Utc::now().timestamp())
     .execute(&state.pool)
     .await?;
-    sqlx::query(
-        "INSERT INTO synced_pack_instances(pack_id, instance_id, excluded, materialized_path, modified_at)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(pack_id, instance_id) DO UPDATE SET excluded=excluded.excluded,
-           materialized_path=excluded.materialized_path, modified_at=excluded.modified_at",
+    record_materialization(
+        state,
+        &row.id,
+        instance_id,
+        excluded,
+        Some(&relative_path),
     )
-    .bind(&row.id)
-    .bind(instance_id)
-    .bind(i64::from(excluded))
-    .bind(destination.strip_prefix(state.directories.instances_dir()).ok().and_then(|p| p.to_str()))
-    .bind(Utc::now().timestamp())
-    .execute(&state.pool)
     .await?;
     Ok(())
 }
