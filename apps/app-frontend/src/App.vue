@@ -1303,6 +1303,7 @@ async function setupApp() {
 		transparent_background_opacity,
 		transparent_background_blur,
 		home_widget_background_opacity,
+		hidden_nav_items,
 		sidebar_instance_count,
 		auto_hide_downloads_button,
 		home_layout,
@@ -1362,6 +1363,7 @@ async function setupApp() {
 	themeStore.homeWidgetBackgroundOpacity =
 		home_widget_background_opacity ?? 100
 	themeStore.setHomeWidgetBackgroundOpacity()
+	themeStore.hiddenNavItems = hidden_nav_items ?? []
 	themeStore.sidebarInstanceCount = sidebar_instance_count
 	themeStore.autoHideDownloadsButton = auto_hide_downloads_button
 	themeStore.homeLayout = home_layout
@@ -2639,10 +2641,15 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			class="app-grid-navbar bg-bg-raised flex flex-col p-[0.5rem] pt-0 gap-[0.5rem] w-[--left-bar-width] overflow-hidden"
 		>
 			<NavRail>
-				<NavButton v-tooltip.right="formatMessage(messages.home)" to="/">
+				<NavButton
+					v-if="!themeStore.isNavItemHidden('home')"
+					v-tooltip.right="formatMessage(messages.home)"
+					to="/"
+				>
 					<HomeIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('screenshots')"
 					v-tooltip.right="formatMessage(messages.screenshots)"
 					data-onboarding-id="nav-screenshots"
 					to="/screenshots"
@@ -2651,13 +2658,14 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<ImagesIcon />
 				</NavButton>
 				<NavButton
-					v-if="themeStore.featureFlags.worlds_tab"
+					v-if="themeStore.featureFlags.worlds_tab && !themeStore.isNavItemHidden('worlds')"
 					v-tooltip.right="formatMessage(messages.worlds)"
 					to="/worlds"
 				>
 					<WorldIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('discover')"
 					v-tooltip.right="formatMessage(messages.discoverContent)"
 					data-onboarding-id="nav-discover"
 					:to="discoverContentPath"
@@ -2668,6 +2676,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<CompassIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('skins')"
 					v-tooltip.right="formatMessage(messages.skinSelector)"
 					data-onboarding-id="nav-skins"
 					to="/skins"
@@ -2675,6 +2684,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<ChangeSkinIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('multiplayer')"
 					v-tooltip.right="formatMessage(messages.multiplayer)"
 					to="/multiplayer"
 					:is-primary="(r) => r.path.startsWith('/multiplayer')"
@@ -2682,6 +2692,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<UsersIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('library')"
 					v-tooltip.right="formatMessage(messages.library)"
 					data-onboarding-id="nav-library"
 					to="/library"
@@ -2696,6 +2707,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<LibraryIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('lab')"
 					v-tooltip.right="formatMessage(messages.lab)"
 					data-onboarding-id="nav-lab"
 					to="/lab"
@@ -2704,7 +2716,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<FlaskConicalIcon />
 				</NavButton>
 				<NavButton
-					v-if="!themeStore.autoHideDownloadsButton || downloadManager.activeCount.value > 0"
+					v-if="
+						!themeStore.isNavItemHidden('downloads') &&
+						(!themeStore.autoHideDownloadsButton || downloadManager.activeCount.value > 0)
+					"
 					v-tooltip.right="formatMessage(messages.downloads)"
 					data-onboarding-id="nav-downloads"
 					to="/downloads"

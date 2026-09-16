@@ -512,6 +512,27 @@
   "app.appearance-settings.hide-nametag.title": {
     "message": "隐藏名牌"
   },
+  "app.appearance-settings.hidden-nav-items.description": {
+    "message": "选择哪些固定导航按钮保持可见。隐藏后仍可通过网址或快捷键访问对应页面。"
+  },
+  "app.appearance-settings.hidden-nav-items.group-browse": {
+    "message": "浏览"
+  },
+  "app.appearance-settings.hidden-nav-items.group-play": {
+    "message": "游玩"
+  },
+  "app.appearance-settings.hidden-nav-items.group-tools": {
+    "message": "工具"
+  },
+  "app.appearance-settings.hidden-nav-items.locked-core": {
+    "message": "主页与实例库始终可见，方便你随时返回。"
+  },
+  "app.appearance-settings.hidden-nav-items.locked-default-page": {
+    "message": "该项目是当前启动默认页。先修改默认落地页才能隐藏。"
+  },
+  "app.appearance-settings.hidden-nav-items.title": {
+    "message": "导航栏项目"
+  },
   "app.appearance-settings.home-layout.description": {
     "message": "在信息主页和专注的实例启动页之间选择。"
   },

@@ -77,6 +77,12 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		label: message('app.appearance-settings.page-transitions.title', 'Page transition animations'),
 	},
 	{
+		id: 'appearance-hidden-nav-items',
+		categoryId: 'home-navigation',
+		targetId: 'settings-target-appearance-hidden-nav-items',
+		label: message('app.appearance-settings.hidden-nav-items.title', 'Navigation items'),
+	},
+	{
 		id: 'appearance-home-layout',
 		categoryId: 'home-navigation',
 		targetId: 'settings-target-appearance-home-layout',

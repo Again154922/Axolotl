@@ -155,6 +155,8 @@ pub struct Settings {
     pub home_widgets: Option<serde_json::Value>,
     #[serde(default = "default_home_widget_background_opacity")]
     pub home_widget_background_opacity: u32,
+    #[serde(default)]
+    pub hidden_nav_items: Vec<String>,
     #[serde(default = "default_terracotta_public_nodes")]
     pub terracotta_public_nodes: Vec<String>,
 
@@ -296,6 +298,16 @@ impl Settings {
         .fetch_one(exec)
         .await?;
 
+        let hidden_nav_items_json: String = sqlx::query_scalar(
+            "SELECT hidden_nav_items FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+        let mut hidden_nav_items: Vec<String> =
+            serde_json::from_str(&hidden_nav_items_json).unwrap_or_default();
+        // Home and Library must stay reachable from the nav rail.
+        hidden_nav_items.retain(|id| id != "home" && id != "library");
+
         let log_level: String =
             sqlx::query_scalar("SELECT log_level FROM settings WHERE id = 0")
                 .fetch_one(exec)
@@ -378,6 +390,7 @@ impl Settings {
             home_widget_background_opacity: home_widget_background_opacity
                 .clamp(0, 100)
                 as u32,
+            hidden_nav_items,
             terracotta_public_nodes: res
                 .terracotta_public_nodes
                 .as_ref()
@@ -659,6 +672,15 @@ impl Settings {
         .bind(self.home_widget_background_opacity.clamp(0, 100) as i64)
         .execute(exec)
         .await?;
+
+        let mut hidden_nav_items = self.hidden_nav_items.clone();
+        // Boundary guard: never persist core nav items as hidden.
+        hidden_nav_items.retain(|id| id != "home" && id != "library");
+
+        sqlx::query("UPDATE settings SET hidden_nav_items = ? WHERE id = 0")
+            .bind(serde_json::to_string(&hidden_nav_items)?)
+            .execute(exec)
+            .await?;
 
         sqlx::query("UPDATE settings SET download_engine = ? WHERE id = 0")
             .bind(self.download_engine.as_str())

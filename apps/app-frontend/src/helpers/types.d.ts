@@ -222,6 +222,7 @@ type AppSettings = {
 	close_behavior: 'ask' | 'close' | 'lightweight'
 	home_widgets: import('@/components/home/home-dashboard').HomeDashboardConfig | null
 	home_widget_background_opacity: number
+	hidden_nav_items: string[]
 
 	telemetry: boolean
 	discord_rpc: boolean

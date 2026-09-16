@@ -512,6 +512,27 @@
   "app.appearance-settings.hide-nametag.title": {
     "message": "Hide nametag"
   },
+  "app.appearance-settings.hidden-nav-items.description": {
+    "message": "Choose which fixed navigation buttons stay visible. Hidden pages remain reachable by URL or keyboard shortcuts."
+  },
+  "app.appearance-settings.hidden-nav-items.group-browse": {
+    "message": "Browse"
+  },
+  "app.appearance-settings.hidden-nav-items.group-play": {
+    "message": "Play"
+  },
+  "app.appearance-settings.hidden-nav-items.group-tools": {
+    "message": "Tools"
+  },
+  "app.appearance-settings.hidden-nav-items.locked-core": {
+    "message": "Home and Library always stay visible so you can find your way back."
+  },
+  "app.appearance-settings.hidden-nav-items.locked-default-page": {
+    "message": "This item is your default landing page. Change that first to hide it."
+  },
+  "app.appearance-settings.hidden-nav-items.title": {
+    "message": "Navigation items"
+  },
   "app.appearance-settings.home-layout.description": {
     "message": "Choose between Information Home and a focused instance launcher."
   },

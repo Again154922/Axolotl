@@ -117,6 +117,10 @@ const REVERTIBLE_SCHEMA = {
 	20260916160000: {
 		columns: [{ table: 'settings', column: 'home_widget_background_opacity' }],
 	},
+	// settings.hidden_nav_items
+	20260916170000: {
+		columns: [{ table: 'settings', column: 'hidden_nav_items' }],
+	},
 }
 
 function fail(message) {

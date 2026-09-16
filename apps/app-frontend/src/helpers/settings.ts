@@ -176,6 +176,7 @@ export type AppSettings = {
 	log_level: 'error' | 'warn' | 'info' | 'debug' | 'trace'
 	home_widgets: HomeDashboardConfig | null
 	home_widget_background_opacity: number
+	hidden_nav_items: string[]
 	terracotta_public_nodes: string[]
 
 	telemetry: boolean
