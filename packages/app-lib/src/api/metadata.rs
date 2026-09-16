@@ -5,8 +5,10 @@ pub use daedalus::modded::Manifest;
 
 #[tracing::instrument]
 pub async fn get_minecraft_versions() -> crate::Result<VersionManifest> {
-    match get_minecraft_versions_with_cache(Some(CacheBehaviour::MustRevalidate))
-        .await
+    match get_minecraft_versions_with_cache(Some(
+        CacheBehaviour::MustRevalidate,
+    ))
+    .await
     {
         Ok(manifest) => Ok(manifest),
         Err(refresh_error) => {
