@@ -111,6 +111,12 @@ const REVERTIBLE_SCHEMA = {
 			'sync_feature_settings',
 		],
 	},
+	// linked server project sync source; data only
+	20260915090000: {},
+	// settings.home_widget_background_opacity
+	20260916160000: {
+		columns: [{ table: 'settings', column: 'home_widget_background_opacity' }],
+	},
 }
 
 function fail(message) {
