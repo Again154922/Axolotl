@@ -4,7 +4,13 @@ import type { Labrinth } from '@modrinth/api-client'
 import { get_project_many } from '@/helpers/cache.js'
 import { get_content_items } from '@/helpers/instance'
 
-import { contentInstallMessages } from './content-install-messages'
+import {
+	dependenciesInstalledMessage,
+	dependenciesInstalledTitleMessage,
+	dependenciesSkippedMessage,
+	dependenciesSkippedTitleMessage,
+	skippedReasonMessages,
+} from './content-install-messages'
 
 export interface ContentInstallNotifier {
 	(instanceId: string, dependencyProjectIds: string[]): Promise<void>
@@ -49,8 +55,8 @@ export function createContentInstallDepNotifications(options: {
 		if (names.length === 0) return
 		const list = names.length > 5 ? `${names.slice(0, 5).join(', ')}, …` : names.join(', ')
 		addNotification({
-			title: formatMessage(contentInstallMessages.dependenciesInstalledTitleMessage),
-			text: formatMessage(contentInstallMessages.dependenciesInstalledMessage, {
+			title: formatMessage(dependenciesInstalledTitleMessage),
+			text: formatMessage(dependenciesInstalledMessage, {
 				count: names.length,
 				list,
 			}),
@@ -70,16 +76,15 @@ export function createContentInstallDepNotifications(options: {
 		const names = skipped.map((item) => {
 			const title = projectsById.get(item.project_id)?.title ?? item.project_id
 			const reason = formatMessage(
-				contentInstallMessages.skippedReasonMessages[
-					item.reason as keyof typeof contentInstallMessages.skippedReasonMessages
-				] ?? contentInstallMessages.skippedReasonMessages.already_installed,
+				skippedReasonMessages[item.reason as keyof typeof skippedReasonMessages] ??
+					skippedReasonMessages.already_installed,
 			)
 			return `${title} (${reason})`
 		})
 		const list = names.slice(0, 5).join(', ') + (names.length > 5 ? ', …' : '')
 		addNotification({
-			title: formatMessage(contentInstallMessages.dependenciesSkippedTitleMessage),
-			text: formatMessage(contentInstallMessages.dependenciesSkippedMessage, { list }),
+			title: formatMessage(dependenciesSkippedTitleMessage),
+			text: formatMessage(dependenciesSkippedMessage, { list }),
 			type: 'info',
 		})
 	}
