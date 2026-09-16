@@ -46,6 +46,12 @@ export const utilityRoutes: RouteRecordRaw[] = [
 		},
 	},
 	{
+		path: '/screenshots',
+		name: 'Screenshots',
+		component: () => import('@/pages/Screenshots.vue'),
+		meta: { breadcrumb: [{ name: 'Screenshots' }] },
+	},
+	{
 		path: '/help/drop',
 		name: 'DropHelp',
 		component: () => import('@/pages/help/DropHelp.vue'),

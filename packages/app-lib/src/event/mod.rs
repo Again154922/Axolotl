@@ -357,6 +357,7 @@ pub enum InstancePayloadType {
         revision: u64,
     },
     ServersUpdated,
+    ScreenshotsUpdated,
     WorldUpdated {
         world: String,
     },

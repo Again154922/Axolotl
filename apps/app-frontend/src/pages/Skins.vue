@@ -880,7 +880,7 @@ async function processSkinFileBuffer(buffer: Uint8Array | ArrayBuffer) {
 	const fakeEvent = new MouseEvent('click')
 	const originalSkinTexUrl = `data:image/png;base64,` + arrayBufferToBase64(buffer)
 	try {
-		const skinTextureNormalized = await normalize_skin_texture(originalSkinTexUrl)
+		const skinTextureNormalized = await normalize_skin_texture(originalSkinTexUrl, true)
 		const skinTexUrl: SkinTextureUrl = {
 			original: originalSkinTexUrl,
 			normalized: `data:image/png;base64,` + arrayBufferToBase64(skinTextureNormalized),

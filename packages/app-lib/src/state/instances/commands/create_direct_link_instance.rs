@@ -126,6 +126,13 @@ pub(crate) async fn create_direct_link_instance(
 
     let mut tx = state.pool.begin().await?;
     instance_rows::insert_instance(&instance, &mut tx).await?;
+    sqlx::query(
+        "INSERT INTO instance_sync_preferences (instance_id, feature, enabled)
+         SELECT ?, feature, new_instance_default FROM sync_feature_settings",
+    )
+    .bind(&instance_id)
+    .execute(&mut *tx)
+    .await?;
     instance_rows::set_direct_link_fields(
         &instance.id,
         &instance_rows::DirectLinkFields {
@@ -165,8 +172,9 @@ pub(crate) async fn create_direct_link_instance(
         .await?;
     tx.commit().await?;
 
-    // Deliberately no config sync and no folder watcher: both would write
-    // into or monitor folders outside of Axolotl's own directories.
+    // Deliberately no folder watcher: it would monitor a directory outside
+    // Axolotl's own instance root. The persisted sync defaults are still
+    // exposed to the instance and applied by the normal reconciliation path.
 
     Ok(instance)
 }
@@ -333,6 +341,57 @@ mod tests {
         assert_eq!(instance.name, "1.20.4");
         assert_eq!(instance.linked_launcher.as_deref(), Some("pcl2_ce"));
         assert_eq!(instance.linked_version_id.as_deref(), Some("1.20.4"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn inherits_enabled_sync_defaults() -> crate::Result<()> {
+        let (_temp, state) = test_state_with_pool().await?;
+        sqlx::query(
+            "UPDATE sync_feature_settings
+             SET globally_enabled = 1, new_instance_default = 1
+             WHERE feature = 'multiplayer_servers'",
+        )
+        .execute(&state.pool)
+        .await?;
+
+        let minecraft = TempDir::new()?;
+        let json_path = write_version(
+            minecraft.path(),
+            "1.20.4",
+            "1.20.4",
+            json!({
+                "id": "1.20.4",
+                "mainClass": "net.minecraft.client.main.Main",
+                "type": "release"
+            }),
+        )?;
+
+        let instance = create_direct_link_instance(
+            CreateDirectLinkInstance {
+                name: None,
+                launcher_type: ImportLauncherType::Generic,
+                base_path: minecraft.path().to_path_buf(),
+                instance_folder: "1.20.4".to_string(),
+                instance_path: Some(
+                    json_path
+                        .parent()
+                        .expect("version dir")
+                        .to_string_lossy()
+                        .to_string(),
+                ),
+                game_dir_mode: None,
+            },
+            &state,
+        )
+        .await?;
+
+        let reloaded = crate::state::get_instance(&instance.id, &state.pool)
+            .await?
+            .expect("created instance should reload");
+        assert!(reloaded.synced_options.multiplayer_servers);
+        assert!(!reloaded.synced_options.command_history);
 
         Ok(())
     }

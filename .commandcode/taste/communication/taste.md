@@ -1,0 +1,8 @@
+# Communication
+
+- Collaborates in Chinese (中文); expects the agent to reply, plan, document, and report in Chinese. Confidence: 0.95
+- Expects an explicit language split in upstream work: commit messages in English, while PR titles/bodies, review replies and upstream discussion are written in Chinese (asks for the PR in Chinese via "使用中文"). Confidence: 0.75
+- Prefixes requests with "ask:" to signal a pure research/investigation task where the agent should only investigate and report findings/options (with evidence), not implement code, ending with a recommendation and asking whether to proceed. Confidence: 0.85
+- Uses a "tip:" prefix to hand over an unsolicited hint or suggested approach (parallel to the "ask:" convention), expecting the agent to act on it immediately (e.g. following a "scoop can switch the default Java" tip by resetting the toolchain). Confidence: 0.7
+- Labels requests with a short prefix to declare what kind of work is expected, sometimes two in one message (one per workstream): conventional-commit-style types (`chore:`, `feat:`), task kinds (`ask:` = investigate and report only, `debug:` = root-cause a reported failure and determine its cause, `issues:` = fix the listed defects, `skills:` = sediment the workflow), handover hints (`tip:`), and requirement-introduction labels (`新的需求：`, `扩大范围：`). Confidence: 0.7
+- Hands over batches of defects with an "issues:" prefix followed by a bullet list — one entry per problem, each naming the affected PR plus the exact symptom and whether it reproduces broadly (e.g. "此问题在各个页面均能复现") — and expects the agent to root-cause and fix all of them. Confidence: 0.6

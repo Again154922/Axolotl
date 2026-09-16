@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(git:*)",
+      "Shell(cargo:*)",
+      "powershell",
+      "Shell(set:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}
