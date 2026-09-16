@@ -71,12 +71,6 @@ import {
 import { mergeProviderResults } from '@/helpers/browse-merge'
 import { createBrowseProjectTabs, getBrowseProjectTabOptions } from '@/helpers/browse-project-tabs'
 import {
-	completeBrowseReturnNavigation,
-	consumeBrowseReturnSnapshot,
-	isBrowseReturnSourcePath,
-	saveBrowseReturnSnapshot,
-} from '@/helpers/browse-return-state.ts'
-import {
 	cancel_search_request,
 	get_project,
 	get_project_v3,
@@ -164,6 +158,7 @@ import {
 	provideServerInstallContent,
 } from '@/providers/setup/server-install-content'
 import { useBreadcrumbs } from '@/store/breadcrumbs'
+import { useNavigationReturnStore } from '@/store/navigation-return'
 import { useTheming } from '@/store/state'
 
 const { addNotification, handleError } = injectNotificationManager()
@@ -295,6 +290,7 @@ const initialCurseForgeCategoriesPromise =
 if (route.query.f || route.query.g) await initialCurseForgeCategoriesPromise
 
 const themeStore = useTheming()
+const navReturn = useNavigationReturnStore()
 const serverSetupModalRef = ref<InstanceType<typeof CreationFlowModal> | null>(null)
 const serverInstallContent = createServerInstallContent({ serverSetupModalRef })
 provideServerInstallContent(serverInstallContent)
@@ -1035,9 +1031,9 @@ if (instance.value) {
 }
 
 onBeforeRouteLeave((to) => {
-	if (isBrowseReturnSourcePath(to.path)) {
+	if (navReturn.isBrowseReturnSourcePath(to.path)) {
 		const viewport = document.querySelector<HTMLElement>('.app-viewport')
-		saveBrowseReturnSnapshot({
+		navReturn.saveBrowseReturnSnapshot({
 			url: route.fullPath,
 			scrollTop: viewport?.scrollTop ?? 0,
 			state: { currentPage: searchState.currentPage.value },
@@ -2631,7 +2627,7 @@ type BrowseReturnState = {
 	currentPage: number
 }
 
-const browseReturnSnapshot = consumeBrowseReturnSnapshot<BrowseReturnState>(route.fullPath)
+const browseReturnSnapshot = navReturn.consumeBrowseReturnSnapshot<BrowseReturnState>(route.fullPath)
 
 const displayMode = ref<BrowseDisplayMode>(getLastBrowseContentDisplayMode())
 
@@ -2987,7 +2983,7 @@ async function restoreBrowseReturnScroll() {
 	document.querySelector<HTMLElement>('.app-viewport')?.scrollTo({
 		top: browseReturnSnapshot.scrollTop,
 	})
-	completeBrowseReturnNavigation(route.fullPath)
+	navReturn.completeBrowseReturnNavigation(route.fullPath)
 }
 
 watch(

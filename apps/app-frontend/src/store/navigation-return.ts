@@ -1,7 +1,7 @@
-import { defineStore } from 'pinia'
+import { createPinia, defineStore, getActivePinia, setActivePinia } from 'pinia'
 import { isRef, ref, toRaw, unref } from 'vue'
 
-import type { UpgradeFlowSnapshot } from '@/pages/instance/upgrade/flow'
+import type { UpgradeFlowSnapshot } from '../pages/instance/upgrade/flow.ts'
 
 export interface BrowseReturnSnapshot<T> {
 	url: string
@@ -143,3 +143,65 @@ export function upgradeProjectPath(
 }
 
 export { cloneUpgradeFlowSnapshot }
+
+function ensureActivePinia() {
+	if (!getActivePinia()) {
+		setActivePinia(createPinia())
+	}
+	return useNavigationReturnStore()
+}
+
+export function parkUpgradeFlow(snapshot: UpgradeFlowSnapshot) {
+	ensureActivePinia().parkUpgradeFlow(snapshot)
+}
+
+export function peekUpgradeFlow(instanceId?: string): UpgradeFlowSnapshot | null {
+	return ensureActivePinia().peekUpgradeFlow(instanceId)
+}
+
+export function consumeUpgradeFlow(
+	instanceId: string,
+	returnFullPath: string,
+): UpgradeFlowSnapshot | null {
+	return ensureActivePinia().consumeUpgradeFlow(instanceId, returnFullPath)
+}
+
+export function restoreUpgradeFlow(
+	instanceId: string,
+	returnFullPath: string,
+	hydrate: (snapshot: UpgradeFlowSnapshot) => void,
+): UpgradeFlowSnapshot | null {
+	return ensureActivePinia().restoreUpgradeFlow(instanceId, returnFullPath, hydrate)
+}
+
+export function clearUpgradeFlow() {
+	ensureActivePinia().clearUpgradeFlow()
+}
+
+export function saveBrowseReturnSnapshot<T>(snapshot: BrowseReturnSnapshot<T>): void {
+	ensureActivePinia().saveBrowseReturnSnapshot(snapshot)
+}
+
+export function consumeBrowseReturnSnapshot<T>(url: string): BrowseReturnSnapshot<T> | null {
+	return ensureActivePinia().consumeBrowseReturnSnapshot<T>(url)
+}
+
+export function hasBrowseReturnSnapshot(url: string): boolean {
+	return ensureActivePinia().hasBrowseReturnSnapshot(url)
+}
+
+export function clearBrowseReturnSnapshot(): void {
+	ensureActivePinia().clearBrowseReturnSnapshot()
+}
+
+export function prepareBrowseReturnNavigation(url: string, sourcePath: string): boolean {
+	return ensureActivePinia().prepareBrowseReturnNavigation(url, sourcePath)
+}
+
+export function isBrowseReturnNavigation(url: string): boolean {
+	return ensureActivePinia().isBrowseReturnNavigation(url)
+}
+
+export function completeBrowseReturnNavigation(url: string): void {
+	ensureActivePinia().completeBrowseReturnNavigation(url)
+}
