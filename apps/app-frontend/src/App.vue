@@ -3483,6 +3483,14 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	overflow-x: hidden;
 	scrollbar-gutter: stable;
 	padding-bottom: var(--floating-action-bar-clearance, 0px);
+
+	// Programmatic focus target for route handoff and keyboard shortcuts.
+	// Clicking the pane focuses it; Tab/Shift/Esc then paint the UA ring as a
+	// full-pane black frame (issue #579).
+	&:focus,
+	&:focus-visible {
+		outline: none;
+	}
 }
 
 .app-contents::before {

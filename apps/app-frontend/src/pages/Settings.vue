@@ -877,6 +877,14 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 	transition:
 		opacity 180ms ease,
 		transform 180ms ease;
+
+	// Programmatic focus target after category changes. Clicking the panel
+	// focuses it; Tab/Shift/Esc then paint the UA ring as a full-panel black
+	// frame (issue #579).
+	&:focus,
+	&:focus-visible {
+		outline: none;
+	}
 }
 
 .settings-content-body.is-loading {
