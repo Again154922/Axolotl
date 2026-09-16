@@ -6215,6 +6215,12 @@
   "app.onboarding.mascot-alt": {
     "message": "Axolotl guide"
   },
+  "app.onboarding.offline-account.description": {
+    "message": "Prefer not to sign in yet? Open Playing as in the sidebar and add an offline Minecraft account with just a username."
+  },
+  "app.onboarding.offline-account.title": {
+    "message": "Play without signing in"
+  },
   "app.onboarding.privacy.description": {
     "message": "Manage anonymous telemetry, Discord Rich Presence, and the Minecraft log analysis service whenever you need to."
   },

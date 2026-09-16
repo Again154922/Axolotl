@@ -6251,6 +6251,12 @@
   "app.onboarding.mascot-alt": {
     "message": "引导吉祥物"
   },
+  "app.onboarding.offline-account.description": {
+    "message": "暂时不想登录？在侧栏「当前游玩账号」中添加离线 Minecraft 账号，只需一个用户名即可。"
+  },
+  "app.onboarding.offline-account.title": {
+    "message": "不登录也能玩"
+  },
   "app.onboarding.privacy.description": {
     "message": "匿名遥测、Discord 活动状态与 Minecraft 日志分析服务都可以在这里调整。"
   },

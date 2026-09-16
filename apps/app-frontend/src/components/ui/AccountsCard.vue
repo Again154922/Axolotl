@@ -32,7 +32,11 @@
 			</button>
 		</ButtonStyled>
 		<ButtonStyled>
-			<button :disabled="loginDisabled" @click="showOfflineAccountModal()">
+			<button
+				data-onboarding-id="offline-account-entry"
+				:disabled="loginDisabled"
+				@click="showOfflineAccountModal()"
+			>
 				<PlusIcon />
 				{{ formatMessage(messages.addOfflineAccount) }}
 			</button>
@@ -155,7 +159,11 @@
 					</button>
 				</ButtonStyled>
 				<ButtonStyled v-if="accounts.length > 0" class="w-full">
-					<button :disabled="loginDisabled" @click="showOfflineAccountModal()">
+					<button
+						data-onboarding-id="offline-account-entry"
+						:disabled="loginDisabled"
+						@click="showOfflineAccountModal()"
+					>
 						<PlusIcon />
 						{{ formatMessage(messages.addOfflineAccount) }}
 					</button>
