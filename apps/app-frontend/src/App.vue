@@ -2127,6 +2127,10 @@ async function handleCommand(e) {
 		await router.push({ path: '/lab/seed-map', query })
 		return
 	}
+	if (e.event === 'OpenDiscovery') {
+		await router.push('/browse/mod')
+		return
+	}
 	if (offline.value && e.event !== 'LaunchInstance') {
 		await router.push('/library')
 		return
