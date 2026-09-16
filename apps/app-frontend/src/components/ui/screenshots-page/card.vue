@@ -35,7 +35,11 @@ const emit = defineEmits<{
 
 const card = ref<HTMLElement>()
 const thumbnail = useImageThumbnail(
-	() => props.screenshot.path,
+	() => ({
+		instanceId: props.screenshot.instance_id,
+		filePath: `screenshots/${props.screenshot.file_name}`,
+		path: props.screenshot.path,
+	}),
 	512,
 	() => props.screenshot.modified_at,
 )
@@ -213,6 +217,7 @@ watch(thumbnail, (url, previousUrl) => {
 			</span>
 		</button>
 		<img
+			v-if="thumbnail"
 			ref="image"
 			:src="thumbnail"
 			:alt="screenshot.file_name"

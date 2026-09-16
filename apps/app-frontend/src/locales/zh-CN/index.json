@@ -3341,6 +3341,33 @@
   "app.instances.sort.name": {
     "message": "名称"
   },
+  "app.instances.sort-by": {
+    "message": "排序方式"
+  },
+  "app.instances.sort.direction.asc-alphabetical": {
+    "message": "A–Z 正序"
+  },
+  "app.instances.sort.direction.desc-alphabetical": {
+    "message": "Z–A 倒序"
+  },
+  "app.instances.sort.direction.asc-version": {
+    "message": "旧版本在前"
+  },
+  "app.instances.sort.direction.desc-version": {
+    "message": "新版本在前"
+  },
+  "app.instances.sort.direction.asc-recency": {
+    "message": "最早游玩在前"
+  },
+  "app.instances.sort.direction.desc-recency": {
+    "message": "最近游玩在前"
+  },
+  "app.instances.sort.direction.asc-date": {
+    "message": "最早的在前"
+  },
+  "app.instances.sort.direction.desc-date": {
+    "message": "最新的在前"
+  },
   "app.instances.unpin-from-home": {
     "message": "取消固定"
   },
