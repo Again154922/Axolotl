@@ -175,6 +175,7 @@ export type AppSettings = {
 	close_behavior: 'ask' | 'close' | 'lightweight'
 	log_level: 'error' | 'warn' | 'info' | 'debug' | 'trace'
 	home_widgets: HomeDashboardConfig | null
+	home_widget_background_opacity: number
 	terracotta_public_nodes: string[]
 
 	telemetry: boolean

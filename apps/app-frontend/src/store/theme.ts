@@ -133,6 +133,7 @@ export type ThemeStore = {
 	transparentBackground: boolean
 	transparentBackgroundOpacity: number
 	transparentBackgroundBlur: boolean
+	homeWidgetBackgroundOpacity: number
 	sidebarInstanceCount: number
 	autoHideDownloadsButton: boolean
 	homeLayout: HomeLayout
@@ -180,6 +181,7 @@ export const DEFAULT_THEME_STORE: ThemeStore = {
 	transparentBackground: false,
 	transparentBackgroundOpacity: 55,
 	transparentBackgroundBlur: false,
+	homeWidgetBackgroundOpacity: 100,
 	sidebarInstanceCount: 0,
 	autoHideDownloadsButton: false,
 	homeLayout: 'standard',
@@ -297,6 +299,13 @@ export const useTheming = defineStore('themeStore', {
 			html.style.setProperty(
 				'--transparent-window-alpha',
 				`${Math.min(Math.max(this.transparentBackgroundOpacity, 0), 100)}%`,
+			)
+		},
+		setHomeWidgetBackgroundOpacity() {
+			const html = document.documentElement
+			html.style.setProperty(
+				'--home-widget-bg-opacity',
+				`${Math.min(Math.max(this.homeWidgetBackgroundOpacity, 0), 100)}%`,
 			)
 		},
 		getFeatureFlag(key: FeatureFlag) {

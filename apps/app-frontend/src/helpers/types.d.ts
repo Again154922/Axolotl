@@ -221,6 +221,7 @@ type AppSettings = {
 	minimal_home_instance_id: string | null
 	close_behavior: 'ask' | 'close' | 'lightweight'
 	home_widgets: import('@/components/home/home-dashboard').HomeDashboardConfig | null
+	home_widget_background_opacity: number
 
 	telemetry: boolean
 	discord_rpc: boolean

@@ -153,6 +153,8 @@ pub struct Settings {
     pub minimal_home_instance_id: Option<String>,
     #[serde(default)]
     pub home_widgets: Option<serde_json::Value>,
+    #[serde(default = "default_home_widget_background_opacity")]
+    pub home_widget_background_opacity: u32,
     #[serde(default = "default_terracotta_public_nodes")]
     pub terracotta_public_nodes: Vec<String>,
 
@@ -211,6 +213,12 @@ pub struct PrivacySettings {
 
 fn default_true() -> bool {
     true
+}
+
+/// Fully opaque home widget cards; users can dial this down to reveal the
+/// custom/transparent window background behind them.
+fn default_home_widget_background_opacity() -> u32 {
+    100
 }
 
 /// Default log level, kept in sync with the `log_level` column default and
@@ -278,6 +286,12 @@ impl Settings {
 
         let close_behavior: String = sqlx::query_scalar(
             "SELECT close_behavior FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+
+        let home_widget_background_opacity: i64 = sqlx::query_scalar(
+            "SELECT home_widget_background_opacity FROM settings WHERE id = 0",
         )
         .fetch_one(exec)
         .await?;
@@ -361,6 +375,9 @@ impl Settings {
                 .home_widgets
                 .as_ref()
                 .and_then(|value| serde_json::from_str(value).ok()),
+            home_widget_background_opacity: home_widget_background_opacity
+                .clamp(0, 100)
+                as u32,
             terracotta_public_nodes: res
                 .terracotta_public_nodes
                 .as_ref()
@@ -635,6 +652,13 @@ impl Settings {
             .bind(&self.log_level)
             .execute(exec)
             .await?;
+
+        sqlx::query(
+            "UPDATE settings SET home_widget_background_opacity = ? WHERE id = 0",
+        )
+        .bind(self.home_widget_background_opacity.clamp(0, 100) as i64)
+        .execute(exec)
+        .await?;
 
         sqlx::query("UPDATE settings SET download_engine = ? WHERE id = 0")
             .bind(self.download_engine.as_str())

@@ -1302,6 +1302,7 @@ async function setupApp() {
 		transparent_background,
 		transparent_background_opacity,
 		transparent_background_blur,
+		home_widget_background_opacity,
 		sidebar_instance_count,
 		auto_hide_downloads_button,
 		home_layout,
@@ -1358,6 +1359,9 @@ async function setupApp() {
 	themeStore.setTransparentBackgroundClass()
 	await applyWindowFrame()
 	await applyWindowEffects()
+	themeStore.homeWidgetBackgroundOpacity =
+		home_widget_background_opacity ?? 100
+	themeStore.setHomeWidgetBackgroundOpacity()
 	themeStore.sidebarInstanceCount = sidebar_instance_count
 	themeStore.autoHideDownloadsButton = auto_hide_downloads_button
 	themeStore.homeLayout = home_layout

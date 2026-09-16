@@ -524,6 +524,12 @@
   "app.appearance-settings.home-layout.title": {
     "message": "主页布局"
   },
+  "app.appearance-settings.home-widget-background-opacity.description": {
+    "message": "调低后可让启动器背景透过主页小组件显示。"
+  },
+  "app.appearance-settings.home-widget-background-opacity.title": {
+    "message": "主页小组件背景不透明度"
+  },
   "app.appearance-settings.lightweight-mode.description": {
     "message": "Minecraft 启动后关闭启动器 Webview 以减少内存占用。可通过系统托盘恢复启动器。"
   },

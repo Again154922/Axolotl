@@ -313,6 +313,15 @@ const messages = defineMessages({
 		id: 'app.appearance-settings.home-layout.minimal',
 		defaultMessage: 'Minimal',
 	},
+	homeWidgetBackgroundOpacityTitle: {
+		id: 'app.appearance-settings.home-widget-background-opacity.title',
+		defaultMessage: 'Home widget background opacity',
+	},
+	homeWidgetBackgroundOpacityDescription: {
+		id: 'app.appearance-settings.home-widget-background-opacity.description',
+		defaultMessage:
+			'Lower this to let the launcher background show through home widgets.',
+	},
 	selectOption: {
 		id: 'app.appearance-settings.select-option',
 		defaultMessage: 'Select an option',
@@ -572,6 +581,7 @@ watch(
 			settings.value.transparent_background,
 			settings.value.transparent_background_opacity,
 			settings.value.transparent_background_blur,
+			settings.value.home_widget_background_opacity,
 			settings.value.sidebar_instance_count,
 			settings.value.close_behavior,
 		] as const,
@@ -582,6 +592,7 @@ watch(
 		transparent,
 		transparentOpacity,
 		transparentBlur,
+		homeWidgetBackgroundOpacity,
 		sidebarInstanceCount,
 		closeBehavior,
 	]) => {
@@ -592,6 +603,8 @@ watch(
 		themeStore.transparentBackgroundOpacity = transparentOpacity
 		themeStore.transparentBackgroundBlur = transparentBlur
 		themeStore.setTransparentBackgroundClass()
+		themeStore.homeWidgetBackgroundOpacity = homeWidgetBackgroundOpacity
+		themeStore.setHomeWidgetBackgroundOpacity()
 		themeStore.sidebarInstanceCount = sidebarInstanceCount
 		themeStore.closeBehavior = closeBehavior as CloseBehavior
 	},
@@ -1032,6 +1045,27 @@ watch(
 							<MinimizeIcon aria-hidden="true" />
 							{{ formatMessage(messages.homeLayoutMinimal) }}
 						</Button>
+					</div>
+				</template>
+			</SettingsRow>
+			<SettingsRow stacked>
+				<template #label>
+					<span id="settings-target-appearance-home-widget-opacity" tabindex="-1">
+						{{ formatMessage(messages.homeWidgetBackgroundOpacityTitle) }}
+					</span>
+				</template>
+				<template #description>{{
+					formatMessage(messages.homeWidgetBackgroundOpacityDescription)
+				}}</template>
+				<template #control>
+					<div class="w-full">
+						<Slider
+							id="home-widget-background-opacity"
+							v-model="settings.home_widget_background_opacity"
+							:min="0"
+							:max="100"
+							:step="5"
+						/>
 					</div>
 				</template>
 			</SettingsRow>

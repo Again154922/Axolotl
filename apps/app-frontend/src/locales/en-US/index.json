@@ -524,6 +524,12 @@
   "app.appearance-settings.home-layout.title": {
     "message": "Home layout"
   },
+  "app.appearance-settings.home-widget-background-opacity.description": {
+    "message": "Lower this to let the launcher background show through home widgets."
+  },
+  "app.appearance-settings.home-widget-background-opacity.title": {
+    "message": "Home widget background opacity"
+  },
   "app.appearance-settings.lightweight-mode.description": {
     "message": "Closes the launcher webview after Minecraft starts to reduce memory use. Restore it from the system tray."
   },
