@@ -116,7 +116,7 @@ settings_dir / SQLite（权威持久化）
 - [x] T1: 新建 `src/routes/meta.ts` + 域路由模块骨架，`index.ts` 组装且 URL/name 集合与现网一致（name 仅规范 PascalCase） — acceptance: 应用可启动；`/browse/mods`、`/library`、`/instance/:id` 等可达；`vue-tsc` 过 (covers: S2.2)
 - [x] T2: `routes.js` 改为 re-export 或删除并改 import；全仓无残留旧 name 含空格字符串 — acceptance: `rg "Discover content|Skin editor" apps/app-frontend/src` 仅剩可接受的历史/注释为 0 (covers: S2.2; depends: T1)
 - [x] T3: Lab 工具路由归入 `lab.ts` 域模块，path 不变 — acceptance: `/lab`、`/lab/seed-map` 等可进可返回 (covers: S2.2; depends: T1)
-- [x] T4: 返回流迁入 Pinia store；router guard/scrollBehavior 改用 store — acceptance: browse 返回滚动/筛选恢复与 upgrade 停泊行为不回归；helpers 保留转发（调用点迁 store 可后续） (covers: S2.3; depends: T1)
+- [x] T4: 返回流迁入 Pinia store；调用点直连 store — acceptance: Browse/Favorites/upgrade 页从 `@/store/navigation-return` 导入；helpers 仅 re-export (covers: S2.3; depends: T1)
 - [x] T5: `content-install` / `content-selection` 文件级拆薄，公共 API re-export — acceptance: 无行为 diff；公共 API 稳定；根文件仍含 preview/install 主流程（registry/session/messages/types/compat 已抽出） (covers: S2.4)
 - [x] T6: 写入/校验状态归属表（文档段落在 spec；代码侧注释或 `providers/README` 可选） — acceptance: 审查可对照归属表判断新代码 (covers: S2.1; depends: T4, T5)
 

@@ -97,6 +97,7 @@ import {
 } from '@/providers/content-install-types'
 import { useTheming } from '@/store/state'
 
+import { createContentInstallDepNotifications } from './content-install-dep-notifications'
 import * as contentInstallMessages from './content-install-messages'
 import { createInstallingItemsRegistry } from './content-install-registry'
 import { createInstallSession } from './content-install-session'
@@ -175,34 +176,11 @@ export function createContentInstall(opts: {
 		debugState,
 	)
 
-	async function notifyInstalledDependencies(instanceId: string, dependencyProjectIds: string[]) {
-		if (dependencyProjectIds.length === 0) return
-		const items = await get_content_items(instanceId).catch(() => [])
-		const names = dependencyProjectIds
-			.map((id) => {
-				const curseForge = id.startsWith('curseforge:')
-				const rawId = curseForge ? id.slice('curseforge:'.length) : id
-				const item = items.find((candidate) =>
-					candidate.provider_refs.some(
-						(reference) =>
-							reference.provider === (curseForge ? 'curseforge' : 'modrinth') &&
-							String(reference.project_id) === rawId,
-					),
-				)
-				return item?.project?.title ?? item?.file_name
-			})
-			.filter((name): name is string => !!name)
-		if (names.length === 0) return
-		const list = names.length > 5 ? `${names.slice(0, 5).join(', ')}, …` : names.join(', ')
-		opts.addNotification({
-			title: formatMessage(dependenciesInstalledTitleMessage),
-			text: formatMessage(dependenciesInstalledMessage, {
-				count: names.length,
-				list,
-			}),
-			type: 'success',
+	const { notifyInstalledDependencies, notifySkippedPlanDependencies } =
+		createContentInstallDepNotifications({
+			formatMessage,
+			addNotification: opts.addNotification,
 		})
-	}
 
 	function markInstanceContentChanged(instanceId: string) {
 		const next = new Map(installRevisionByInstance.value)
@@ -637,31 +615,6 @@ export function createContentInstall(opts: {
 		return plan.dependencies
 			.map((dependency) => dependency.project_id)
 			.filter((projectId) => !approved.has(projectId))
-	}
-
-	async function notifySkippedPlanDependencies(
-		skipped: Array<{ project_id: string; reason: string }>,
-	) {
-		if (skipped.length === 0) return
-		const projectIds = [...new Set(skipped.map((item) => item.project_id).filter((id) => !!id))]
-		const projects = await get_project_many(projectIds).catch(
-			() => [] as Labrinth.Projects.v2.Project[],
-		)
-		const projectsById = new Map(projects.map((candidate) => [candidate.id, candidate]))
-		const names = skipped.map((item) => {
-			const title = projectsById.get(item.project_id)?.title ?? item.project_id
-			const reason = formatMessage(
-				skippedReasonMessages[item.reason as keyof typeof skippedReasonMessages] ??
-					skippedReasonMessages.already_installed,
-			)
-			return `${title} (${reason})`
-		})
-		const list = names.slice(0, 5).join(', ') + (names.length > 5 ? ', …' : '')
-		opts.addNotification({
-			title: formatMessage(dependenciesSkippedTitleMessage),
-			text: formatMessage(dependenciesSkippedMessage, { list }),
-			type: 'info',
-		})
 	}
 
 	function hideContentInstallModal() {
