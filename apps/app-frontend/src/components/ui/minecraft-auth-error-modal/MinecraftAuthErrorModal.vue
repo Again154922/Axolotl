@@ -130,7 +130,7 @@ async function signInAgain() {
 			deviceCode: formatMessage(messages.loginDeviceCode),
 		})
 		if (loggedIn) {
-			await set_default_user(loggedIn.profile.id)
+			await set_default_user(loggedIn.account_id)
 		}
 		loadingSignIn.value = false
 		modal.value?.hide()
