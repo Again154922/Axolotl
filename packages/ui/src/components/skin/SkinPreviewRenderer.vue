@@ -1,4 +1,6 @@
 <template>
+	<!-- Tres* tags are resolved by the TresJS Vite plugin, not package exports. -->
+	<!-- eslint-disable-next-line vue/no-undef-components -->
 	<div
 		ref="skinPreviewContainer"
 		class="relative w-full h-full overflow-visible cursor-grab"
@@ -58,15 +60,15 @@
 			@pointerleave="onPointerUp"
 		>
 			<Suspense>
-				<TresGroup
+				<Group
 					:rotation="animatedModelGroupRotation"
 					:position="animatedModelGroupPosition"
 					:scale="animatedModelGroupScale"
 				>
-					<TresGroup :position="modelOffset">
-						<TresPrimitive v-if="scene" :object="scene" />
-					</TresGroup>
-				</TresGroup>
+					<Group :position="modelOffset">
+						<primitive v-if="scene" :object="scene" />
+					</Group>
+				</Group>
 			</Suspense>
 
 			<Suspense>
@@ -99,17 +101,7 @@
 
 <script setup lang="ts">
 import { ClassicPlayerModel, SlimPlayerModel, UnfoldHorizontalIcon } from '@modrinth/assets'
-import {
-	TresAmbientLight,
-	TresCanvas,
-	TresCircleGeometry,
-	TresDirectionalLight,
-	TresGroup,
-	TresMesh,
-	TresPerspectiveCamera,
-	TresPrimitive,
-	TresShaderMaterial,
-} from '@tresjs/core'
+import { TresCanvas } from '@tresjs/core'
 import * as THREE from 'three'
 import {
 	computed,
