@@ -1901,6 +1901,66 @@
   "app.gc-notice.fallback": {
     "message": "Java did not accept {preferred}; using {chosen}."
   },
+  "app.headless-demo.brand-button": {
+    "message": "Brand button"
+  },
+  "app.headless-demo.checkbox-label": {
+    "message": "Accept demo checkbox (brand fill when checked)"
+  },
+  "app.headless-demo.controls": {
+    "message": "Controls"
+  },
+  "app.headless-demo.description": {
+    "message": "Isolated reka-ui primitives styled only with existing app tokens. Switch theme in Settings → Appearance to verify light, dark, and OLED."
+  },
+  "app.headless-demo.dialog-close": {
+    "message": "Close"
+  },
+  "app.headless-demo.dialog-description": {
+    "message": "This dialog content uses bg-surface-3, text-contrast, and border-surface-5. Overlay and focus ring stay readable in every theme."
+  },
+  "app.headless-demo.dialog-title": {
+    "message": "Token-mapped dialog"
+  },
+  "app.headless-demo.loader-fabric": {
+    "message": "Fabric"
+  },
+  "app.headless-demo.loader-forge": {
+    "message": "Forge"
+  },
+  "app.headless-demo.loader-neoforge": {
+    "message": "NeoForge"
+  },
+  "app.headless-demo.loader-vanilla": {
+    "message": "Vanilla"
+  },
+  "app.headless-demo.open-dialog": {
+    "message": "Open dialog"
+  },
+  "app.headless-demo.select-label": {
+    "message": "Loader"
+  },
+  "app.headless-demo.select-placeholder": {
+    "message": "Pick a loader"
+  },
+  "app.headless-demo.standard-button": {
+    "message": "Standard button"
+  },
+  "app.headless-demo.surfaces": {
+    "message": "Surfaces"
+  },
+  "app.headless-demo.theme-hint": {
+    "message": "No second theme system is introduced here — surfaces and brand colors follow the active theme."
+  },
+  "app.headless-demo.title": {
+    "message": "Headless token demo"
+  },
+  "app.headless-demo.tooltip-content": {
+    "message": "Tooltip body mapped to surface-4 / text-contrast."
+  },
+  "app.headless-demo.tooltip-trigger": {
+    "message": "Hover tooltip"
+  },
   "app.home.breadcrumb": {
     "message": "Home"
   },
@@ -3185,44 +3245,44 @@
   "app.instances.selected-count": {
     "message": "{count, plural, one {# selected} other {# selected}}"
   },
+  "app.instances.sort-by": {
+    "message": "Sort by"
+  },
   "app.instances.sort.date-created": {
     "message": "Date created"
   },
   "app.instances.sort.date-modified": {
     "message": "Date modified"
   },
+  "app.instances.sort.direction.asc-alphabetical": {
+    "message": "A–Z"
+  },
+  "app.instances.sort.direction.asc-date": {
+    "message": "Oldest first"
+  },
+  "app.instances.sort.direction.asc-recency": {
+    "message": "Least recent first"
+  },
+  "app.instances.sort.direction.asc-version": {
+    "message": "Oldest version first"
+  },
+  "app.instances.sort.direction.desc-alphabetical": {
+    "message": "Z–A"
+  },
+  "app.instances.sort.direction.desc-date": {
+    "message": "Newest first"
+  },
+  "app.instances.sort.direction.desc-recency": {
+    "message": "Most recent first"
+  },
+  "app.instances.sort.direction.desc-version": {
+    "message": "Newest version first"
+  },
   "app.instances.sort.last-played": {
     "message": "Last played"
   },
   "app.instances.sort.name": {
     "message": "Name"
-  },
-  "app.instances.sort-by": {
-    "message": "Sort by"
-  },
-  "app.instances.sort.direction.asc-alphabetical": {
-    "message": "A–Z"
-  },
-  "app.instances.sort.direction.desc-alphabetical": {
-    "message": "Z–A"
-  },
-  "app.instances.sort.direction.asc-version": {
-    "message": "Oldest version first"
-  },
-  "app.instances.sort.direction.desc-version": {
-    "message": "Newest version first"
-  },
-  "app.instances.sort.direction.asc-recency": {
-    "message": "Least recent first"
-  },
-  "app.instances.sort.direction.desc-recency": {
-    "message": "Most recent first"
-  },
-  "app.instances.sort.direction.asc-date": {
-    "message": "Oldest first"
-  },
-  "app.instances.sort.direction.desc-date": {
-    "message": "Newest first"
   },
   "app.instances.unpin-from-home": {
     "message": "Unpin from Home"
@@ -5552,42 +5612,6 @@
   "app.minecraft.playing-as": {
     "message": "Playing as"
   },
-  "app.modal.install-to-play.content-required": {
-    "message": "Content required"
-  },
-  "app.modal.install-to-play.header": {
-    "message": "Install to play"
-  },
-  "app.modal.install-to-play.install-button": {
-    "message": "Install"
-  },
-  "app.modal.install-to-play.mod-count": {
-    "message": "{count, plural, one {# mod} other {# mods}}"
-  },
-  "app.modal.install-to-play.required-modpack": {
-    "message": "Required modpack"
-  },
-  "app.modal.install-to-play.server-requires-mods": {
-    "message": "This server requires mods to play. Click Install to set up the required files from Modrinth, then launch directly into the server."
-  },
-  "app.modal.install-to-play.shared-instance": {
-    "message": "Shared instance"
-  },
-  "app.modal.install-to-play.shared-server-instance": {
-    "message": "Shared server instance"
-  },
-  "app.modal.install-to-play.view-contents": {
-    "message": "View contents"
-  },
-  "app.modal.update-to-play.header": {
-    "message": "Update to play"
-  },
-  "app.modal.update-to-play.update-required": {
-    "message": "Update required"
-  },
-  "app.modal.update-to-play.update-required-description": {
-    "message": "An update is required to play {name}. Please update to the latest version to launch the game."
-  },
   "app.modpack-install.already-installed": {
     "message": "This version is already installed"
   },
@@ -7052,9 +7076,6 @@
   "app.servers.settings.jvm-args-hint": {
     "message": "Space-separated arguments, e.g. -XX:+UseG1GC"
   },
-  "app.servers.settings.pre-launch-hook-hint": {
-    "message": "Runs in the server directory before the server starts. A non-zero exit code cancels the start."
-  },
   "app.servers.settings.memory": {
     "message": "Memory"
   },
@@ -7063,6 +7084,9 @@
   },
   "app.servers.settings.name": {
     "message": "Server name"
+  },
+  "app.servers.settings.pre-launch-hook-hint": {
+    "message": "Runs in the server directory before the server starts. A non-zero exit code cancels the start."
   },
   "app.servers.settings.running-hint": {
     "message": "Your changes will take effect the next time the server starts."
@@ -10850,9 +10874,6 @@
   "instance.settings.sync.creative-hotbars": {
     "message": "Creative hotbars"
   },
-  "instance.settings.sync.data-packs": {
-    "message": "Data packs"
-  },
   "instance.settings.sync.description": {
     "message": "Choose which settings this instance shares with other instances."
   },
@@ -10864,9 +10885,6 @@
   },
   "instance.settings.sync.resource-packs": {
     "message": "Resource packs"
-  },
-  "instance.settings.sync.screenshots": {
-    "message": "Screenshots"
   },
   "instance.settings.sync.title": {
     "message": "Settings synchronization"
