@@ -1031,20 +1031,25 @@ if (instance.value) {
 }
 
 onBeforeRouteLeave((to) => {
-	if (navReturn.isBrowseReturnSourcePath(to.path)) {
-		const viewport = document.querySelector<HTMLElement>('.app-viewport')
-		navReturn.saveBrowseReturnSnapshot({
-			url: route.fullPath,
-			scrollTop: viewport?.scrollTop ?? 0,
-			state: { currentPage: searchState.currentPage.value },
-		})
-	}
+	try {
+		if (navReturn.isBrowseReturnSourcePath(to.path)) {
+			const viewport = document.querySelector<HTMLElement>('.app-viewport')
+			navReturn.saveBrowseReturnSnapshot({
+				url: route.fullPath,
+				scrollTop: viewport?.scrollTop ?? 0,
+				state: { currentPage: searchState.currentPage.value },
+			})
+		}
 
-	breadcrumbs.setContext({
-		name: '?BrowseTitle',
-		link: `/browse/${projectType.value}`,
-		query: route.query,
-	})
+		breadcrumbs.setContext({
+			name: '?BrowseTitle',
+			link: `/browse/${projectType.value}`,
+			query: route.query,
+		})
+	} catch (error) {
+		// Never abort leave navigation because bookkeeping failed.
+		console.warn('[browse] onBeforeRouteLeave bookkeeping failed', error)
+	}
 })
 
 function resetInstanceContext() {
@@ -1547,12 +1552,12 @@ function getCardActions(
 					isInstalled
 						? commonMessages.installedLabel
 						: isInstalling
-						? commonMessages.validatingLabel
-						: isSelected
-							? messages.selected
-							: activeInstance.value
-								? commonMessages.installButton
-								: messages.chooseInstance,
+							? commonMessages.validatingLabel
+							: isSelected
+								? messages.selected
+								: activeInstance.value
+									? commonMessages.installButton
+									: messages.chooseInstance,
 				),
 				compactLabel:
 					!isInstalled && !isInstalling && !isSelected && !activeInstance.value
@@ -2627,7 +2632,9 @@ type BrowseReturnState = {
 	currentPage: number
 }
 
-const browseReturnSnapshot = navReturn.consumeBrowseReturnSnapshot<BrowseReturnState>(route.fullPath)
+const browseReturnSnapshot = navReturn.consumeBrowseReturnSnapshot<BrowseReturnState>(
+	route.fullPath,
+)
 
 const displayMode = ref<BrowseDisplayMode>(getLastBrowseContentDisplayMode())
 

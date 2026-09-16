@@ -1,8 +1,15 @@
 import './meta'
 
+import { createPinia, getActivePinia, setActivePinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { useNavigationReturnStore } from '@/store/navigation-return'
+import {
+	clearUpgradeFlow,
+	hasBrowseReturnSnapshot,
+	isBrowseReturnNavigation,
+	peekUpgradeFlow,
+	prepareBrowseReturnNavigation,
+} from '@/store/navigation-return'
 
 import { discoverRoutes } from './discover'
 import { headlessDemoRoutes } from './headless-demo'
@@ -32,27 +39,37 @@ export default createRouter({
 	linkActiveClass: 'router-link-active',
 	linkExactActiveClass: 'router-link-exact-active',
 	beforeEach(to, from) {
-		const navReturn = useNavigationReturnStore()
-		const parkedUpgrade = navReturn.peekUpgradeFlow()
-		if (
-			parkedUpgrade &&
-			!to.path.startsWith('/project/') &&
-			!to.fullPath.startsWith(parkedUpgrade.returnFullPath)
-		) {
-			navReturn.clearUpgradeFlow()
-		}
-		if (to.path.startsWith('/browse/')) {
-			navReturn.prepareBrowseReturnNavigation(to.fullPath, from.path)
+		// Use store helpers that bootstrap pinia if missing. Throwing here would
+		// abort navigation and leave the user stuck on the current page.
+		try {
+			if (!getActivePinia()) {
+				setActivePinia(createPinia())
+			}
+			const parkedUpgrade = peekUpgradeFlow()
+			if (
+				parkedUpgrade &&
+				!to.path.startsWith('/project/') &&
+				!to.fullPath.startsWith(parkedUpgrade.returnFullPath)
+			) {
+				clearUpgradeFlow()
+			}
+			if (to.path.startsWith('/browse/')) {
+				prepareBrowseReturnNavigation(to.fullPath, from.path)
+			}
+		} catch (error) {
+			console.warn('[router] navigation-return guard failed; allowing navigation', error)
 		}
 	},
 	scrollBehavior(to, from) {
-		const navReturn = useNavigationReturnStore()
-		if (
-			to.path.startsWith('/browse/') &&
-			(navReturn.isBrowseReturnNavigation(to.fullPath) ||
-				navReturn.hasBrowseReturnSnapshot(to.fullPath))
-		) {
-			return false
+		try {
+			if (
+				to.path.startsWith('/browse/') &&
+				(isBrowseReturnNavigation(to.fullPath) || hasBrowseReturnSnapshot(to.fullPath))
+			) {
+				return false
+			}
+		} catch {
+			// ignore store errors; fall through to scroll-to-top
 		}
 		if (to.path === from.path) return
 		// Sometimes Vue's scroll behavior is not working as expected, so we need to manually scroll to top (especially on Linux)

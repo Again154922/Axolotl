@@ -2507,13 +2507,20 @@ function handleClick(e) {
 	let target = e.target
 	while (target != null) {
 		if (target.matches('a')) {
+			// RouterLinks and same-origin SPA paths must keep default handling /
+			// vue-router click; only intercept true external protocol links.
+			const href = target.getAttribute('href') ?? ''
+			const isRouterLink = target.classList.contains('router-link-active') || href.startsWith('/')
+			const isLocalhost =
+				target.href.startsWith('http://localhost') ||
+				target.href.startsWith('https://tauri.localhost') ||
+				target.href.startsWith('http://tauri.localhost')
 			if (
+				!isRouterLink &&
 				target.href &&
 				['http://', 'https://', 'mailto:', 'tel:'].some((v) => target.href.startsWith(v)) &&
 				!target.classList.contains('router-link-active') &&
-				!target.href.startsWith('http://localhost') &&
-				!target.href.startsWith('https://tauri.localhost') &&
-				!target.href.startsWith('http://tauri.localhost')
+				!isLocalhost
 			) {
 				const parsed = parseModrinthLink(target.href)
 				if (target.target !== '_blank' && parsed) {
@@ -2521,8 +2528,8 @@ function handleClick(e) {
 				} else {
 					openUrl(target.href)
 				}
+				e.preventDefault()
 			}
-			e.preventDefault()
 			break
 		}
 		target = target.parentElement
