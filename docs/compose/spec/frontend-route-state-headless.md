@@ -101,6 +101,7 @@ settings_dir / SQLite（权威持久化）
 - URL 重命名或导航 IA 增删
 - 桌面 onboarding 步骤语义变更（仅保证目标 id 仍存在）
 - 官网信息架构重构
+- **设置-关于页在 dev（Vite）下的骨架/加载体验**：以生产 `vite build` / 正式包行为为准；已保留 hash 同步、异步 3D、错误隔离等对 build 有益的缓解，但不保证消除 dev 卡顿或偶发回退
 
 ## Tasks
 
