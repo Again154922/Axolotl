@@ -1402,21 +1402,16 @@ async function setupApp() {
 	})
 
 	if (!dev) {
-		document.addEventListener('contextmenu', (event) => {
-			// Keep the launcher's custom context-menu behavior for regular content,
-			// but let native editing controls and selected text expose copy/paste actions.
-			const target = event.target
-			const hasSelectedText = window.getSelection()?.toString().length > 0
-			if (
-				target instanceof HTMLInputElement ||
-				target instanceof HTMLTextAreaElement ||
-				(target instanceof HTMLElement && target.isContentEditable) ||
-				hasSelectedText
-			) {
-				return
-			}
-			event.preventDefault()
-		})
+		// Capture phase so WebView2 never shows its native edit menu (Shift+RMB
+		// on search/inputs included). Copy/paste stays available via keyboard
+		// shortcuts; launcher chrome uses our custom menus.
+		document.addEventListener(
+			'contextmenu',
+			(event) => {
+				event.preventDefault()
+			},
+			{ capture: true },
+		)
 	}
 
 	const osType = await getOsType()
