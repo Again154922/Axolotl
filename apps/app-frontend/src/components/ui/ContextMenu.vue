@@ -80,6 +80,11 @@ const positionMenu = (event) => {
 			: Math.max(minFromEdge, y + minFromEdge) + 'px'
 }
 
+defineProps<{
+	/** Accessibility label for the menu root (fragment/teleport root cannot inherit attrs). */
+	label?: string
+}>()
+
 defineExpose({
 	open: (event, passedOptions) => {
 		modernMode.value = true

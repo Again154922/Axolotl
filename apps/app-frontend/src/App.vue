@@ -351,7 +351,9 @@ async function applyWindowFrame() {
 			enabled: themeStore.transparentBackground,
 		})
 	} catch (error) {
-		console.warn('Failed to update transparent window frame', error)
+		// Frame helpers can reject with invalid parameter on some window states;
+		// do not spam the console for a cosmetic desktop chrome tweak.
+		console.debug('Failed to update transparent window frame', error)
 	}
 }
 
@@ -2929,7 +2931,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		:on-error-action="exportNotificationErrorLogs"
 		:error-action-label="formatMessage(messages.exportErrorLogs)"
 	/>
-	<MinecraftCrashModal ref="minecraftCrashModal" @error="handleError" />
+	<MinecraftCrashModal ref="minecraftCrashModal" />
 	<JavaDownloadConfirmationModal ref="javaDownloadConfirmationModal" />
 	<PrivacyConsentModal ref="privacyConsentModal" @saved="handlePrivacyConsentSaved" />
 	<CommunityAnnouncementModal ref="communityAnnouncementModal" />

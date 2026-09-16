@@ -1,5 +1,4 @@
 <template>
-	<!-- eslint-disable vue/no-undef-components -->
 	<div
 		ref="skinPreviewContainer"
 		class="relative w-full h-full overflow-visible cursor-grab"
@@ -59,15 +58,15 @@
 			@pointerleave="onPointerUp"
 		>
 			<Suspense>
-				<Group
+				<TresGroup
 					:rotation="animatedModelGroupRotation"
 					:position="animatedModelGroupPosition"
 					:scale="animatedModelGroupScale"
 				>
-					<Group :position="modelOffset">
-						<primitive v-if="scene" :object="scene" />
-					</Group>
-				</Group>
+					<TresGroup :position="modelOffset">
+						<TresPrimitive v-if="scene" :object="scene" />
+					</TresGroup>
+				</TresGroup>
 			</Suspense>
 
 			<Suspense>
@@ -100,7 +99,17 @@
 
 <script setup lang="ts">
 import { ClassicPlayerModel, SlimPlayerModel, UnfoldHorizontalIcon } from '@modrinth/assets'
-import { TresCanvas } from '@tresjs/core'
+import {
+	TresAmbientLight,
+	TresCanvas,
+	TresCircleGeometry,
+	TresDirectionalLight,
+	TresGroup,
+	TresMesh,
+	TresPerspectiveCamera,
+	TresPrimitive,
+	TresShaderMaterial,
+} from '@tresjs/core'
 import * as THREE from 'three'
 import {
 	computed,

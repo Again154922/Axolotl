@@ -5,7 +5,8 @@ import type { RouteRecordRaw } from 'vue-router'
 export const multiplayerRoutes: RouteRecordRaw[] = [
 	{
 		path: '/multiplayer',
-		name: 'Multiplayer',
+		// Layout route is unnamed so vue-router does not warn about the empty
+		// redirect child; navigation uses MultiplayerServers / child names.
 		component: () => import('@/pages/Multiplayer.vue'),
 		meta: {
 			breadcrumb: [{ name: 'Multiplayer' }],
