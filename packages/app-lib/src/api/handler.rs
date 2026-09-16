@@ -15,6 +15,28 @@ use urlencoding::decode;
 /// subdomain1/subdomain2
 /// (Does not include axolotl://)
 pub async fn handle_url(sublink: &str) -> crate::Result<CommandPayload> {
+    if sublink == "discovery" {
+        return Ok(CommandPayload::OpenDiscovery);
+    }
+
+    if let Some(query) = sublink.strip_prefix("launch?") {
+        let instance_id = form_urlencoded::parse(query.as_bytes()).find_map(
+            |(key, value)| (key == "instance_id").then(|| value.into_owned()),
+        );
+        if let Some(id) = instance_id.filter(|id| !id.is_empty()) {
+            return Ok(CommandPayload::LaunchInstance {
+                id,
+                server: None,
+                singleplayer_world: None,
+            });
+        }
+        return Err(crate::ErrorKind::InputError(
+            "Launch command requires an instance_id query parameter"
+                .to_string(),
+        )
+        .into());
+    }
+
     // /seed-map?{query}   -    Opens the Lab seed map with a shared state
     if let Some(rest) = sublink.strip_prefix("seed-map")
         && (rest.is_empty() || rest.starts_with('?') || rest.starts_with('/'))
@@ -135,4 +157,30 @@ pub async fn parse_and_emit_command(command_string: &str) -> crate::Result<()> {
     let command = parse_command(command_string).await?;
     emit_command(command).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn parses_launch_query_command() {
+        let command =
+            parse_command("axolotl://launch?instance_id=example%20instance")
+                .await
+                .unwrap();
+        assert!(matches!(
+            command,
+            CommandPayload::LaunchInstance { id, server: None, singleplayer_world: None }
+                if id == "example instance"
+        ));
+    }
+
+    #[tokio::test]
+    async fn parses_discovery_command() {
+        assert!(matches!(
+            parse_command("axolotl://discovery").await.unwrap(),
+            CommandPayload::OpenDiscovery
+        ));
+    }
 }

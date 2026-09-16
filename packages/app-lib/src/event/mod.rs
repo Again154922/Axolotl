@@ -271,6 +271,7 @@ pub enum CommandPayload {
         // URL query string describing the shared seed-map state
         query: String,
     },
+    OpenDiscovery,
 }
 
 #[derive(Serialize, Clone)]

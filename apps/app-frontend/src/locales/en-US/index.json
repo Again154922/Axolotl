@@ -3153,19 +3153,19 @@
     "message": "Edit groups"
   },
   "app.instances.group-by": {
-    "message": "Group by:"
+    "message": "Group by"
   },
   "app.instances.group.game-version": {
     "message": "Game version"
   },
   "app.instances.group.group": {
-    "message": "Group"
+    "message": "Custom group"
   },
   "app.instances.group.loader": {
     "message": "Loader"
   },
   "app.instances.group.none": {
-    "message": "None"
+    "message": "No grouping"
   },
   "app.instances.group.ungrouped": {
     "message": "No group"
@@ -3196,6 +3196,33 @@
   },
   "app.instances.sort.name": {
     "message": "Name"
+  },
+  "app.instances.sort-by": {
+    "message": "Sort by"
+  },
+  "app.instances.sort.direction.asc-alphabetical": {
+    "message": "A–Z"
+  },
+  "app.instances.sort.direction.desc-alphabetical": {
+    "message": "Z–A"
+  },
+  "app.instances.sort.direction.asc-version": {
+    "message": "Oldest version first"
+  },
+  "app.instances.sort.direction.desc-version": {
+    "message": "Newest version first"
+  },
+  "app.instances.sort.direction.asc-recency": {
+    "message": "Least recent first"
+  },
+  "app.instances.sort.direction.desc-recency": {
+    "message": "Most recent first"
+  },
+  "app.instances.sort.direction.asc-date": {
+    "message": "Oldest first"
+  },
+  "app.instances.sort.direction.desc-date": {
+    "message": "Newest first"
   },
   "app.instances.unpin-from-home": {
     "message": "Unpin from Home"

@@ -1214,9 +1214,12 @@ fn serialize_screenshots<R: tauri::Runtime>(
 #[tauri::command]
 pub async fn instance_list_screenshots<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
-    id: &str,
+    instance_id: &str,
 ) -> Result<Vec<InstanceScreenshot>> {
-    serialize_screenshots(&app, theseus::instance::list_screenshots(id).await?)
+    serialize_screenshots(
+        &app,
+        theseus::instance::list_screenshots(instance_id).await?,
+    )
 }
 #[tauri::command]
 pub async fn instance_list_all_screenshots<R: tauri::Runtime>(
