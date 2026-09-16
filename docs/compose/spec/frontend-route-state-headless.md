@@ -1,14 +1,20 @@
 ---
 feature: frontend-route-state-headless
-status: in-progress
+status: delivered
 updated: 2026-06-10
 branch: feature/frontend-route-state-headless
-commits: 0ff225f6a..5f785c02f
+commits: 0ff225f6a..34c1cc08f
 ---
 
 # 前端路由/状态治理 + 渐进 Headless（reka-ui）
 
 ## Report
+
+**What was built** — Replaced the monolithic `routes.js` with per-domain route modules and typed `RouteMeta`; PascalCase route names (URLs unchanged). Browse/upgrade return navigation now lives in a Pinia store (helpers remain as forwarders). Thinned `content-install` / `content-selection` into types/messages/compat/manual-downloads/registry/session modules while keeping public APIs. Added `reka-ui@2.10.x`, `/headless-demo`, and HeadlessButton/Tooltip/Dialog/Select adapters; wired Appearance tooltip + default-landing-page select. Settings-About no longer top-level-awaits Tauri; 3D loads async with error isolation.
+
+**Verification** — `vue-tsc` PASS; eslint/prettier on touched files PASS; `node --test` return-flow suites 17 PASS; `pnpm --filter @modrinth/app-frontend build` PASS (~33s). `pnpm prepr:frontend:app` was used during implementation. About page: accepted as **production-first** (dev Vite skeleton stickiness out of scope per S3).
+
+**Journey log** — (1) Lab tools stay sibling routes because the hub has no `RouterView`. (2) Pinia must install before the router (`main.js`). (3) `node --test` needs relative `.ts` imports in helpers. (4) Brand fills use `--color-accent-contrast`, modals `bg-surface-3`. (5) About `dev` hang is accepted; `vite build` is the acceptance gate for that page.
 
 ## [S1] Problem
 
