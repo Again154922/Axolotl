@@ -480,11 +480,15 @@ async fn rename_minecraft_window(
         return;
     }
 
+    // PCL keeps re-applying the title: FML/Quilt and some mods reset it
+    // while the game boots, so a one-shot rename is not enough.
     let timeout = std::time::Duration::from_secs(
         launch_preparation_timeout.unwrap_or(60),
     );
     let deadline = tokio::time::Instant::now() + timeout;
     let title = title.to_string();
+    let mut applied = false;
+    let mut hold_until: Option<tokio::time::Instant> = None;
     loop {
         let found = {
             let _guard = MAXIMIZE_WINDOW_ENUMERATION.lock();
@@ -506,12 +510,26 @@ async fn rename_minecraft_window(
                 let _ =
                     SetWindowTextW(hwnd, windows::core::PCWSTR(wide.as_ptr()));
             }
+            if !applied {
+                applied = true;
+                // Keep watching for a bit after the first success so loader
+                // splash windows cannot leave the default title behind.
+                hold_until = Some(
+                    tokio::time::Instant::now()
+                        + std::time::Duration::from_secs(45),
+                );
+            }
+        }
+        let now = tokio::time::Instant::now();
+        if let Some(hold) = hold_until
+            && now >= hold
+        {
             return;
         }
-        if tokio::time::Instant::now() >= deadline {
+        if hold_until.is_none() && now >= deadline {
             return;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
     }
 }
 
