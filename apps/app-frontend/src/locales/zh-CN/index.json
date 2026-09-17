@@ -7541,6 +7541,12 @@
   "app.settings.resources.download-mirrors-description": {
     "message": "自动模式会根据本地环境和近期连接质量，在官方源与镜像源之间选择。"
   },
+  "app.settings.resources.ignore-ssl-errors": {
+    "message": "忽略 SSL 证书错误"
+  },
+  "app.settings.resources.ignore-ssl-errors-description": {
+    "message": "允许通过会替换 HTTPS 证书的代理或网络工具下载。启用后将关闭证书验证，下载内容可能遭到篡改；请仅在必要时启用。"
+  },
   "app.settings.resources.maximum-downloads": {
     "message": "最大并发下载数"
   },

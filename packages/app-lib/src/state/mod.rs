@@ -649,8 +649,26 @@ impl State {
         config: &crate::util::proxy::ProxyConfig,
     ) -> crate::Result<()> {
         let _update = self.configured_http_client_update.lock().await;
-        let client = crate::util::fetch::build_configured_client(config)?;
+        let settings = Settings::get(&self.pool).await?;
+        let client = crate::util::fetch::build_configured_client(
+            config,
+            settings.ignore_ssl_errors,
+        )?;
         crate::state::proxy_settings::set(&self.pool, config).await?;
+        *self.configured_http_client.write() = client;
+        Ok(())
+    }
+
+    pub(crate) async fn update_http_client_for_settings(
+        &self,
+        settings: &Settings,
+    ) -> crate::Result<()> {
+        let _update = self.configured_http_client_update.lock().await;
+        let proxy = crate::state::proxy_settings::get(&self.pool).await?;
+        let client = crate::util::fetch::build_configured_client(
+            &proxy,
+            settings.ignore_ssl_errors,
+        )?;
         *self.configured_http_client.write() = client;
         Ok(())
     }
@@ -876,7 +894,10 @@ impl State {
         let auto_prefers_mirror = settings.auto_prefers_mirror();
         let proxy_config = proxy_settings::get(&pool).await?;
         let configured_http_client =
-            crate::util::fetch::build_configured_client(&proxy_config)?;
+            crate::util::fetch::build_configured_client(
+                &proxy_config,
+                settings.ignore_ssl_errors,
+            )?;
 
         tracing::info!("Initializing directories");
         DirectoryInfo::move_launcher_directory(
@@ -984,8 +1005,11 @@ pub(crate) async fn test_state(
 ) -> crate::Result<Arc<State>> {
     let file_watcher = instances::watcher::init_watcher().await?;
     let proxy_config = proxy_settings::get(&pool).await?;
-    let configured_http_client =
-        crate::util::fetch::build_configured_client(&proxy_config)?;
+    let settings = Settings::get(&pool).await?;
+    let configured_http_client = crate::util::fetch::build_configured_client(
+        &proxy_config,
+        settings.ignore_ssl_errors,
+    )?;
 
     Ok(Arc::new(State {
         directories,

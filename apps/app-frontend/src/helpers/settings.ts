@@ -49,10 +49,7 @@ export type UpdatePreferences = {
 	updatesPaused: boolean
 }
 export type DownloadSourceMode =
-	| 'auto'
-	| 'official_only'
-	| 'mirror_preferred'
-	| 'official_preferred'
+	'auto' | 'official_only' | 'mirror_preferred' | 'official_preferred'
 export type DownloadEngine = 'legacy' | 'xmcl'
 
 export type ProxyMode = 'none' | 'system' | 'custom'
@@ -105,11 +102,7 @@ export async function setUpdatePreferences(preferences: UpdatePreferences): Prom
 }
 
 export type BrowseContentSource =
-	| 'all'
-	| 'modrinth'
-	| 'curseforge'
-	| 'mcarchive'
-	| 'planet_minecraft'
+	'all' | 'modrinth' | 'curseforge' | 'mcarchive' | 'planet_minecraft'
 
 const BROWSE_CONTENT_SOURCE_STORAGE_KEY = 'axolotl-browse-content-source'
 const BROWSE_DEFAULT_INSTANCE_STORAGE_KEY = 'axolotl-browse-default-instance'
@@ -151,6 +144,7 @@ export type AppSettings = {
 	modrinth_source: DownloadSourceMode
 	curseforge_source: DownloadSourceMode
 	bypass_curseforge_download_restrictions: boolean
+	ignore_ssl_errors: boolean
 	mojang_auth_source: DownloadSourceMode
 
 	theme: ColorTheme
@@ -253,6 +247,7 @@ function normalizeDownloadSettings(settings: AppSettings & LegacyMirrorSettings)
 	settings.curseforge_source ??=
 		usesLegacyDefaults || !hasLegacySettings ? 'auto' : legacySource(settings.use_curseforge_mirror)
 	settings.bypass_curseforge_download_restrictions ??= true
+	settings.ignore_ssl_errors ??= false
 	settings.mojang_auth_source ??= 'auto'
 	settings.terracotta_public_nodes ??= ['wss://center.node.1tmc.top']
 	settings.feature_flags ??= { ...DEFAULT_FEATURE_FLAGS }
