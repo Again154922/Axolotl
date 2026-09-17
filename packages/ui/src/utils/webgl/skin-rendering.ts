@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
+import { isArmorPreviewMesh } from './armor-preview-object.ts'
 import { createSolidSkinLayerGeometry, type SolidSkinLayerDefinition } from './solid-skin-layer.ts'
 
 export interface SkinRendererConfig {
@@ -370,6 +371,7 @@ export function applyTexture(model: THREE.Object3D, texture: THREE.Texture): voi
 	model.traverse((child) => {
 		if ((child as THREE.Mesh).isMesh) {
 			const mesh = child as THREE.Mesh
+			if (isArmorPreviewMesh(mesh)) return
 			const isSkinLayer = mesh.name.endsWith('_Layer')
 			mesh.renderOrder = isSkinLayer ? 1 : 0
 			const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
