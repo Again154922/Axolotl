@@ -14,6 +14,12 @@ import { edit } from '@/helpers/instance'
 import { get } from '@/helpers/settings.ts'
 import { injectInstanceSettings } from '@/providers/instance-settings'
 
+import ExperimentalBadge from '@/components/ui/settings/ExperimentalBadge.vue'
+import {
+	experimentalFeatures,
+	type ExperimentalFeatureStates,
+	resolveFeatureState,
+} from '@/components/ui/settings/experimental-features'
 import type { AppSettings } from '../../../helpers/types'
 
 const { handleError } = injectNotificationManager()
@@ -39,37 +45,34 @@ const maximizeWindowSetting = ref(instance.value.maximize_window ?? globalSettin
 const windowTitle = ref(instance.value.window_title ?? '')
 
 /**
- * The custom window title is an experimental feature; the row stays hidden
- * until the grey-release master switch and its feature toggle are both on.
+ * The custom window title is an experimental feature. Resolve the stored state
+ * through the shared registry so an untouched feature still reports its
+ * default instead of looking disabled.
  */
-const windowTitleFeatureAvailable = ref(false)
-void get()
-	.then((current) => {
-		const enabled = current?.experimental_features_enabled ?? false
-		const feature = (current?.experimental_features ?? {}) as Record<
-			string,
-			{ enabled?: boolean } | undefined
-		>
-		windowTitleFeatureAvailable.value = enabled && !!feature.window_title?.enabled
-	})
-	.catch(() => {
-		windowTitleFeatureAvailable.value = false
-	})
+const windowTitleFeatureAvailable = computed(() => {
+	if (!globalSettings.experimental_features_enabled) return false
+	const feature = experimentalFeatures.find((entry) => entry.id === 'window_title')
+	if (!feature) return false
+	const states = (globalSettings.experimental_features ?? {}) as ExperimentalFeatureStates
+	return resolveFeatureState(states, feature).enabled
+})
 
 const editInstanceObject = computed(() => {
+	const title = windowTitle.value.trim() ? windowTitle.value.trim() : null
 	if (!overrideWindowSettings.value) {
 		return {
 			force_fullscreen: null,
 			maximize_window: null,
 			game_resolution: null,
-			window_title: null,
+			// The title is independent of the window-size override checkbox.
+			window_title: windowTitleFeatureAvailable.value ? title : null,
 		}
 	}
 	return {
 		force_fullscreen: fullscreenSetting.value,
 		maximize_window: maximizeWindowSetting.value,
 		game_resolution: fullscreenSetting.value ? null : resolution.value,
-		window_title: windowTitle.value.trim() ? windowTitle.value.trim() : null,
+		window_title: windowTitleFeatureAvailable.value ? title : null,
 	}
 })
 
@@ -242,8 +245,9 @@ const messages = defineMessages({
 		</div>
 		<div v-if="windowTitleFeatureAvailable" class="flex items-center gap-4 justify-between">
 			<div class="flex flex-col gap-1">
-				<h2 class="m-0 text-lg font-semibold text-contrast">
+				<h2 class="m-0 inline-flex items-center gap-2 text-lg font-semibold text-contrast">
 					{{ formatMessage(messages.windowTitle) }}
+					<ExperimentalBadge />
 				</h2>
 				<p class="m-0">
 					{{ formatMessage(messages.windowTitleDescription) }}
@@ -253,7 +257,6 @@ const messages = defineMessages({
 				id="window-title"
 				v-model="windowTitle"
 				autocomplete="off"
-				:disabled="!overrideWindowSettings"
 				type="text"
 				:placeholder="formatMessage(messages.enterWindowTitle)"
 			/>
