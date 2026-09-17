@@ -4115,6 +4115,144 @@
   "settings.sessions.title": {
     "defaultMessage": "Sessions"
   },
+  "skin.preview.armor.equip-material": {
+    "defaultMessage": "{material} {slot}"
+  },
+  "skin.preview.armor.material": {
+    "defaultMessage": "Armor material"
+  },
+  "skin.preview.armor.material.chainmail": {
+    "defaultMessage": "Chainmail"
+  },
+  "skin.preview.armor.material.copper": {
+    "defaultMessage": "Copper"
+  },
+  "skin.preview.armor.material.diamond": {
+    "defaultMessage": "Diamond"
+  },
+  "skin.preview.armor.material.gold": {
+    "defaultMessage": "Gold"
+  },
+  "skin.preview.armor.material.iron": {
+    "defaultMessage": "Iron"
+  },
+  "skin.preview.armor.material.leather": {
+    "defaultMessage": "Leather"
+  },
+  "skin.preview.armor.material.netherite": {
+    "defaultMessage": "Netherite"
+  },
+  "skin.preview.armor.material.turtle": {
+    "defaultMessage": "Turtle Shell"
+  },
+  "skin.preview.armor.open": {
+    "defaultMessage": "Armor preview"
+  },
+  "skin.preview.armor.piece": {
+    "defaultMessage": "Armor piece"
+  },
+  "skin.preview.armor.remove-piece": {
+    "defaultMessage": "Remove {slot}"
+  },
+  "skin.preview.armor.remove-trim": {
+    "defaultMessage": "No armor trim"
+  },
+  "skin.preview.armor.slot-state": {
+    "defaultMessage": "{slot}: {state}"
+  },
+  "skin.preview.armor.slot.boots": {
+    "defaultMessage": "Boots"
+  },
+  "skin.preview.armor.slot.chestplate": {
+    "defaultMessage": "Chestplate"
+  },
+  "skin.preview.armor.slot.helmet": {
+    "defaultMessage": "Helmet"
+  },
+  "skin.preview.armor.slot.leggings": {
+    "defaultMessage": "Leggings"
+  },
+  "skin.preview.armor.trim-material": {
+    "defaultMessage": "Trim material"
+  },
+  "skin.preview.armor.trim-material.amethyst": {
+    "defaultMessage": "Amethyst"
+  },
+  "skin.preview.armor.trim-material.emerald": {
+    "defaultMessage": "Emerald"
+  },
+  "skin.preview.armor.trim-material.lapis": {
+    "defaultMessage": "Lapis Lazuli"
+  },
+  "skin.preview.armor.trim-material.quartz": {
+    "defaultMessage": "Quartz"
+  },
+  "skin.preview.armor.trim-material.redstone": {
+    "defaultMessage": "Redstone"
+  },
+  "skin.preview.armor.trim-material.resin": {
+    "defaultMessage": "Resin Brick"
+  },
+  "skin.preview.armor.trim-pattern": {
+    "defaultMessage": "Trim pattern"
+  },
+  "skin.preview.armor.trim.bolt": {
+    "defaultMessage": "Bolt Armor Trim"
+  },
+  "skin.preview.armor.trim.coast": {
+    "defaultMessage": "Coast Armor Trim"
+  },
+  "skin.preview.armor.trim.dune": {
+    "defaultMessage": "Dune Armor Trim"
+  },
+  "skin.preview.armor.trim.eye": {
+    "defaultMessage": "Eye Armor Trim"
+  },
+  "skin.preview.armor.trim.flow": {
+    "defaultMessage": "Flow Armor Trim"
+  },
+  "skin.preview.armor.trim.host": {
+    "defaultMessage": "Host Armor Trim"
+  },
+  "skin.preview.armor.trim.raiser": {
+    "defaultMessage": "Raiser Armor Trim"
+  },
+  "skin.preview.armor.trim.rib": {
+    "defaultMessage": "Rib Armor Trim"
+  },
+  "skin.preview.armor.trim.sentry": {
+    "defaultMessage": "Sentry Armor Trim"
+  },
+  "skin.preview.armor.trim.shaper": {
+    "defaultMessage": "Shaper Armor Trim"
+  },
+  "skin.preview.armor.trim.silence": {
+    "defaultMessage": "Silence Armor Trim"
+  },
+  "skin.preview.armor.trim.snout": {
+    "defaultMessage": "Snout Armor Trim"
+  },
+  "skin.preview.armor.trim.spire": {
+    "defaultMessage": "Spire Armor Trim"
+  },
+  "skin.preview.armor.trim.tide": {
+    "defaultMessage": "Tide Armor Trim"
+  },
+  "skin.preview.armor.trim.vex": {
+    "defaultMessage": "Vex Armor Trim"
+  },
+  "skin.preview.armor.trim.ward": {
+    "defaultMessage": "Ward Armor Trim"
+  },
+  "skin.preview.armor.trim.wayfinder": {
+    "defaultMessage": "Wayfinder Armor Trim"
+  },
+  "skin.preview.armor.trim.wild": {
+    "defaultMessage": "Wild Armor Trim"
+  },
+  "skin.preview.armor.unequipped": {
+    "defaultMessage": "Unequipped"
+  },
   "skin.preview.drag-to-rotate": {
     "defaultMessage": "Drag to rotate"
   },

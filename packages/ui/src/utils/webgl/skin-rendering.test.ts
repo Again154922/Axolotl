@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import * as THREE from 'three'
 
+import { ARMOR_PREVIEW_MARKER } from './armor-preview-object.ts'
 import { applyTexture, applyThreeDSkinLayers, configureSkinMaterial } from './skin-rendering.ts'
 
 function withMockSkinPixels(
@@ -77,6 +78,20 @@ test('skin layers render after inner parts while retaining surface depth', () =>
 	assert.equal(outer.renderOrder, 1)
 	assert.equal((inner.material as THREE.MeshStandardMaterial).depthWrite, true)
 	assert.equal((outer.material as THREE.MeshStandardMaterial).depthWrite, true)
+})
+
+test('changing a skin texture does not overwrite armor preview materials', () => {
+	const armorTexture = new THREE.Texture()
+	const skinTexture = new THREE.Texture()
+	const armorMaterial = new THREE.MeshStandardMaterial({ map: armorTexture })
+	const armor = new THREE.Mesh(new THREE.BoxGeometry(), armorMaterial)
+	armor.userData[ARMOR_PREVIEW_MARKER] = true
+	const model = new THREE.Group()
+	model.add(armor)
+
+	applyTexture(model, skinTexture)
+
+	assert.equal(armorMaterial.map, armorTexture)
 })
 
 test('changing textures rebuilds voxel geometry from the original skin layer', () => {

@@ -13,6 +13,7 @@ import {
 	watch,
 } from 'vue'
 
+import { isArmorPreviewMesh } from '#ui/utils/webgl/armor-preview-object.ts'
 import {
 	applyCapeTexture,
 	applyTexture,
@@ -69,12 +70,10 @@ function disposeSceneMaterials(root: THREE.Object3D | null) {
 
 		const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
 		meshMaterials.forEach((material) => materials.add(material))
-		if (mesh.userData.threeDSkinLayersApplied) {
+		if (mesh.userData.threeDSkinLayersApplied || isArmorPreviewMesh(mesh)) {
 			mesh.geometry.dispose()
 		}
-		const sourceGeometry = mesh.userData.skinLayerSourceGeometry as
-			| THREE.BufferGeometry
-			| undefined
+		const sourceGeometry = mesh.userData.skinLayerSourceGeometry as THREE.BufferGeometry | undefined
 		sourceGeometry?.dispose()
 	})
 
