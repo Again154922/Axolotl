@@ -1,6 +1,15 @@
 {
   description = "Axolotl Launcher: Your last launcher.";
 
+  nixConfig = {
+    extra-substituters = [
+    	"https://axolotl-launcher-git.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+    	"axolotl-launcher-git.cachix.org-1:6OBznZ1/jC7SRgugQ2PNGcy4VFyF0tDeWBMs2BPRt5Q="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     rust-overlay = {
