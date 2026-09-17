@@ -227,9 +227,10 @@ fn build_java_jars() {
         .arg("--console=rich")
         .current_dir(dunce::canonicalize("java").unwrap());
 
-    // Local rebuilds keep the Gradle daemon so the next cargo build.rs run
-    // does not pay full JVM bootstrap again. CI runners are ephemeral.
-    if env::var_os("CI").is_some() {
+    // A persistent Gradle daemon can inherit Cargo's build-script output pipe
+    // on Windows. Cargo then waits forever for EOF after Gradle has completed.
+    // CI runners are ephemeral and do not benefit from keeping a daemon.
+    if cfg!(windows) || env::var_os("CI").is_some() {
         command.arg("--no-daemon");
     }
 
