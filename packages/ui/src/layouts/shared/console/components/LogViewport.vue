@@ -41,7 +41,8 @@
 						>{{ item.originalIndex + 1 }}</span
 					>
 					<span
-						class="log-line-content flex-1 px-2 break-all [overflow-wrap:anywhere]"
+						class="log-line-content flex-1 px-2"
+						:class="wrap ? 'break-all [overflow-wrap:anywhere]' : ''"
 						v-html="renderLine(item)"
 					></span>
 				</div>
@@ -339,6 +340,12 @@ defineExpose({
 /* ===== LogShare token 高亮（LogsAnalysis.css 移植，前景色用主题变量） ===== */
 
 .level {
+	white-space: pre;
+	word-break: normal;
+	overflow-wrap: normal;
+}
+
+.log-viewport-wrap .level {
 	white-space: pre-wrap;
 	word-break: break-all;
 	overflow-wrap: anywhere;

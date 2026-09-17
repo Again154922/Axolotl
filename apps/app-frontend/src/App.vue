@@ -235,8 +235,13 @@ const forceSidebar = computed(
 	() => route.path.startsWith('/browse') || route.path.startsWith('/project'),
 )
 const forceSidebarHidden = computed(() => route.path === '/settings')
+/** Console fullscreen collapses the account sidebar so its controls stay reachable. */
+const consoleFullscreenActive = ref(false)
 const sidebarVisible = computed(
-	() => !forceSidebarHidden.value && (sidebarToggled.value || forceSidebar.value),
+	() =>
+		!forceSidebarHidden.value &&
+		!consoleFullscreenActive.value &&
+		(sidebarToggled.value || forceSidebar.value),
 )
 const customBackgroundStyle = computed(() => {
 	// A custom image would sit between the desktop and the UI, defeating the
@@ -716,6 +721,7 @@ onMounted(async () => {
 	document.querySelector('body').addEventListener('click', handleClick)
 	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
 	window.addEventListener(DIRECT_LINKS_SYNCED_EVENT, handleDirectLinkSyncReport)
+	window.addEventListener('modrinth-console-fullscreen', handleConsoleFullscreen as EventListener)
 
 	// Background maintenance must not compete with first paint / route enter.
 	runWhenIdle(() => {
@@ -728,6 +734,10 @@ onMounted(async () => {
 let directLinkSync: (() => Promise<void>) | undefined
 let stopDirectLinkSync: (() => void) | undefined
 let directLinkSyncErrorSignature = ''
+
+function handleConsoleFullscreen(event: CustomEvent<boolean>) {
+	consoleFullscreenActive.value = Boolean(event.detail)
+}
 
 function handleDirectLinkSyncReport(event: Event) {
 	if (!(event instanceof CustomEvent)) return
@@ -805,6 +815,10 @@ onUnmounted(async () => {
 	document.querySelector('body').removeEventListener('click', handleClick)
 	document.querySelector('body').removeEventListener('auxclick', handleAuxClick)
 	window.removeEventListener(DIRECT_LINKS_SYNCED_EVENT, handleDirectLinkSyncReport)
+	window.removeEventListener(
+		'modrinth-console-fullscreen',
+		handleConsoleFullscreen as EventListener,
+	)
 	clearDelayedUpdatePopup()
 	stopDirectLinkSync?.()
 	await unlistenUpdateDownload?.()

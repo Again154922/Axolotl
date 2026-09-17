@@ -2,9 +2,18 @@
 	<div
 		class="flex min-h-0 flex-1 flex-col gap-4"
 		:class="
-			isFullscreen ? `fixed inset-0 z-[15] bg-surface-1 p-6 py-8 ${isApp ? 'pt-12' : ''}` : ''
+			isFullscreen
+				? // z above .app-contents::before vignette (30), below statusbar (200)
+					`fixed inset-0 z-[40] bg-surface-1 p-6 py-8 ${isApp ? 'pt-12' : ''}`
+				: ''
 		"
 	>
+		<div
+			v-if="isFullscreen && isApp"
+			data-tauri-drag-region
+			class="pointer-events-auto absolute inset-x-0 top-0 h-12"
+			aria-hidden="true"
+		/>
 		<div
 			v-if="
 				(ctx.localCrashAnalysis?.value?.findings.length ||
@@ -702,6 +711,7 @@ onBeforeUnmount(() => {
 	if (isFullscreen.value) {
 		document.body.style.overflow = ''
 		document.body.classList.remove(fullscreenBodyClass)
+		window.dispatchEvent(new CustomEvent('modrinth-console-fullscreen', { detail: false }))
 		pageContext?.intercomBubble?.requestHorizontalPadding?.(
 			fullscreenIntercomPaddingRequestId,
 			null,
@@ -805,6 +815,9 @@ function toggleFullscreen() {
 	if (isFullscreen.value) {
 		document.body.style.overflow = 'hidden'
 		document.body.classList.add(fullscreenBodyClass)
+		// Let the shell collapse the account sidebar so the collapse control
+		// stays reachable and the expanded pane uses the full width (#584).
+		window.dispatchEvent(new CustomEvent('modrinth-console-fullscreen', { detail: true }))
 		pageContext?.intercomBubble?.requestHorizontalPadding?.(
 			fullscreenIntercomPaddingRequestId,
 			fullscreenIntercomPadding,
@@ -813,6 +826,7 @@ function toggleFullscreen() {
 	} else {
 		document.body.style.overflow = ''
 		document.body.classList.remove(fullscreenBodyClass)
+		window.dispatchEvent(new CustomEvent('modrinth-console-fullscreen', { detail: false }))
 		pageContext?.intercomBubble?.requestHorizontalPadding?.(
 			fullscreenIntercomPaddingRequestId,
 			null,
