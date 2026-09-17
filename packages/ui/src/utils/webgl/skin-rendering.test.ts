@@ -3,11 +3,39 @@ import test from 'node:test'
 
 import * as THREE from 'three'
 
-import {
-	applyTexture,
-	applyThreeDSkinLayers,
-	configureSkinMaterial,
-} from './skin-rendering.ts'
+import { applyTexture, applyThreeDSkinLayers, configureSkinMaterial } from './skin-rendering.ts'
+
+function withMockSkinPixels(
+	run: (texture: THREE.Texture, setPixels: (pixels: Uint8ClampedArray) => void) => void,
+): void {
+	let pixels = new Uint8ClampedArray(64 * 64 * 4)
+	const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
+	Object.defineProperty(globalThis, 'document', {
+		configurable: true,
+		value: {
+			createElement: () => ({
+				getContext: () => ({
+					drawImage: () => undefined,
+					getImageData: () => ({ data: pixels }),
+				}),
+			}),
+		},
+	})
+
+	try {
+		const texture = new THREE.Texture()
+		texture.image = {} as CanvasImageSource
+		run(texture, (nextPixels) => {
+			pixels = nextPixels
+		})
+	} finally {
+		if (originalDocument) {
+			Object.defineProperty(globalThis, 'document', originalDocument)
+		} else {
+			Reflect.deleteProperty(globalThis, 'document')
+		}
+	}
+}
 
 test('skin material preserves every non-zero 8-bit alpha value', () => {
 	const material = new THREE.MeshStandardMaterial({
@@ -52,44 +80,81 @@ test('skin layers render after inner parts while retaining surface depth', () =>
 })
 
 test('changing textures rebuilds voxel geometry from the original skin layer', () => {
-	let pixels = new Uint8ClampedArray(64 * 64 * 4)
-	const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
-	Object.defineProperty(globalThis, 'document', {
-		configurable: true,
-		value: {
-			createElement: () => ({
-				getContext: () => ({
-					drawImage: () => undefined,
-					getImageData: () => ({ data: pixels }),
-				}),
-			}),
-		},
-	})
-
-	try {
+	withMockSkinPixels((texture, setPixels) => {
 		const layer = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial())
 		layer.name = 'Hat_Layer'
 		const model = new THREE.Group()
 		model.add(layer)
-		const texture = new THREE.Texture()
-		texture.image = {} as CanvasImageSource
 
+		let pixels = new Uint8ClampedArray(64 * 64 * 4)
 		pixels[(8 * 64 + 40) * 4 + 3] = 255
+		setPixels(pixels)
 		applyThreeDSkinLayers(model, texture)
 		const firstVertexCount = layer.geometry.getAttribute('position').count
 
 		pixels = new Uint8ClampedArray(64 * 64 * 4)
 		pixels[(8 * 64 + 40) * 4 + 3] = 255
 		pixels[(8 * 64 + 42) * 4 + 3] = 255
+		setPixels(pixels)
 		applyThreeDSkinLayers(model, texture)
 		const secondVertexCount = layer.geometry.getAttribute('position').count
 
 		assert.ok(secondVertexCount > firstVertexCount)
-	} finally {
-		if (originalDocument) {
-			Object.defineProperty(globalThis, 'document', originalDocument)
-		} else {
-			Reflect.deleteProperty(globalThis, 'document')
+	})
+})
+
+test('matches the mod part transforms for classic and slim outer layers', () => {
+	withMockSkinPixels((texture) => {
+		const model = new THREE.Group()
+		const parts = [
+			{
+				name: 'Hat_Layer',
+				sourceSize: [0.5625, 0.5625, 0.5625],
+				expectedCenter: [0, 0.00295, 0],
+				expectedSize: [0.59, 0.59, 0.59],
+			},
+			{
+				name: 'Body_Layer',
+				sourceSize: [0.53125, 0.78125, 0.28125],
+				expectedCenter: [0, -0.0001875, 0],
+				expectedSize: [0.525, 0.77625, 0.2875],
+			},
+			{
+				name: 'Right_Arm_Layer',
+				sourceSize: [0.28125, 0.78125, 0.28125],
+				expectedCenter: [0.00923125, -0.00228125, 0],
+				expectedSize: [0.2875, 0.77625, 0.2875],
+			},
+			{
+				name: 'Left_Arm_Layer',
+				sourceSize: [0.21875, 0.78125, 0.28125],
+				expectedCenter: [-0.004615625, -0.00228125, 0],
+				expectedSize: [0.215625, 0.77625, 0.2875],
+			},
+		] as const
+
+		for (const part of parts) {
+			const mesh = new THREE.Mesh(
+				new THREE.BoxGeometry(...part.sourceSize),
+				new THREE.MeshStandardMaterial(),
+			)
+			mesh.name = part.name
+			model.add(mesh)
 		}
-	}
+
+		applyThreeDSkinLayers(model, texture)
+
+		for (const [index, part] of parts.entries()) {
+			const mesh = model.children[index] as THREE.Mesh
+			const bounds = new THREE.Box3().setFromBufferAttribute(
+				mesh.geometry.getAttribute('position') as THREE.BufferAttribute,
+			)
+			const center = bounds.getCenter(new THREE.Vector3())
+			const size = bounds.getSize(new THREE.Vector3())
+			for (let axis = 0; axis < 3; axis++) {
+				assert.ok(Math.abs(center.getComponent(axis) - part.expectedCenter[axis]) < 1e-7)
+				assert.ok(Math.abs(size.getComponent(axis) - part.expectedSize[axis]) < 1e-7)
+			}
+		}
+	})
 })

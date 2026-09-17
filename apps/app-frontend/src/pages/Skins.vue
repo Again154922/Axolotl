@@ -691,7 +691,7 @@ function schedulePendingSkinRefresh() {
 		window.clearTimeout(pendingSkinRefreshTimeout)
 	}
 
-	const pendingProfileId = currentUserId.value
+	const pendingProfileId = currentUser.value?.profile?.id
 
 	pendingSkinRefreshTimeout = window.setTimeout(async () => {
 		pendingSkinRefreshTimeout = null
@@ -772,7 +772,7 @@ async function loadCurrentUser() {
 		currentUserId.value = defaultId
 
 		const allAccounts = await users(offline.value)
-		const selectedAccount = allAccounts.find((acc) => acc.profile.id === defaultId)
+		const selectedAccount = allAccounts.find((acc) => acc.account_id === defaultId)
 		currentAccountType.value = selectedAccount?.account_type
 		currentUser.value = selectedAccount
 	} catch (e) {
