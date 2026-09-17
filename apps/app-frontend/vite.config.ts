@@ -69,7 +69,7 @@ if (existsSync(envFilePath)) {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
 	css: {
 		preprocessorOptions: {
 			scss: {
@@ -92,7 +92,9 @@ export default defineConfig({
 	},
 	plugins: [
 		blockbenchSkinDevAssets(),
-		vueDevTools(),
+		// Vue DevTools injects transform/runtime work; keep it for `vite`/`tauri
+		// dev` only so production `vite build` stays lean.
+		...(command === 'serve' ? [vueDevTools()] : []),
 		vue(),
 		svgLoader({
 			svgoConfig: {
@@ -160,4 +162,4 @@ export default defineConfig({
 		// produce sourcemaps for debug builds
 		sourcemap: !!process.env.TAURI_ENV_DEBUG, // eslint-disable-line turbo/no-undeclared-env-vars
 	},
-})
+}))
