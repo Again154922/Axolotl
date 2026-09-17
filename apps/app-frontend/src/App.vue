@@ -3546,6 +3546,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	pointer-events: none;
 }
 
+// Console fullscreen teleports above the content pane; the decorative edge
+// must not draw through that opaque overlay.
+body.modrinth-console-fullscreen-active .app-contents::before {
+	opacity: 0;
+}
+
 .sidebar-teleport-content:empty + .sidebar-default-content.sidebar-enabled {
 	display: contents;
 }
