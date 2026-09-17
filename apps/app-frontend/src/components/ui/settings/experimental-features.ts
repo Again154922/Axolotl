@@ -1,4 +1,4 @@
-import { defineMessage, type MessageDescriptor } from '@modrinth/ui'
+import { defineMessages, type MessageDescriptor } from '@modrinth/ui'
 
 /**
  * Experimental features ship behind a master switch plus a per-feature toggle.
