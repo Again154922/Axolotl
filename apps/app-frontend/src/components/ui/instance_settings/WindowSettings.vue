@@ -38,6 +38,24 @@ const fullscreenSetting: Ref<boolean> = ref(
 const maximizeWindowSetting = ref(instance.value.maximize_window ?? globalSettings.maximize_window)
 const windowTitle = ref(instance.value.window_title ?? '')
 
+/**
+ * The custom window title is an experimental feature; the row stays hidden
+ * until the grey-release master switch and its feature toggle are both on.
+ */
+const windowTitleFeatureAvailable = ref(false)
+void get()
+	.then((current) => {
+		const enabled = current?.experimental_features_enabled ?? false
+		const feature = (current?.experimental_features ?? {}) as Record<
+			string,
+			{ enabled?: boolean } | undefined
+		>
+		windowTitleFeatureAvailable.value = enabled && !!feature.window_title?.enabled
+	})
+	.catch(() => {
+		windowTitleFeatureAvailable.value = false
+	})
+
 const editInstanceObject = computed(() => {
 	if (!overrideWindowSettings.value) {
 		return {
@@ -222,7 +240,7 @@ const messages = defineMessages({
 				:placeholder="formatMessage(messages.enterHeight)"
 			/>
 		</div>
-		<div class="flex items-center gap-4 justify-between">
+		<div v-if="windowTitleFeatureAvailable" class="flex items-center gap-4 justify-between">
 			<div class="flex flex-col gap-1">
 				<h2 class="m-0 text-lg font-semibold text-contrast">
 					{{ formatMessage(messages.windowTitle) }}

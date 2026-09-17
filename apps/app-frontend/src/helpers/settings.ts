@@ -171,6 +171,8 @@ export type AppSettings = {
 	home_widgets: HomeDashboardConfig | null
 	home_widget_background_opacity: number
 	hidden_nav_items: string[]
+	experimental_features_enabled: boolean
+	experimental_features: Record<string, unknown>
 	terracotta_public_nodes: string[]
 
 	telemetry: boolean
@@ -252,6 +254,9 @@ function normalizeDownloadSettings(settings: AppSettings & LegacyMirrorSettings)
 	settings.ignore_ssl_errors ??= false
 	settings.mojang_auth_source ??= 'auto'
 	settings.terracotta_public_nodes ??= ['wss://center.node.1tmc.top']
+	settings.hidden_nav_items ??= []
+	settings.experimental_features_enabled ??= false
+	settings.experimental_features ??= {}
 	settings.feature_flags ??= { ...DEFAULT_FEATURE_FLAGS }
 	settings.sync_features_across_devices ??= false
 	settings.show_files_tab_in_instances ??= true

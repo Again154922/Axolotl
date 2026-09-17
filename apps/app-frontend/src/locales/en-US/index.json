@@ -7604,6 +7604,54 @@
   "app.settings.downloading": {
     "message": "Downloading v{version}"
   },
+  "app.settings.experimental.beta": {
+    "message": "Beta"
+  },
+  "app.settings.experimental.cancel": {
+    "message": "Cancel"
+  },
+  "app.settings.experimental.feature.default": {
+    "message": "Default"
+  },
+  "app.settings.experimental.feature.disabled-hint": {
+    "message": "Turn on experimental features to change this."
+  },
+  "app.settings.experimental.feature.reset": {
+    "message": "Reset"
+  },
+  "app.settings.experimental.master.confirm-action": {
+    "message": "I understand, enable them"
+  },
+  "app.settings.experimental.master.confirm-body": {
+    "message": "Experimental features are in grey release: they are still being validated, so behaviour may change between releases and some options may be incomplete. The launcher basics keep working, but there is no guarantee these features are usable in every situation."
+  },
+  "app.settings.experimental.master.confirm-title": {
+    "message": "Enable experimental features?"
+  },
+  "app.settings.experimental.master.description": {
+    "message": "Turn this on to unlock the features below. Turning it off keeps your saved choices but disables every experimental feature."
+  },
+  "app.settings.experimental.master.title": {
+    "message": "Enable experimental features"
+  },
+  "app.settings.experimental.title": {
+    "message": "Experimental features"
+  },
+  "app.settings.experimental.warning-body": {
+    "message": "Experimental features are still being tested. They will not break the launcher basics, but their availability and behaviour are not guaranteed and may change or be removed at any time."
+  },
+  "app.settings.experimental.warning-title": {
+    "message": "These features are in grey release"
+  },
+  "app.settings.experimental.window-title.default-label": {
+    "message": "Fallback window title"
+  },
+  "app.settings.experimental.window-title.description": {
+    "message": "Let each instance show a custom title in the Minecraft window. Set the fallback title used when an instance does not override it."
+  },
+  "app.settings.experimental.window-title.title": {
+    "message": "Custom Minecraft window title"
+  },
   "app.settings.feature-flags.reset-to-default": {
     "message": "Reset to default"
   },

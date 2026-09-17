@@ -113,6 +113,29 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		),
 	},
 	{
+		id: 'experimental-master',
+		categoryId: 'experimental',
+		targetId: 'settings-target-experimental-master',
+		label: message('app.settings.experimental.master.title', 'Enable experimental features'),
+		description: message(
+			'app.settings.experimental.master.description',
+			'Turn this on to unlock experimental features.',
+		),
+	},
+	{
+		id: 'experimental-window-title',
+		categoryId: 'experimental',
+		targetId: 'settings-target-experimental-features',
+		label: message(
+			'app.settings.experimental.window-title.title',
+			'Custom Minecraft window title',
+		),
+		description: message(
+			'app.settings.experimental.window-title.description',
+			'Give each instance a custom Minecraft window title.',
+		),
+	},
+	{
 		id: 'logs-level',
 		categoryId: 'logs',
 		targetId: 'settings-target-logs-level',

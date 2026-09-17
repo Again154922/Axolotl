@@ -159,6 +159,13 @@ pub struct Settings {
     pub home_widget_background_opacity: u32,
     #[serde(default)]
     pub hidden_nav_items: Vec<String>,
+    /// Master switch for the experimental feature page. When off, every
+    /// experimental feature keeps its default and its UI stays disabled.
+    #[serde(default)]
+    pub experimental_features_enabled: bool,
+    /// Per-feature experimental state and saved defaults, keyed by feature id.
+    #[serde(default)]
+    pub experimental_features: serde_json::Value,
     #[serde(default = "default_terracotta_public_nodes")]
     pub terracotta_public_nodes: Vec<String>,
 
@@ -310,6 +317,20 @@ impl Settings {
         // Home and Library must stay reachable from the nav rail.
         hidden_nav_items.retain(|id| id != "home" && id != "library");
 
+        let experimental_features_enabled: bool = sqlx::query_scalar(
+            "SELECT experimental_features_enabled FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+        let experimental_features_json: String = sqlx::query_scalar(
+            "SELECT experimental_features FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+        let experimental_features: serde_json::Value =
+            serde_json::from_str(&experimental_features_json)
+                .unwrap_or_else(|_| serde_json::json!({}));
+
         let log_level: String =
             sqlx::query_scalar("SELECT log_level FROM settings WHERE id = 0")
                 .fetch_one(exec)
@@ -399,6 +420,8 @@ impl Settings {
                 .clamp(0, 100)
                 as u32,
             hidden_nav_items,
+            experimental_features_enabled,
+            experimental_features,
             terracotta_public_nodes: res
                 .terracotta_public_nodes
                 .as_ref()
@@ -689,6 +712,20 @@ impl Settings {
             .bind(serde_json::to_string(&hidden_nav_items)?)
             .execute(exec)
             .await?;
+
+        sqlx::query(
+            "UPDATE settings SET experimental_features_enabled = ? WHERE id = 0",
+        )
+        .bind(self.experimental_features_enabled)
+        .execute(exec)
+        .await?;
+
+        sqlx::query(
+            "UPDATE settings SET experimental_features = ? WHERE id = 0",
+        )
+        .bind(serde_json::to_string(&self.experimental_features)?)
+        .execute(exec)
+        .await?;
 
         sqlx::query("UPDATE settings SET download_engine = ? WHERE id = 0")
             .bind(self.download_engine.as_str())

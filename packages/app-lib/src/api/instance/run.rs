@@ -217,6 +217,9 @@ async fn run_credentials(
         }
     }
 
+    // Resolve before any field of `settings` is moved out below.
+    let window_title_fallback = experimental_window_title_fallback(&settings);
+
     let java_args = if let Some(extra_launch_args) = extra_launch_args {
         extra_launch_args
     } else {
@@ -242,7 +245,15 @@ async fn run_credentials(
         .launch_overrides
         .maximize_window
         .unwrap_or(settings.maximize_window);
-    let window_title = context.launch_overrides.window_title.clone();
+    // The custom window title is an experimental feature: the instance value
+    // wins, then the feature's configured fallback, and it only applies while
+    // the master switch and the feature toggle are both on.
+    let window_title = context
+        .launch_overrides
+        .window_title
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .or(window_title_fallback);
     let env_args = context
         .launch_overrides
         .custom_env_vars
@@ -418,6 +429,26 @@ fn modrinth_pack_version_id(link: &InstanceLink) -> Option<&str> {
 
 fn playtime_api_url(base_url: &str) -> String {
     format!("{}/analytics/playtime", base_url.trim_end_matches('/'))
+}
+
+/// Resolves the experimental window-title fallback, or `None` when the master
+/// switch is off, the feature is disabled, or no fallback text is configured.
+fn experimental_window_title_fallback(
+    settings: &crate::state::Settings,
+) -> Option<String> {
+    if !settings.experimental_features_enabled {
+        return None;
+    }
+    let feature = settings.experimental_features.get("window_title")?;
+    if !feature.get("enabled").and_then(|value| value.as_bool())? {
+        return None;
+    }
+    feature
+        .get("defaultValue")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
 }
 
 pub async fn kill(instance_id: &str) -> crate::Result<()> {

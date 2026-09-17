@@ -37,6 +37,7 @@ const settingsComponentFiles = {
 	updates: ['./UpdateSettings.vue'],
 	logs: ['./LogsSettings.vue'],
 	about: ['./AboutSettings.vue'],
+	experimental: ['./ExperimentalSettings.vue'],
 	'feature-flags': ['./FeatureFlagSettings.vue'],
 } as const
 
@@ -171,12 +172,13 @@ test('settings navigation groups preserve the intended Axolotl information archi
 	])
 	assert.deepEqual(categoriesForGroup('game'), [
 		'launch-defaults',
+		'instance-sync',
 		'java-performance',
 		'content-downloads',
 		'network-multiplayer',
 	])
 	assert.deepEqual(categoriesForGroup('data-privacy'), ['storage-backups', 'privacy-data'])
-	assert.deepEqual(categoriesForGroup('support'), ['updates', 'about', 'logs'])
+	assert.deepEqual(categoriesForGroup('support'), ['updates', 'about', 'experimental', 'logs'])
 	assert.deepEqual(categoriesForGroup('developer'), [])
 	assert.deepEqual(categoriesForGroup('developer', true), ['feature-flags'])
 })

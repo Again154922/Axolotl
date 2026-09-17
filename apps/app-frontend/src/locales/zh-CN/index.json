@@ -7640,6 +7640,54 @@
   "app.settings.downloading": {
     "message": "正在下载 v{version}"
   },
+  "app.settings.experimental.beta": {
+    "message": "实验性"
+  },
+  "app.settings.experimental.cancel": {
+    "message": "取消"
+  },
+  "app.settings.experimental.feature.default": {
+    "message": "默认值"
+  },
+  "app.settings.experimental.feature.disabled-hint": {
+    "message": "请先开启实验性功能再修改此项。"
+  },
+  "app.settings.experimental.feature.reset": {
+    "message": "重置"
+  },
+  "app.settings.experimental.master.confirm-action": {
+    "message": "我已了解，开启实验性功能"
+  },
+  "app.settings.experimental.master.confirm-body": {
+    "message": "实验性功能处于灰度状态：仍在验证中，因此行为可能随版本变化，部分选项也可能不完整。启动器的基础功能不受影响，但不保证这些功能在所有情况下都可用。"
+  },
+  "app.settings.experimental.master.confirm-title": {
+    "message": "开启实验性功能？"
+  },
+  "app.settings.experimental.master.description": {
+    "message": "开启后可解锁下方功能。关闭时你的选择会保留，但所有实验性功能都会停用。"
+  },
+  "app.settings.experimental.master.title": {
+    "message": "启用实验性功能"
+  },
+  "app.settings.experimental.title": {
+    "message": "实验性功能"
+  },
+  "app.settings.experimental.warning-body": {
+    "message": "实验性功能仍在测试中。它们不会影响启动器的基础功能，但可用性与表现不作保证，随时可能变更或移除。"
+  },
+  "app.settings.experimental.warning-title": {
+    "message": "这些功能处于灰度状态"
+  },
+  "app.settings.experimental.window-title.default-label": {
+    "message": "默认窗口标题"
+  },
+  "app.settings.experimental.window-title.description": {
+    "message": "允许每个实例在 Minecraft 窗口中显示自定义标题。这里设置实例未单独指定时使用的默认标题。"
+  },
+  "app.settings.experimental.window-title.title": {
+    "message": "自定义 Minecraft 窗口标题"
+  },
   "app.settings.feature-flags.reset-to-default": {
     "message": "恢复默认值"
   },

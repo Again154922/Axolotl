@@ -15,6 +15,7 @@ export type SettingsCategoryId =
 	| 'privacy-data'
 	| 'updates'
 	| 'about'
+	| 'experimental'
 	| 'logs'
 	| 'feature-flags'
 
@@ -161,6 +162,14 @@ export const settingsCategoryDefinitions: SettingsCategoryDefinition[] = [
 		}),
 		group: 'support',
 		onboardingId: 'settings-tab-about',
+	},
+	{
+		id: 'experimental',
+		name: defineMessage({
+			id: 'app.settings.experimental.title',
+			defaultMessage: 'Experimental features',
+		}),
+		group: 'support',
 	},
 	{
 		id: 'logs',
