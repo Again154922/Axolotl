@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RotateCcwIcon } from '@modrinth/assets'
+import { RotateCounterClockwiseIcon } from '@modrinth/assets'
 import {
 	Admonition,
 	defineMessages,
@@ -159,7 +159,7 @@ watch(
 								:disabled="!masterEnabled"
 								@click="resetFeature(feature.id)"
 							>
-								<RotateCcwIcon />
+								<RotateCounterClockwiseIcon />
 								{{ formatMessage(experimentalMessages.resetToDefault) }}
 							</Button>
 							<Toggle
