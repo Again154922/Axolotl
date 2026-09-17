@@ -54,6 +54,7 @@ export type GameInstance = {
 	force_fullscreen?: boolean
 	maximize_window?: boolean
 	game_resolution?: [number, number]
+	window_title?: string | null
 	launch_preparation_timeout?: number | null
 	hooks: Hooks
 }

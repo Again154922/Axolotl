@@ -11237,6 +11237,15 @@
   "instance.settings.tabs.window.height.enter": {
     "message": "Enter height..."
   },
+  "instance.settings.tabs.window.window-title": {
+    "message": "Window title"
+  },
+  "instance.settings.tabs.window.window-title.description": {
+    "message": "Customize the Minecraft window title. Leave empty to keep the default."
+  },
+  "instance.settings.tabs.window.window-title.enter": {
+    "message": "Enter window title..."
+  },
   "instance.settings.tabs.window.maximize-window": {
     "message": "Maximize window"
   },

@@ -11294,6 +11294,15 @@
   "instance.settings.tabs.window.height.enter": {
     "message": "输入高度……"
   },
+  "instance.settings.tabs.window.window-title": {
+    "message": "窗口标题"
+  },
+  "instance.settings.tabs.window.window-title.description": {
+    "message": "自定义 Minecraft 窗口标题。留空则使用默认标题。"
+  },
+  "instance.settings.tabs.window.window-title.enter": {
+    "message": "输入窗口标题……"
+  },
   "instance.settings.tabs.window.maximize-window": {
     "message": "最大化窗口"
   },
