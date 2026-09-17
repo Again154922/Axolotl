@@ -20,14 +20,34 @@ pub async fn handle_url(sublink: &str) -> crate::Result<CommandPayload> {
     }
 
     if let Some(query) = sublink.strip_prefix("launch?") {
-        let instance_id = form_urlencoded::parse(query.as_bytes()).find_map(
-            |(key, value)| (key == "instance_id").then(|| value.into_owned()),
-        );
+        let mut instance_id = None;
+        let mut server = None;
+        let mut singleplayer_world = None;
+
+        for (key, value) in form_urlencoded::parse(query.as_bytes()) {
+            match &*key {
+                "instance_id" => instance_id = Some(value.into_owned()),
+                "server" => server = Some(value.into_owned()),
+                "singleplayer_world" => {
+                    singleplayer_world = Some(value.into_owned());
+                }
+                _ => {}
+            }
+        }
+
+        if server.is_some() && singleplayer_world.is_some() {
+            return Err(crate::ErrorKind::InputError(
+                "Cannot launch both a server and a singleplayer world"
+                    .to_string(),
+            )
+            .into());
+        }
+
         if let Some(id) = instance_id.filter(|id| !id.is_empty()) {
             return Ok(CommandPayload::LaunchInstance {
                 id,
-                server: None,
-                singleplayer_world: None,
+                server,
+                singleplayer_world,
             });
         }
         return Err(crate::ErrorKind::InputError(
@@ -166,13 +186,15 @@ mod tests {
     #[tokio::test]
     async fn parses_launch_query_command() {
         let command =
-            parse_command("axolotl://launch?instance_id=example%20instance")
-                .await
-                .unwrap();
+            parse_command(
+                "axolotl://launch?instance_id=example%20instance&server=example.org%3A25565",
+            )
+            .await
+            .unwrap();
         assert!(matches!(
             command,
-            CommandPayload::LaunchInstance { id, server: None, singleplayer_world: None }
-                if id == "example instance"
+            CommandPayload::LaunchInstance { id, server: Some(server), singleplayer_world: None }
+                if id == "example instance" && server == "example.org:25565"
         ));
     }
 
