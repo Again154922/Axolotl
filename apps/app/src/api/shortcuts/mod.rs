@@ -1,6 +1,6 @@
 use crate::api::Result;
 use std::path::{Path, PathBuf};
-use tauri::Runtime;
+use tauri::{AppHandle, Manager, Runtime};
 use url::Url;
 
 #[cfg(target_os = "linux")]
@@ -24,10 +24,11 @@ pub fn init<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
 }
 
 #[tauri::command]
-pub async fn create_instance_shortcut(
+pub async fn create_instance_shortcut<R: Runtime>(
+    app: AppHandle<R>,
     instance_name: String,
     instance_id: String,
-    output_path: PathBuf,
+    output_path: Option<PathBuf>,
     server: Option<String>,
     singleplayer_world: Option<String>,
 ) -> Result<PathBuf> {
@@ -41,6 +42,14 @@ pub async fn create_instance_shortcut(
     let launch_url =
         instance_launch_url(instance_id, server, singleplayer_world);
 
+    let output_path = match output_path {
+        Some(output_path) => output_path,
+        None => app.path().desktop_dir()?.join(format!(
+            "{}.{}",
+            desktop_shortcut_name(&instance_name),
+            SHORTCUT_EXTENSION
+        )),
+    };
     let output_path = shortcut_path_with_extension(output_path);
     let output_path_existed =
         tokio::fs::try_exists(&output_path).await.unwrap_or(false);
@@ -60,13 +69,12 @@ fn instance_launch_url(
     server: Option<String>,
     singleplayer_world: Option<String>,
 ) -> Url {
-    let mut launch_url = Url::parse("axolotl://launch/instance")
-        .expect("static launch URL should parse");
+    let mut launch_url =
+        Url::parse("axolotl://launch").expect("static launch URL should parse");
 
     launch_url
-        .path_segments_mut()
-        .expect("launch URL should support path segments")
-        .push(&instance_id);
+        .query_pairs_mut()
+        .append_pair("instance_id", &instance_id);
 
     if let Some(server) = server {
         launch_url.query_pairs_mut().append_pair("server", &server);
@@ -77,6 +85,32 @@ fn instance_launch_url(
     }
 
     launch_url
+}
+
+fn desktop_shortcut_name(instance_name: &str) -> String {
+    let sanitized: String = instance_name
+        .chars()
+        .map(|character| {
+            if character.is_control()
+                || matches!(
+                    character,
+                    '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+                )
+            {
+                '_'
+            } else {
+                character
+            }
+        })
+        .collect();
+    let sanitized = sanitized.trim().trim_end_matches(['.', ' ']);
+    let instance_name = if sanitized.is_empty() {
+        "Instance"
+    } else {
+        sanitized
+    };
+
+    format!("{} - {instance_name}", theseus::brand::SHORT_PRODUCT_NAME)
 }
 
 fn shortcut_path_with_extension(mut path: PathBuf) -> PathBuf {
@@ -110,5 +144,33 @@ async fn cleanup_shortcut_artifact(path: &Path, existed: bool) {
             path.display(),
             error
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn launch_url_uses_the_registered_scheme_and_encodes_values() {
+        let url = instance_launch_url(
+            "instance id/测试".to_string(),
+            Some("example.org:25565".to_string()),
+            None,
+        );
+
+        assert_eq!(
+            url.as_str(),
+            "axolotl://launch?instance_id=instance+id%2F%E6%B5%8B%E8%AF%95&server=example.org%3A25565"
+        );
+    }
+
+    #[test]
+    fn desktop_shortcut_name_is_safe_on_all_supported_platforms() {
+        assert_eq!(
+            desktop_shortcut_name("My: Instance?/ "),
+            "Axolotl - My_ Instance__"
+        );
+        assert_eq!(desktop_shortcut_name(" ... "), "Axolotl - Instance");
     }
 }

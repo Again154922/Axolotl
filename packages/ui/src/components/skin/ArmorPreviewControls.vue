@@ -23,7 +23,7 @@ import {
 } from '#ui/composables/skin-rendering/armor-preview-assets'
 
 const messages = defineMessages({
-	armorPreview: { id: 'skin.preview.armor.open', defaultMessage: 'Armor preview' },
+	armorPreview: { id: 'skin.preview.armor.open', defaultMessage: 'Armor and trims' },
 	armorPiece: { id: 'skin.preview.armor.piece', defaultMessage: 'Armor piece' },
 	armorMaterial: { id: 'skin.preview.armor.material', defaultMessage: 'Armor material' },
 	trimPattern: { id: 'skin.preview.armor.trim-pattern', defaultMessage: 'Trim pattern' },
@@ -159,6 +159,7 @@ function setTrimMaterial(trimMaterial: ArmorTrimMaterial): void {
 			@click="isOpen = !isOpen"
 		>
 			<ShieldIcon aria-hidden="true" />
+			<span>{{ formatMessage(messages.armorPreview) }}</span>
 		</button>
 
 		<Transition name="armor-preview-panel">
@@ -284,10 +285,7 @@ function setTrimMaterial(trimMaterial: ArmorTrimMaterial): void {
 
 .armor-preview-trigger,
 .armor-preview-option {
-	display: grid;
-	place-items: center;
 	box-sizing: border-box;
-	width: 2.5rem;
 	height: 2.5rem;
 	padding: 0.375rem;
 	cursor: pointer;
@@ -300,6 +298,22 @@ function setTrimMaterial(trimMaterial: ArmorTrimMaterial): void {
 		background-color 120ms ease,
 		border-color 120ms ease,
 		transform 120ms ease;
+}
+
+.armor-preview-trigger {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	width: auto;
+	padding-inline: 0.625rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.armor-preview-option {
+	display: grid;
+	place-items: center;
+	width: 2.5rem;
 }
 
 .armor-preview-trigger:hover,
@@ -327,6 +341,7 @@ function setTrimMaterial(trimMaterial: ArmorTrimMaterial): void {
 
 .armor-preview-trigger > svg,
 .armor-preview-option > svg {
+	flex-shrink: 0;
 	width: 1.35rem;
 	height: 1.35rem;
 }

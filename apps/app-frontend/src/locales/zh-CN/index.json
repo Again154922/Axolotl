@@ -11126,6 +11126,21 @@
   "instance.settings.tabs.general.deleting.button": {
     "message": "删除中……"
   },
+  "instance.settings.tabs.general.desktop-shortcut": {
+    "message": "桌面快捷方式"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.create": {
+    "message": "创建桌面快捷方式"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.created": {
+    "message": "桌面快捷方式已创建"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.creating": {
+    "message": "正在创建快捷方式……"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.description": {
+    "message": "在桌面创建可直接启动此实例的快捷方式。"
+  },
   "instance.settings.tabs.general.duplicate-button": {
     "message": "复制"
   },

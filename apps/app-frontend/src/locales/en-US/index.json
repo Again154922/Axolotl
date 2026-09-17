@@ -11069,6 +11069,21 @@
   "instance.settings.tabs.general.deleting.button": {
     "message": "Deleting..."
   },
+  "instance.settings.tabs.general.desktop-shortcut": {
+    "message": "Desktop shortcut"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.create": {
+    "message": "Create desktop shortcut"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.created": {
+    "message": "Desktop shortcut created"
+  },
+  "instance.settings.tabs.general.desktop-shortcut.creating": {
+    "message": "Creating shortcut..."
+  },
+  "instance.settings.tabs.general.desktop-shortcut.description": {
+    "message": "Create a desktop shortcut that launches this instance directly."
+  },
   "instance.settings.tabs.general.duplicate-button": {
     "message": "Duplicate"
   },
