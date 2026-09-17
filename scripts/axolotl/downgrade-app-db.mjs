@@ -117,12 +117,16 @@ const REVERTIBLE_SCHEMA = {
 	20260916090000: {
 		tables: ['minecraft_users_with_identity'],
 	},
+	// settings.ignore_ssl_errors
+	20260917120000: {
+		columns: [{ table: 'settings', column: 'ignore_ssl_errors' }],
+	},
 	// settings.home_widget_background_opacity
-	20260916160000: {
+	20260917130000: {
 		columns: [{ table: 'settings', column: 'home_widget_background_opacity' }],
 	},
 	// settings.hidden_nav_items
-	20260916170000: {
+	20260917131000: {
 		columns: [{ table: 'settings', column: 'hidden_nav_items' }],
 	},
 }
