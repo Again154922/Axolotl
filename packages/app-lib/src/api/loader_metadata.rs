@@ -35,8 +35,7 @@ const LITELOADER_META_URL: &str =
     "https://dl.liteloader.com/versions/versions.json";
 const CLEANROOM_RELEASES_URL: &str =
     "https://api.github.com/repos/CleanroomMC/Cleanroom/releases?per_page=100";
-const CLEANROOM_MAVEN_METADATA_URL: &str =
-    "https://repo.cleanroommc.com/releases/com/cleanroommc/cleanroom/maven-metadata.xml";
+const CLEANROOM_MAVEN_METADATA_URL: &str = "https://repo.cleanroommc.com/releases/com/cleanroommc/cleanroom/maven-metadata.xml";
 const CLEANROOM_MAVEN_VERSION_URL: &str =
     "https://repo.cleanroommc.com/releases/com/cleanroommc/cleanroom/";
 const FORGE_MAVEN_URL: &str =
@@ -2902,10 +2901,7 @@ mod tests {
             loaders[0].url,
             "https://repo.cleanroommc.com/releases/com/cleanroommc/cleanroom/0.6.13-alpha/cleanroom-0.6.13-alpha-installer.jar"
         );
-        assert_eq!(
-            loaders[0].profile_source,
-            LoaderProfileSource::Installer
-        );
+        assert_eq!(loaders[0].profile_source, LoaderProfileSource::Installer);
         assert!(!loaders[0].stable);
         assert!(loaders[1].stable);
         assert!(!loaders[2].stable);

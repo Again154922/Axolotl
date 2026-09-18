@@ -163,10 +163,9 @@ pub fn detect(path: &Path) -> Option<InstanceInfo> {
     // instead of Forge.
     if loader.as_ref().is_some_and(|(loader, _)| loader == "forge")
         && (name.to_ascii_lowercase().contains("cleanroom")
-            || json
-                .get("id")
-                .and_then(Value::as_str)
-                .is_some_and(|id| id.to_ascii_lowercase().contains("cleanroom")))
+            || json.get("id").and_then(Value::as_str).is_some_and(|id| {
+                id.to_ascii_lowercase().contains("cleanroom")
+            }))
     {
         debug!(
             "instance_json: forge json carries a cleanroom version marker; treating as cleanroom"

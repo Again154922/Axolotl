@@ -47,7 +47,8 @@ pub const DOWNLOAD_META_HEADER: &str = "modrinth-download-meta";
 
 const BMCLAPI_BASE_URL: &str = "https://bmclapi2.bangbang93.com";
 const MCIM_BASE_URL: &str = "https://mod.mcimirror.top";
-const ALIYUN_MAVEN_BASE_URL: &str = "https://maven.aliyun.com/repository/public";
+const ALIYUN_MAVEN_BASE_URL: &str =
+    "https://maven.aliyun.com/repository/public";
 pub(crate) const TIANPAO_HOST: &str = "mod.tianpao.top";
 const TIANPAO_BASE_URL: &str = "https://mod.tianpao.top";
 pub(crate) const MODRINTH_CDN_OFFICIAL_HOST: &str = "cdn-alt.modrinth.com";
