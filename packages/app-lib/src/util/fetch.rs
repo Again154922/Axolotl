@@ -7131,7 +7131,7 @@ mod tests {
     }
 
     #[test]
-    fn maven_central_routes_remain_direct() {
+    fn maven_central_routes_mirror_to_aliyun_with_official_fallback() {
         for source in [
             "https://repo1.maven.org/maven2/com/example/library/1/library-1.jar?download=1",
             "https://repo.maven.apache.org/maven2/com/example/library/1/library-1.jar?download=1",
@@ -7141,9 +7141,14 @@ mod tests {
                 ResourceClass::MinecraftLibrary,
                 crate::state::DownloadSourceMode::MirrorPreferred,
             );
-            assert_eq!(routes.len(), 1);
-            assert_eq!(routes[0].url, source);
-            assert_eq!(routes[0].source, DownloadRouteSource::Official);
+            assert_eq!(routes.len(), 2);
+            assert_eq!(routes[0].source, DownloadRouteSource::Aliyun);
+            assert!(routes[0].is_mirror);
+            assert!(routes[0]
+                .url
+                .starts_with("https://maven.aliyun.com/repository/public/com/example/library/1/library-1.jar"));
+            assert_eq!(routes[1].url, source);
+            assert_eq!(routes[1].source, DownloadRouteSource::Official);
         }
 
         let unmatched = resolve_download_routes_for(
