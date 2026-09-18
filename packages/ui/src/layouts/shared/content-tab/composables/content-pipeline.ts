@@ -419,22 +419,47 @@ export function useContentPipeline(config: ContentPipelineConfig) {
 
 	// Clean up invalid selections when options change.
 	//
-	// 'duplicates' stays a valid selection whenever the host provides duplicate
-	// tracking, even if the current duplicate set is transiently empty while
-	// items refresh after enable/disable. Clearing it in that window is what
-	// yanked users back to "all" (#542). The prune is also debounced so
-	// mid-refresh validation snapshots do not reset a user-selected filter.
+	// 'duplicates' must survive a transient refresh (enable/disable briefly
+	// empties the duplicate set — clearing it there yanked users back to
+	// "all", #542), but it must NOT stay pinned forever when the instance
+	// genuinely has no duplicates. Keep the option valid while the host
+	// supports tracking AND the content set is still settling, duplicates
+	// currently exist, or the duplicate set only just became empty (grace
+	// window). Once ready and stably empty past that window, stop forcing it
+	// so the selection can prune and reopening the page does not land on an
+	// empty filter.
+	const DUPLICATE_EMPTY_GRACE_MS = 2000
 	const supportsDuplicateFilter = duplicateItems !== undefined
 	let pruneTimer: ReturnType<typeof setTimeout> | null = null
+	let duplicateEmptySince: number | null = null
 
 	watch(
-		[filterValidationOptions, () => filterOptionsReady?.value ?? true],
+		() => duplicateItems?.value?.length ?? 0,
+		(count) => {
+			duplicateEmptySince = count === 0 ? Date.now() : null
+		},
+		{ immediate: true },
+	)
+
+	watch(
+		[
+			filterValidationOptions,
+			() => filterOptionsReady?.value ?? true,
+			() => duplicateItems?.value?.length ?? 0,
+		],
 		() => {
 			if (pruneTimer) clearTimeout(pruneTimer)
 			pruneTimer = setTimeout(() => {
 				const options = filterValidationOptions.value
+				const ready = filterOptionsReady?.value ?? true
+				const hasDuplicateItems = (duplicateItems?.value?.length ?? 0) > 0
+				const emptyGraceActive =
+					duplicateEmptySince !== null &&
+					Date.now() - duplicateEmptySince < DUPLICATE_EMPTY_GRACE_MS
+				const keepDuplicatesOption =
+					supportsDuplicateFilter && (!ready || hasDuplicateItems || emptyGraceActive)
 				const typeOptions =
-					supportsDuplicateFilter && !options.type.includes('duplicates')
+					keepDuplicatesOption && !options.type.includes('duplicates')
 						? [...options.type, 'duplicates']
 						: options.type
 				const pruned = pruneContentFilterSelections(
@@ -443,7 +468,7 @@ export function useContentPipeline(config: ContentPipelineConfig) {
 						statusFilters: selectedStatusFilters.value,
 					},
 					{ type: typeOptions, status: options.status },
-					filterOptionsReady?.value ?? true,
+					ready,
 				)
 				if (pruned.typeFilters.length !== selectedTypeFilter.value.length) {
 					selectedTypeFilter.value = pruned.typeFilters
