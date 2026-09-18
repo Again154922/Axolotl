@@ -14,12 +14,6 @@ import { edit } from '@/helpers/instance'
 import { get } from '@/helpers/settings.ts'
 import { injectInstanceSettings } from '@/providers/instance-settings'
 
-import ExperimentalBadge from '@/components/ui/settings/ExperimentalBadge.vue'
-import {
-	experimentalFeatures,
-	type ExperimentalFeatureStates,
-	resolveFeatureState,
-} from '@/components/ui/settings/experimental-features'
 import type { AppSettings } from '../../../helpers/types'
 
 const { handleError } = injectNotificationManager()
@@ -44,19 +38,6 @@ const fullscreenSetting: Ref<boolean> = ref(
 const maximizeWindowSetting = ref(instance.value.maximize_window ?? globalSettings.maximize_window)
 const windowTitle = ref(instance.value.window_title ?? '')
 
-/**
- * The custom window title is an experimental feature. Resolve the stored state
- * through the shared registry so an untouched feature still reports its
- * default instead of looking disabled.
- */
-const windowTitleFeatureAvailable = computed(() => {
-	if (!globalSettings.experimental_features_enabled) return false
-	const feature = experimentalFeatures.find((entry) => entry.id === 'window_title')
-	if (!feature) return false
-	const states = (globalSettings.experimental_features ?? {}) as ExperimentalFeatureStates
-	return resolveFeatureState(states, feature).enabled
-})
-
 const editInstanceObject = computed(() => {
 	const title = windowTitle.value.trim() ? windowTitle.value.trim() : null
 	if (!overrideWindowSettings.value) {
@@ -65,25 +46,19 @@ const editInstanceObject = computed(() => {
 			maximize_window: null,
 			game_resolution: null,
 			// The title is independent of the window-size override checkbox.
-			window_title: windowTitleFeatureAvailable.value ? title : null,
+			window_title: title,
 		}
 	}
 	return {
 		force_fullscreen: fullscreenSetting.value,
 		maximize_window: maximizeWindowSetting.value,
 		game_resolution: fullscreenSetting.value ? null : resolution.value,
-		window_title: windowTitleFeatureAvailable.value ? title : null,
+		window_title: title,
 	}
 })
 
 watch(
-	[
-		overrideWindowSettings,
-		resolution,
-		fullscreenSetting,
-		maximizeWindowSetting,
-		windowTitle,
-	],
+	[overrideWindowSettings, resolution, fullscreenSetting, maximizeWindowSetting, windowTitle],
 	async () => {
 		await edit(instance.value.id, editInstanceObject.value)
 	},
@@ -145,8 +120,7 @@ const messages = defineMessages({
 	},
 	windowTitleDescription: {
 		id: 'instance.settings.tabs.window.window-title.description',
-		defaultMessage:
-			'Customize the Minecraft window title. Leave empty to keep the default.',
+		defaultMessage: 'Customize the Minecraft window title. Leave empty to keep the default.',
 	},
 	enterWindowTitle: {
 		id: 'instance.settings.tabs.window.window-title.enter',
@@ -243,11 +217,13 @@ const messages = defineMessages({
 				:placeholder="formatMessage(messages.enterHeight)"
 			/>
 		</div>
-		<div v-if="windowTitleFeatureAvailable" class="flex items-center gap-4 justify-between">
+		<div
+			v-if="globalSettings.custom_window_title_enabled"
+			class="flex items-center gap-4 justify-between"
+		>
 			<div class="flex flex-col gap-1">
 				<h2 class="m-0 inline-flex items-center gap-2 text-lg font-semibold text-contrast">
 					{{ formatMessage(messages.windowTitle) }}
-					<ExperimentalBadge />
 				</h2>
 				<p class="m-0">
 					{{ formatMessage(messages.windowTitleDescription) }}

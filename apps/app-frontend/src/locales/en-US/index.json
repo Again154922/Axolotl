@@ -506,12 +506,6 @@
   "app.appearance-settings.default-landing-page.title": {
     "message": "Default landing page"
   },
-  "app.appearance-settings.hide-nametag.description": {
-    "message": "Disables the nametag above your player on the skins page."
-  },
-  "app.appearance-settings.hide-nametag.title": {
-    "message": "Hide nametag"
-  },
   "app.appearance-settings.hidden-nav-items.description": {
     "message": "Choose which fixed navigation buttons stay visible. Hidden pages remain reachable by URL or keyboard shortcuts."
   },
@@ -532,6 +526,12 @@
   },
   "app.appearance-settings.hidden-nav-items.title": {
     "message": "Navigation items"
+  },
+  "app.appearance-settings.hide-nametag.description": {
+    "message": "Disables the nametag above your player on the skins page."
+  },
+  "app.appearance-settings.hide-nametag.title": {
+    "message": "Hide nametag"
   },
   "app.appearance-settings.home-layout.description": {
     "message": "Choose between Information Home and a focused instance launcher."
@@ -7574,6 +7574,21 @@
   "app.settings.defaults.width-placeholder": {
     "message": "Enter width..."
   },
+  "app.settings.defaults.window-title.default": {
+    "message": "Default window title"
+  },
+  "app.settings.defaults.window-title.default-description": {
+    "message": "Used when an instance does not provide its own title."
+  },
+  "app.settings.defaults.window-title.default-placeholder": {
+    "message": "Enter the default window title..."
+  },
+  "app.settings.defaults.window-title.enabled": {
+    "message": "Custom Minecraft window title"
+  },
+  "app.settings.defaults.window-title.enabled-description": {
+    "message": "Allow instances to customize the Minecraft window title."
+  },
   "app.settings.defaults.wrapper-description": {
     "message": "Wrapper command for launching Minecraft."
   },
@@ -7603,54 +7618,6 @@
   },
   "app.settings.downloading": {
     "message": "Downloading v{version}"
-  },
-  "app.settings.experimental.beta": {
-    "message": "Beta"
-  },
-  "app.settings.experimental.cancel": {
-    "message": "Cancel"
-  },
-  "app.settings.experimental.feature.default": {
-    "message": "Default"
-  },
-  "app.settings.experimental.feature.disabled-hint": {
-    "message": "Turn on experimental features to change this."
-  },
-  "app.settings.experimental.feature.reset": {
-    "message": "Reset"
-  },
-  "app.settings.experimental.master.confirm-action": {
-    "message": "I understand, enable them"
-  },
-  "app.settings.experimental.master.confirm-body": {
-    "message": "Experimental features are in grey release: they are still being validated, so behaviour may change between releases and some options may be incomplete. The launcher basics keep working, but there is no guarantee these features are usable in every situation."
-  },
-  "app.settings.experimental.master.confirm-title": {
-    "message": "Enable experimental features?"
-  },
-  "app.settings.experimental.master.description": {
-    "message": "Turn this on to unlock the features below. Turning it off keeps your saved choices but disables every experimental feature."
-  },
-  "app.settings.experimental.master.title": {
-    "message": "Enable experimental features"
-  },
-  "app.settings.experimental.title": {
-    "message": "Experimental features"
-  },
-  "app.settings.experimental.warning-body": {
-    "message": "Experimental features are still being tested. They will not break the launcher basics, but their availability and behaviour are not guaranteed and may change or be removed at any time."
-  },
-  "app.settings.experimental.warning-title": {
-    "message": "These features are in grey release"
-  },
-  "app.settings.experimental.window-title.default-label": {
-    "message": "Fallback window title"
-  },
-  "app.settings.experimental.window-title.description": {
-    "message": "Let each instance show a custom title in the Minecraft window. Set the fallback title used when an instance does not override it."
-  },
-  "app.settings.experimental.window-title.title": {
-    "message": "Custom Minecraft window title"
   },
   "app.settings.feature-flags.reset-to-default": {
     "message": "Reset to default"
@@ -11306,15 +11273,6 @@
   "instance.settings.tabs.window.height.enter": {
     "message": "Enter height..."
   },
-  "instance.settings.tabs.window.window-title": {
-    "message": "Window title"
-  },
-  "instance.settings.tabs.window.window-title.description": {
-    "message": "Customize the Minecraft window title. Leave empty to keep the default."
-  },
-  "instance.settings.tabs.window.window-title.enter": {
-    "message": "Enter window title..."
-  },
   "instance.settings.tabs.window.maximize-window": {
     "message": "Maximize window"
   },
@@ -11332,6 +11290,15 @@
   },
   "instance.settings.tabs.window.width.enter": {
     "message": "Enter width..."
+  },
+  "instance.settings.tabs.window.window-title": {
+    "message": "Window title"
+  },
+  "instance.settings.tabs.window.window-title.description": {
+    "message": "Customize the Minecraft window title. Leave empty to keep the default."
+  },
+  "instance.settings.tabs.window.window-title.enter": {
+    "message": "Enter window title..."
   },
   "instance.upgrade.action.add-dependency": {
     "message": "Add dependency"

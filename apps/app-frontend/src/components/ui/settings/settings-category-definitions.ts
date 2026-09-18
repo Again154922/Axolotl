@@ -15,7 +15,6 @@ export type SettingsCategoryId =
 	| 'privacy-data'
 	| 'updates'
 	| 'about'
-	| 'experimental'
 	| 'logs'
 	| 'feature-flags'
 
@@ -96,7 +95,10 @@ export const settingsCategoryDefinitions: SettingsCategoryDefinition[] = [
 	},
 	{
 		id: 'instance-sync',
-		name: defineMessage({ id: 'app.settings.tabs.instance-sync', defaultMessage: 'Instance synchronization' }),
+		name: defineMessage({
+			id: 'app.settings.tabs.instance-sync',
+			defaultMessage: 'Instance synchronization',
+		}),
 		group: 'game',
 		onboardingId: 'settings-tab-instance-sync',
 	},
@@ -162,14 +164,6 @@ export const settingsCategoryDefinitions: SettingsCategoryDefinition[] = [
 		}),
 		group: 'support',
 		onboardingId: 'settings-tab-about',
-	},
-	{
-		id: 'experimental',
-		name: defineMessage({
-			id: 'app.settings.experimental.title',
-			defaultMessage: 'Experimental features',
-		}),
-		group: 'support',
 	},
 	{
 		id: 'logs',

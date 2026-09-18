@@ -113,26 +113,13 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		),
 	},
 	{
-		id: 'experimental-master',
-		categoryId: 'experimental',
-		targetId: 'settings-target-experimental-master',
-		label: message('app.settings.experimental.master.title', 'Enable experimental features'),
+		id: 'defaults-window-title',
+		categoryId: 'launch-defaults',
+		targetId: 'settings-target-defaults-window-title',
+		label: message('app.settings.defaults.window-title.enabled', 'Custom Minecraft window title'),
 		description: message(
-			'app.settings.experimental.master.description',
-			'Turn this on to unlock experimental features.',
-		),
-	},
-	{
-		id: 'experimental-window-title',
-		categoryId: 'experimental',
-		targetId: 'settings-target-experimental-features',
-		label: message(
-			'app.settings.experimental.window-title.title',
-			'Custom Minecraft window title',
-		),
-		description: message(
-			'app.settings.experimental.window-title.description',
-			'Give each instance a custom Minecraft window title.',
+			'app.settings.defaults.window-title.enabled-description',
+			'Allow instances to customize the Minecraft window title.',
 		),
 	},
 	{

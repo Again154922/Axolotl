@@ -129,11 +129,11 @@ const REVERTIBLE_SCHEMA = {
 	20260917131000: {
 		columns: [{ table: 'settings', column: 'hidden_nav_items' }],
 	},
-	// settings.experimental_features_enabled / experimental_features
+	// settings.custom_window_title_enabled / default_window_title
 	20260917140000: {
 		columns: [
-			{ table: 'settings', column: 'experimental_features_enabled' },
-			{ table: 'settings', column: 'experimental_features' },
+			{ table: 'settings', column: 'custom_window_title_enabled' },
+			{ table: 'settings', column: 'default_window_title' },
 		],
 	},
 }

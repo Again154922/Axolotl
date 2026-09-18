@@ -224,8 +224,8 @@ type AppSettings = {
 	home_widgets: import('@/components/home/home-dashboard').HomeDashboardConfig | null
 	home_widget_background_opacity: number
 	hidden_nav_items: string[]
-	experimental_features_enabled: boolean
-	experimental_features: Record<string, unknown>
+	custom_window_title_enabled: boolean
+	default_window_title: string
 
 	telemetry: boolean
 	discord_rpc: boolean

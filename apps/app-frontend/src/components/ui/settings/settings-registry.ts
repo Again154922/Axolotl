@@ -4,7 +4,6 @@ import {
 	CoffeeIcon,
 	CpuIcon,
 	FileTextIcon,
-	FlaskConicalIcon,
 	GameIcon,
 	GaugeIcon,
 	InfoIcon,
@@ -97,10 +96,6 @@ const categoryContent: Record<SettingsCategoryId, Pick<SettingsCategory, 'icon' 
 		content: defineAsyncComponent(() => import('./LogsSettings.vue')),
 	},
 	about: { icon: InfoIcon, content: defineAsyncComponent(() => import('./AboutSettings.vue')) },
-	experimental: {
-		icon: FlaskConicalIcon,
-		content: defineAsyncComponent(() => import('./ExperimentalSettings.vue')),
-	},
 	'feature-flags': {
 		icon: ToggleRightIcon,
 		content: defineAsyncComponent(() => import('./FeatureFlagSettings.vue')),
