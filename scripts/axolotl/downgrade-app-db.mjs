@@ -111,6 +111,8 @@ const REVERTIBLE_SCHEMA = {
 			'sync_feature_settings',
 		],
 	},
+	// settings.ignore_ssl_errors
+	20260917120000: { columns: [{ table: 'settings', column: 'ignore_ssl_errors' }] },
 }
 
 function fail(message) {
