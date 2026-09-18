@@ -1937,10 +1937,32 @@ pub async fn instance_cache_icon(
 }
 
 #[tauri::command]
-pub async fn instance_edit_icon(
+pub async fn instance_edit_icon<R: Runtime>(
+    app: AppHandle<R>,
     instance_id: &str,
     icon_path: Option<&Path>,
 ) -> Result<()> {
     theseus::instance::edit_icon(instance_id, icon_path).await?;
+    let instance =
+        theseus::instance::get(instance_id).await?.ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("unknown instance: {instance_id}"),
+            )
+        })?;
+    if let Err(error) = crate::api::shortcuts::sync_instance_shortcut_icon(
+        &app,
+        instance_id,
+        instance.instance.icon_path.as_deref().map(Path::new),
+        true,
+    )
+    .await
+    {
+        tracing::warn!(
+            "failed to update shortcut icon for instance {}: {}",
+            instance_id,
+            error
+        );
+    }
     Ok(())
 }
