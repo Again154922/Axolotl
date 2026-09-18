@@ -24,6 +24,7 @@ export interface ServerManifestData {
 	memoryMb?: number
 	jvmArgs: string[]
 	preLaunchHook?: string
+	homePinnedAt?: string
 	createdAt: string
 	lastStartedAt?: string
 	lastExitCrashed: boolean
@@ -85,6 +86,7 @@ export const servers = {
 			memoryMb?: number
 			jvmArgs?: string[]
 			preLaunchHook?: string
+			homePinned?: boolean
 		},
 	) => invoke<ServerManifestData>(command('servers_update_settings'), { serverId, ...options }),
 	setIcon: (serverId: string, iconPath: string | null) =>

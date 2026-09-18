@@ -2252,6 +2252,9 @@
   "app.home.servers.more-options": {
     "message": "More options"
   },
+  "app.home.servers.local": {
+    "message": "Local"
+  },
   "app.home.servers.offline": {
     "message": "Offline"
   },
@@ -7120,6 +7123,9 @@
   },
   "app.servers.settings.memory-mb": {
     "message": "Memory (MB)"
+  },
+  "app.servers.settings.pin-home": {
+    "message": "Pin to Home"
   },
   "app.servers.settings.name": {
     "message": "Server name"
