@@ -506,7 +506,7 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 				>
 					<div
 						class="settings-content-stage relative min-h-0"
-						:class="activeCategory?.flushContent ? 'h-full' : ''"
+						:class="activeCategory?.flushContent ? 'is-flush' : ''"
 					>
 						<Transition name="settings-content-skeleton">
 							<div v-if="isContentLoading" class="settings-content-skeleton" aria-hidden="true">
@@ -864,8 +864,9 @@ const pageTitle: MessageDescriptor = settingsPageTitle
    The stage needs a definite height so percentage-height descendants
    (.settings-content-body.h-full → .ai-provider-layout { height: 100% })
    resolve against a real box; otherwise their overflow-y: auto never
-   activates and the page either refuses to scroll or collapses oddly. */
-.settings-content-stage.h-full {
+   activates. State class, not a utility alias: it overrides the base
+   min-height above at equal specificity. */
+.settings-content-stage.is-flush {
 	height: 100%;
 	min-height: 0;
 }
