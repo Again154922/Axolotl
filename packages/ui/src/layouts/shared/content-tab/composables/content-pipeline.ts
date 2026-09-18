@@ -1,6 +1,6 @@
 import Fuse from 'fuse.js'
 import type { ComputedRef, Ref } from 'vue'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { commonProjectTypeCategoryMessages, normalizeProjectType } from '#ui/utils/common-messages'
@@ -417,27 +417,48 @@ export function useContentPipeline(config: ContentPipelineConfig) {
 	const row2FilterOptions = computed(() => result.value.row2FilterOptions)
 	const totalCount = computed(() => result.value.totalCount)
 
-	// Clean up invalid selections when options change
+	// Clean up invalid selections when options change.
+	//
+	// 'duplicates' stays a valid selection whenever the host provides duplicate
+	// tracking, even if the current duplicate set is transiently empty while
+	// items refresh after enable/disable. Clearing it in that window is what
+	// yanked users back to "all" (#542). The prune is also debounced so
+	// mid-refresh validation snapshots do not reset a user-selected filter.
+	const supportsDuplicateFilter = duplicateItems !== undefined
+	let pruneTimer: ReturnType<typeof setTimeout> | null = null
+
 	watch(
 		[filterValidationOptions, () => filterOptionsReady?.value ?? true],
 		() => {
-			const pruned = pruneContentFilterSelections(
-				{
-					typeFilters: selectedTypeFilter.value,
-					statusFilters: selectedStatusFilters.value,
-				},
-				filterValidationOptions.value,
-				filterOptionsReady?.value ?? true,
-			)
-			if (pruned.typeFilters.length !== selectedTypeFilter.value.length) {
-				selectedTypeFilter.value = pruned.typeFilters
-			}
-			if (pruned.statusFilters.length !== selectedStatusFilters.value.length) {
-				selectedStatusFilters.value = pruned.statusFilters
-			}
+			if (pruneTimer) clearTimeout(pruneTimer)
+			pruneTimer = setTimeout(() => {
+				const options = filterValidationOptions.value
+				const typeOptions =
+					supportsDuplicateFilter && !options.type.includes('duplicates')
+						? [...options.type, 'duplicates']
+						: options.type
+				const pruned = pruneContentFilterSelections(
+					{
+						typeFilters: selectedTypeFilter.value,
+						statusFilters: selectedStatusFilters.value,
+					},
+					{ type: typeOptions, status: options.status },
+					filterOptionsReady?.value ?? true,
+				)
+				if (pruned.typeFilters.length !== selectedTypeFilter.value.length) {
+					selectedTypeFilter.value = pruned.typeFilters
+				}
+				if (pruned.statusFilters.length !== selectedStatusFilters.value.length) {
+					selectedStatusFilters.value = pruned.statusFilters
+				}
+			}, 250)
 		},
 		{ immediate: true },
 	)
+
+	onBeforeUnmount(() => {
+		if (pruneTimer) clearTimeout(pruneTimer)
+	})
 
 	function toggleTypeFilter(filterId: string, event?: MouseEvent | KeyboardEvent) {
 		if (event?.ctrlKey || event?.metaKey) {
