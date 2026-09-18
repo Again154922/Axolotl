@@ -186,6 +186,15 @@ const messages = defineMessages({
 		id: 'app.appearance-settings.custom-background.opacity-description',
 		defaultMessage: 'Control how strongly the image shows through the interface.',
 	},
+	customBackgroundComponentOpacity: {
+		id: 'app.appearance-settings.custom-background.component-opacity',
+		defaultMessage: 'Component opacity',
+	},
+	customBackgroundComponentOpacityDescription: {
+		id: 'app.appearance-settings.custom-background.component-opacity-description',
+		defaultMessage:
+			'How opaque launcher components and chrome stay over a custom background. At 100% components are fully opaque; lower it to let the image show through.',
+	},
 	transparentBackgroundTitle: {
 		id: 'app.appearance-settings.transparent-background.title',
 		defaultMessage: 'Transparent background',
@@ -692,6 +701,7 @@ watch(
 			settings.value.custom_background_path,
 			settings.value.custom_background_blur,
 			settings.value.custom_background_opacity,
+			settings.value.custom_background_component_opacity,
 			settings.value.transparent_background,
 			settings.value.transparent_background_opacity,
 			settings.value.transparent_background_blur,
@@ -704,6 +714,7 @@ watch(
 		path,
 		blur,
 		opacity,
+		componentOpacity,
 		transparent,
 		transparentOpacity,
 		transparentBlur,
@@ -715,6 +726,8 @@ watch(
 		themeStore.customBackgroundPath = path
 		themeStore.customBackgroundBlur = blur
 		themeStore.customBackgroundOpacity = opacity
+		themeStore.customBackgroundComponentOpacity = componentOpacity ?? 100
+		themeStore.setCustomBackgroundComponentOpacity()
 		themeStore.transparentBackground = transparent
 		themeStore.transparentBackgroundOpacity = transparentOpacity
 		themeStore.transparentBackgroundBlur = transparentBlur
@@ -1069,6 +1082,22 @@ watch(
 						/>
 						<p class="m-0 text-sm text-secondary">
 							{{ formatMessage(messages.customBackgroundOpacityDescription) }}
+						</p>
+					</div>
+					<div class="flex flex-col gap-2">
+						<h3 class="m-0 font-semibold text-contrast">
+							{{ formatMessage(messages.customBackgroundComponentOpacity) }}
+						</h3>
+						<Slider
+							id="custom-background-component-opacity"
+							v-model="settings.custom_background_component_opacity"
+							:min="0"
+							:max="100"
+							:step="5"
+							unit="%"
+						/>
+						<p class="m-0 text-sm text-secondary">
+							{{ formatMessage(messages.customBackgroundComponentOpacityDescription) }}
 						</p>
 					</div>
 				</div>

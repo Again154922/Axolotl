@@ -130,6 +130,7 @@ export type ThemeStore = {
 	customBackgroundPath: string | null
 	customBackgroundBlur: number
 	customBackgroundOpacity: number
+	customBackgroundComponentOpacity: number
 	transparentBackground: boolean
 	transparentBackgroundOpacity: number
 	transparentBackgroundBlur: boolean
@@ -179,6 +180,7 @@ export const DEFAULT_THEME_STORE: ThemeStore = {
 	customBackgroundPath: null,
 	customBackgroundBlur: 12,
 	customBackgroundOpacity: 65,
+	customBackgroundComponentOpacity: 100,
 	transparentBackground: false,
 	transparentBackgroundOpacity: 55,
 	transparentBackgroundBlur: false,
@@ -308,6 +310,13 @@ export const useTheming = defineStore('themeStore', {
 			html.style.setProperty(
 				'--home-widget-bg-opacity',
 				`${Math.min(Math.max(this.homeWidgetBackgroundOpacity, 0), 100)}%`,
+			)
+		},
+		setCustomBackgroundComponentOpacity() {
+			const html = document.documentElement
+			html.style.setProperty(
+				'--custom-bg-component-opacity',
+				`${Math.min(Math.max(this.customBackgroundComponentOpacity, 0), 100)}%`,
 			)
 		},
 		isNavItemHidden(id: string) {

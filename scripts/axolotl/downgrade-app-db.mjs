@@ -136,8 +136,10 @@ const REVERTIBLE_SCHEMA = {
 			{ table: 'settings', column: 'default_window_title' },
 		],
 	},
-	// settings.ignore_ssl_errors
-	20260917120000: { columns: [{ table: 'settings', column: 'ignore_ssl_errors' }] },
+	// settings.custom_background_component_opacity
+	20260917150000: {
+		columns: [{ table: 'settings', column: 'custom_background_component_opacity' }],
+	},
 }
 
 function fail(message) {

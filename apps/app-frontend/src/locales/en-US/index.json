@@ -467,6 +467,12 @@
   "app.appearance-settings.custom-background.choose-or-drop": {
     "message": "Click to choose, or drop an image here"
   },
+  "app.appearance-settings.custom-background.component-opacity": {
+    "message": "Component opacity"
+  },
+  "app.appearance-settings.custom-background.component-opacity-description": {
+    "message": "How opaque launcher components and chrome stay over a custom background. At 100% components are fully opaque; lower it to let the image show through."
+  },
   "app.appearance-settings.custom-background.description": {
     "message": "Choose or drop a custom image, then fine-tune how it blends with the launcher interface."
   },
