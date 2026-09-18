@@ -2605,8 +2605,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	<div
 		v-if="stateInitialized && themeStore.customBackgroundPath && !themeStore.transparentBackground"
 		class="launcher-background"
-		:style="customBackgroundStyle"
-	/>
+	>
+		<div class="launcher-background-image" :style="customBackgroundStyle" />
+	</div>
 	<div
 		v-if="stateInitialized"
 		class="app-grid-layout relative"
@@ -2812,7 +2813,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		</div>
 		<div data-tauri-drag-region class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex">
 			<div data-tauri-drag-region class="flex min-w-0 flex-1 overflow-hidden p-3">
-				<div data-tauri-drag-region class="flex shrink-0 items-center gap-2">
+				<div
+					data-tauri-drag-region
+					class="flex shrink min-w-0 items-center gap-2 overflow-hidden"
+				>
 					<AxolotlLogo class="h-full w-auto shrink-0 pointer-events-none" />
 					<span
 						v-if="isBetaBuild"
@@ -2835,7 +2839,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 						<RightArrowIcon />
 					</button>
 				</div>
-				<Breadcrumbs class="pt-[2px]" />
+				<Breadcrumbs class="min-w-0 flex-1 pt-[2px]" />
 			</div>
 			<section data-tauri-drag-region class="flex shrink-0 ml-auto items-center">
 				<div class="flex mr-3">
@@ -3252,6 +3256,15 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	position: fixed;
 	inset: -3rem;
 	z-index: 0;
+	pointer-events: none;
+	// Opaque floor under the custom image: lowering "background visibility"
+	// dims the image against the app surface instead of revealing the desktop.
+	background-color: var(--color-raised-bg);
+}
+
+.launcher-background-image {
+	position: absolute;
+	inset: 0;
 	pointer-events: none;
 	background-position: center;
 	background-size: cover;
