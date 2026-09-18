@@ -622,6 +622,7 @@ where
         force_fullscreen: input.force_fullscreen,
         maximize_window: None,
         game_resolution: input.game_resolution,
+        window_title: None,
         launch_preparation_timeout: None,
         hooks: input.hooks,
     };

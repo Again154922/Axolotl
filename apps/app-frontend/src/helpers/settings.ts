@@ -169,6 +169,10 @@ export type AppSettings = {
 	close_behavior: 'ask' | 'close' | 'lightweight'
 	log_level: 'error' | 'warn' | 'info' | 'debug' | 'trace'
 	home_widgets: HomeDashboardConfig | null
+	home_widget_background_opacity: number
+	hidden_nav_items: string[]
+	custom_window_title_enabled: boolean
+	default_window_title: string
 	terracotta_public_nodes: string[]
 
 	telemetry: boolean
@@ -250,6 +254,9 @@ function normalizeDownloadSettings(settings: AppSettings & LegacyMirrorSettings)
 	settings.ignore_ssl_errors ??= false
 	settings.mojang_auth_source ??= 'auto'
 	settings.terracotta_public_nodes ??= ['wss://center.node.1tmc.top']
+	settings.hidden_nav_items ??= []
+	settings.custom_window_title_enabled ??= false
+	settings.default_window_title ??= 'Minecraft'
 	settings.feature_flags ??= { ...DEFAULT_FEATURE_FLAGS }
 	settings.sync_features_across_devices ??= false
 	settings.show_files_tab_in_instances ??= true

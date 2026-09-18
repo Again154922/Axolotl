@@ -46,10 +46,18 @@
 	</transition>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const emit = defineEmits(['menu-closed', 'option-clicked'])
+const emit = defineEmits<{
+	(e: 'menu-closed'): void
+	(e: 'option-clicked', payload: { item: unknown; option: string }): void
+}>()
+
+// Accessibility label for the menu root (fragment/teleport cannot inherit attrs).
+defineProps<{
+	label?: string
+}>()
 
 const item = ref(null)
 const contextMenu = ref(null)

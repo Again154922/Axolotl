@@ -71,12 +71,6 @@ import {
 import { mergeProviderResults } from '@/helpers/browse-merge'
 import { createBrowseProjectTabs, getBrowseProjectTabOptions } from '@/helpers/browse-project-tabs'
 import {
-	completeBrowseReturnNavigation,
-	consumeBrowseReturnSnapshot,
-	isBrowseReturnSourcePath,
-	saveBrowseReturnSnapshot,
-} from '@/helpers/browse-return-state.ts'
-import {
 	cancel_search_request,
 	get_project,
 	get_project_v3,
@@ -164,6 +158,7 @@ import {
 	provideServerInstallContent,
 } from '@/providers/setup/server-install-content'
 import { useBreadcrumbs } from '@/store/breadcrumbs'
+import { useNavigationReturnStore } from '@/store/navigation-return'
 import { useTheming } from '@/store/state'
 
 const { addNotification, handleError } = injectNotificationManager()
@@ -295,6 +290,7 @@ const initialCurseForgeCategoriesPromise =
 if (route.query.f || route.query.g) await initialCurseForgeCategoriesPromise
 
 const themeStore = useTheming()
+const navReturn = useNavigationReturnStore()
 const serverSetupModalRef = ref<InstanceType<typeof CreationFlowModal> | null>(null)
 const serverInstallContent = createServerInstallContent({ serverSetupModalRef })
 provideServerInstallContent(serverInstallContent)
@@ -1035,20 +1031,26 @@ if (instance.value) {
 }
 
 onBeforeRouteLeave((to) => {
-	if (isBrowseReturnSourcePath(to.path)) {
-		const viewport = document.querySelector<HTMLElement>('.app-viewport')
-		saveBrowseReturnSnapshot({
-			url: route.fullPath,
-			scrollTop: viewport?.scrollTop ?? 0,
-			state: { currentPage: searchState.currentPage.value },
-		})
-	}
+	try {
+		const currentPage = searchState.currentPage.value
+		if (navReturn.isBrowseReturnSourcePath(to.path)) {
+			const viewport = document.querySelector<HTMLElement>('.app-viewport')
+			navReturn.saveBrowseReturnSnapshot({
+				url: route.fullPath,
+				scrollTop: viewport?.scrollTop ?? 0,
+				state: { currentPage },
+			})
+		}
 
-	breadcrumbs.setContext({
-		name: '?BrowseTitle',
-		link: `/browse/${projectType.value}`,
-		query: route.query,
-	})
+		breadcrumbs.setContext({
+			name: '?BrowseTitle',
+			link: `/browse/${projectType.value}`,
+			query: route.query,
+		})
+	} catch (error) {
+		// Never abort leave navigation because bookkeeping failed.
+		console.warn('[browse] onBeforeRouteLeave bookkeeping failed', error)
+	}
 })
 
 function resetInstanceContext() {
@@ -1551,12 +1553,12 @@ function getCardActions(
 					isInstalled
 						? commonMessages.installedLabel
 						: isInstalling
-						? commonMessages.validatingLabel
-						: isSelected
-							? messages.selected
-							: activeInstance.value
-								? commonMessages.installButton
-								: messages.chooseInstance,
+							? commonMessages.validatingLabel
+							: isSelected
+								? messages.selected
+								: activeInstance.value
+									? commonMessages.installButton
+									: messages.chooseInstance,
 				),
 				compactLabel:
 					!isInstalled && !isInstalling && !isSelected && !activeInstance.value
@@ -2631,7 +2633,9 @@ type BrowseReturnState = {
 	currentPage: number
 }
 
-const browseReturnSnapshot = consumeBrowseReturnSnapshot<BrowseReturnState>(route.fullPath)
+const browseReturnSnapshot = navReturn.consumeBrowseReturnSnapshot<BrowseReturnState>(
+	route.fullPath,
+)
 
 const displayMode = ref<BrowseDisplayMode>(getLastBrowseContentDisplayMode())
 
@@ -2987,7 +2991,7 @@ async function restoreBrowseReturnScroll() {
 	document.querySelector<HTMLElement>('.app-viewport')?.scrollTo({
 		top: browseReturnSnapshot.scrollTop,
 	})
-	completeBrowseReturnNavigation(route.fullPath)
+	navReturn.completeBrowseReturnNavigation(route.fullPath)
 }
 
 watch(

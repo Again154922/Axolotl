@@ -146,7 +146,11 @@ impl CacheValueType {
 
     pub fn expiry(&self) -> i64 {
         match self {
-            CacheValueType::LoaderManifest => BACKGROUND_REFRESH_THRESHOLD,
+            // Newly published game versions must become selectable without an
+            // app restart, so version manifests share the loader refresh window.
+            CacheValueType::LoaderManifest
+            | CacheValueType::MinecraftManifest
+            | CacheValueType::GameVersions => BACKGROUND_REFRESH_THRESHOLD,
             _ => PERMANENT_CACHE_SECONDS,
         }
     }
@@ -198,9 +202,17 @@ mod loader_manifest_expiry_tests {
     };
 
     #[test]
-    fn loader_manifests_expire_at_refresh_threshold() {
+    fn version_manifests_expire_at_refresh_threshold() {
         assert_eq!(
             CacheValueType::LoaderManifest.expiry(),
+            BACKGROUND_REFRESH_THRESHOLD
+        );
+        assert_eq!(
+            CacheValueType::MinecraftManifest.expiry(),
+            BACKGROUND_REFRESH_THRESHOLD
+        );
+        assert_eq!(
+            CacheValueType::GameVersions.expiry(),
             BACKGROUND_REFRESH_THRESHOLD
         );
         assert_eq!(CacheValueType::Project.expiry(), PERMANENT_CACHE_SECONDS);

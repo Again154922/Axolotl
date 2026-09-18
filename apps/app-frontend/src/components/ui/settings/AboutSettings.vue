@@ -14,7 +14,16 @@ import {
 } from '@modrinth/assets'
 import { Avatar, defineMessages, NewButton as Button, useVIntl } from '@modrinth/ui'
 import { getVersion } from '@tauri-apps/api/app'
-import { inject, nextTick, onScopeDispose, ref, shallowRef } from 'vue'
+import {
+	defineAsyncComponent,
+	inject,
+	nextTick,
+	onErrorCaptured,
+	onMounted,
+	onScopeDispose,
+	ref,
+	shallowRef,
+} from 'vue'
 
 import AfdianIcon from '@/assets/external/afdian.png'
 import QqIcon from '@/assets/external/qq.svg?component'
@@ -23,12 +32,30 @@ import EasterEggGameModal from '@/components/ui/easteregg/EasterEggGameModal.vue
 import { AxolotlBrandConfig } from '@/config'
 import { contributors, type TeamMember, teamMembers } from '@/data/about'
 
-import AboutScene from '../AboutScene.vue'
 import { type AboutMemberExperience, getAboutMemberExperience } from './about-member-experiences'
 import QqChannelIcon from './QqChannelIcon.vue'
 
+// Lazy so three.js does not sit on the Suspense critical path for this settings
+// category (dev builds hang the skeleton while the chunk loads).
+// Policy: About must work in production builds; dev Vite hang is accepted
+// (see compose spec S3). Keep error isolation so a failed 3D scene cannot
+// tear down Settings in either environment.
+const AboutScene = defineAsyncComponent({
+	loader: () => import('../AboutScene.vue'),
+	onError(error, retry, fail) {
+		// one retry, then leave the scene slot empty instead of tearing down Settings
+		if ((error as { __aboutSceneRetried?: boolean }).__aboutSceneRetried) {
+			fail()
+			return
+		}
+		;(error as { __aboutSceneRetried?: boolean }).__aboutSceneRetried = true
+		retry()
+	},
+})
+const aboutSceneFailed = ref(false)
+
 const { formatMessage } = useVIntl()
-const version = await getVersion()
+const version = ref('')
 const copied = ref(false)
 const experienceHost = ref<HTMLElement>()
 const activeMemberExperience = shallowRef<AboutMemberExperience>()
@@ -41,6 +68,22 @@ const replayOnboarding = inject<(mode: 'main' | 'instance') => Promise<void>>('r
 const licenseUrl = `${AxolotlBrandConfig.repositoryUrl}/blob/main/LICENSE`
 const copyingUrl = `${AxolotlBrandConfig.repositoryUrl}/blob/main/COPYING.md`
 const thirdPartyLicensesUrl = `${AxolotlBrandConfig.repositoryUrl}/tree/main/third-party/licenses`
+
+onMounted(() => {
+	void getVersion()
+		.then((resolved) => {
+			version.value = resolved
+		})
+		.catch(() => {
+			// keep empty version string; do not fail the settings category
+		})
+})
+
+// Keep a failing 3D scene from bubbling into Settings Suspense / the shell.
+onErrorCaptured(() => {
+	aboutSceneFailed.value = true
+	return false
+})
 
 async function copyQqGroupNumber() {
 	await navigator.clipboard.writeText(AxolotlBrandConfig.qqGroupNumber)
@@ -291,7 +334,7 @@ const projectLinks = [
 						-webkit-mask-image: linear-gradient(to bottom, black 97%, transparent 100%);
 					"
 				>
-					<AboutScene />
+					<AboutScene v-if="!aboutSceneFailed" />
 					<component
 						:is="activeMemberExperience?.component"
 						v-if="activeMemberExperience"

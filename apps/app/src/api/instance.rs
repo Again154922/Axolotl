@@ -420,6 +420,7 @@ pub struct Instance {
     pub force_fullscreen: Option<bool>,
     pub maximize_window: Option<bool>,
     pub game_resolution: Option<WindowSize>,
+    pub window_title: Option<String>,
     pub launch_preparation_timeout: Option<u64>,
     pub hooks: Hooks,
     pub symlink_target: Option<String>,
@@ -556,6 +557,12 @@ pub struct EditInstance {
         skip_serializing_if = "Option::is_none",
         with = "serde_with::rust::double_option"
     )]
+    pub window_title: Option<Option<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_with::rust::double_option"
+    )]
     pub launch_preparation_timeout: Option<Option<u64>>,
     pub hooks: Option<Hooks>,
 
@@ -601,6 +608,7 @@ impl From<InstanceMetadata> for Instance {
             force_fullscreen: metadata.launch_overrides.force_fullscreen,
             maximize_window: metadata.launch_overrides.maximize_window,
             game_resolution: metadata.launch_overrides.game_resolution,
+            window_title: metadata.launch_overrides.window_title,
             launch_preparation_timeout: metadata
                 .launch_overrides
                 .launch_preparation_timeout,
@@ -755,6 +763,7 @@ fn edit_to_core(edit_instance: EditInstance) -> Result<CoreEditInstance> {
             force_fullscreen: edit_instance.force_fullscreen,
             maximize_window: edit_instance.maximize_window,
             game_resolution: edit_instance.game_resolution,
+            window_title: edit_instance.window_title,
             launch_preparation_timeout: edit_instance
                 .launch_preparation_timeout,
             hooks: edit_instance.hooks,

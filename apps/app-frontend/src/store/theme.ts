@@ -133,6 +133,8 @@ export type ThemeStore = {
 	transparentBackground: boolean
 	transparentBackgroundOpacity: number
 	transparentBackgroundBlur: boolean
+	homeWidgetBackgroundOpacity: number
+	hiddenNavItems: string[]
 	sidebarInstanceCount: number
 	autoHideDownloadsButton: boolean
 	homeLayout: HomeLayout
@@ -180,6 +182,8 @@ export const DEFAULT_THEME_STORE: ThemeStore = {
 	transparentBackground: false,
 	transparentBackgroundOpacity: 55,
 	transparentBackgroundBlur: false,
+	homeWidgetBackgroundOpacity: 100,
+	hiddenNavItems: [],
 	sidebarInstanceCount: 0,
 	autoHideDownloadsButton: false,
 	homeLayout: 'standard',
@@ -298,6 +302,16 @@ export const useTheming = defineStore('themeStore', {
 				'--transparent-window-alpha',
 				`${Math.min(Math.max(this.transparentBackgroundOpacity, 0), 100)}%`,
 			)
+		},
+		setHomeWidgetBackgroundOpacity() {
+			const html = document.documentElement
+			html.style.setProperty(
+				'--home-widget-bg-opacity',
+				`${Math.min(Math.max(this.homeWidgetBackgroundOpacity, 0), 100)}%`,
+			)
+		},
+		isNavItemHidden(id: string) {
+			return this.hiddenNavItems.includes(id)
 		},
 		getFeatureFlag(key: FeatureFlag) {
 			return this.featureFlags[key] ?? DEFAULT_FEATURE_FLAGS[key]

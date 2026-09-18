@@ -1862,6 +1862,7 @@ pub async fn launch_minecraft(
     memory: &MemorySettings,
     resolution: &WindowSize,
     maximize_window: bool,
+    window_title: Option<String>,
     launch_preparation_timeout: u64,
     credentials: &Credentials,
     post_exit_hook: Option<String>,
@@ -2602,6 +2603,17 @@ pub async fn launch_minecraft(
             env!("CARGO_PKG_VERSION")
         ));
 
+    // PCL-style custom window title. Vanilla ignores this property, but
+    // loader/mod bridges that read it get the same value as the Win32
+    // rename pass applied after the window appears.
+    if let Some(title) = window_title
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+    {
+        command.arg(format!("-Dminecraft.window.title={title}"));
+    }
+
     // The java launcher requires access to java.lang.reflect in order to force access in to
     // whatever module the main class is in
     if java_version.parsed_version >= 9 {
@@ -2768,6 +2780,7 @@ pub async fn launch_minecraft(
             command,
             post_exit_hook,
             maximize_window,
+            window_title,
             launch_preparation_timeout,
             instance_path.clone(),
             logs_folder,

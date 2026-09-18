@@ -1,5 +1,6 @@
 <template>
-	<!-- eslint-disable vue/no-undef-components -->
+	<!-- Tres* tags are resolved by the TresJS Vite plugin, not package exports. -->
+	<!-- eslint-disable-next-line vue/no-undef-components -->
 	<div
 		ref="skinPreviewContainer"
 		class="relative w-full h-full overflow-visible cursor-grab"

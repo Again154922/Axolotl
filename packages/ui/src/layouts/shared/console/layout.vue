@@ -1,10 +1,25 @@
 <template>
-	<div
-		class="flex min-h-0 flex-1 flex-col gap-4"
-		:class="
-			isFullscreen ? `fixed inset-0 z-[15] bg-surface-1 p-6 py-8 ${isApp ? 'pt-12' : ''}` : ''
-		"
-	>
+	<!--
+		Fullscreen must teleport to body: .app-contents uses isolation:isolate
+		and z-index:1, so an in-tree fixed overlay cannot paint above its
+		border/vignette pseudo-elements.
+	-->
+	<Teleport to="body" :disabled="!isFullscreen">
+		<div
+			class="flex min-h-0 flex-1 flex-col gap-4"
+			:class="
+				isFullscreen
+					? // Below statusbar (200) so the title-bar drag strip stays live.
+						`fixed inset-0 z-[150] bg-surface-1 p-6 py-8 ${isApp ? 'pt-12' : ''}`
+					: ''
+			"
+		>
+			<div
+				v-if="isFullscreen && isApp"
+				data-tauri-drag-region
+				class="pointer-events-auto absolute inset-x-0 top-0 h-12"
+				aria-hidden="true"
+			/>
 		<div
 			v-if="
 				(ctx.localCrashAnalysis?.value?.findings.length ||
@@ -130,7 +145,8 @@
 			:spellcheck="false"
 			@keydown.enter="submitCommand"
 		/>
-	</div>
+		</div>
+	</Teleport>
 	<ShareModal
 		ref="shareModal"
 		:header="formatMessage(consoleMessages.shareLogs)"
@@ -702,6 +718,7 @@ onBeforeUnmount(() => {
 	if (isFullscreen.value) {
 		document.body.style.overflow = ''
 		document.body.classList.remove(fullscreenBodyClass)
+		window.dispatchEvent(new CustomEvent('modrinth-console-fullscreen', { detail: false }))
 		pageContext?.intercomBubble?.requestHorizontalPadding?.(
 			fullscreenIntercomPaddingRequestId,
 			null,
@@ -805,6 +822,9 @@ function toggleFullscreen() {
 	if (isFullscreen.value) {
 		document.body.style.overflow = 'hidden'
 		document.body.classList.add(fullscreenBodyClass)
+		// Let the shell collapse the account sidebar so the collapse control
+		// stays reachable and the expanded pane uses the full width (#584).
+		window.dispatchEvent(new CustomEvent('modrinth-console-fullscreen', { detail: true }))
 		pageContext?.intercomBubble?.requestHorizontalPadding?.(
 			fullscreenIntercomPaddingRequestId,
 			fullscreenIntercomPadding,
@@ -813,6 +833,7 @@ function toggleFullscreen() {
 	} else {
 		document.body.style.overflow = ''
 		document.body.classList.remove(fullscreenBodyClass)
+		window.dispatchEvent(new CustomEvent('modrinth-console-fullscreen', { detail: false }))
 		pageContext?.intercomBubble?.requestHorizontalPadding?.(
 			fullscreenIntercomPaddingRequestId,
 			null,

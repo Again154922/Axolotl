@@ -77,6 +77,12 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		label: message('app.appearance-settings.page-transitions.title', 'Page transition animations'),
 	},
 	{
+		id: 'appearance-hidden-nav-items',
+		categoryId: 'home-navigation',
+		targetId: 'settings-target-appearance-hidden-nav-items',
+		label: message('app.appearance-settings.hidden-nav-items.title', 'Navigation items'),
+	},
+	{
 		id: 'appearance-home-layout',
 		categoryId: 'home-navigation',
 		targetId: 'settings-target-appearance-home-layout',
@@ -104,6 +110,16 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		label: message(
 			'app.appearance-settings.auto-hide-downloads-button.title',
 			'Auto-hide downloads button',
+		),
+	},
+	{
+		id: 'defaults-window-title',
+		categoryId: 'launch-defaults',
+		targetId: 'settings-target-defaults-window-title',
+		label: message('app.settings.defaults.window-title.enabled', 'Custom Minecraft window title'),
+		description: message(
+			'app.settings.defaults.window-title.enabled-description',
+			'Allow instances to customize the Minecraft window title.',
 		),
 	},
 	{

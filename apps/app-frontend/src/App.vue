@@ -235,8 +235,13 @@ const forceSidebar = computed(
 	() => route.path.startsWith('/browse') || route.path.startsWith('/project'),
 )
 const forceSidebarHidden = computed(() => route.path === '/settings')
+/** Console fullscreen collapses the account sidebar so its controls stay reachable. */
+const consoleFullscreenActive = ref(false)
 const sidebarVisible = computed(
-	() => !forceSidebarHidden.value && (sidebarToggled.value || forceSidebar.value),
+	() =>
+		!forceSidebarHidden.value &&
+		!consoleFullscreenActive.value &&
+		(sidebarToggled.value || forceSidebar.value),
 )
 const customBackgroundStyle = computed(() => {
 	// A custom image would sit between the desktop and the UI, defeating the
@@ -351,7 +356,9 @@ async function applyWindowFrame() {
 			enabled: themeStore.transparentBackground,
 		})
 	} catch (error) {
-		console.warn('Failed to update transparent window frame', error)
+		// Frame helpers can reject with invalid parameter on some window states;
+		// do not spam the console for a cosmetic desktop chrome tweak.
+		console.debug('Failed to update transparent window frame', error)
 	}
 }
 
@@ -714,6 +721,7 @@ onMounted(async () => {
 	document.querySelector('body').addEventListener('click', handleClick)
 	document.querySelector('body').addEventListener('auxclick', handleAuxClick)
 	window.addEventListener(DIRECT_LINKS_SYNCED_EVENT, handleDirectLinkSyncReport)
+	window.addEventListener('modrinth-console-fullscreen', handleConsoleFullscreen as EventListener)
 
 	// Background maintenance must not compete with first paint / route enter.
 	runWhenIdle(() => {
@@ -726,6 +734,10 @@ onMounted(async () => {
 let directLinkSync: (() => Promise<void>) | undefined
 let stopDirectLinkSync: (() => void) | undefined
 let directLinkSyncErrorSignature = ''
+
+function handleConsoleFullscreen(event: CustomEvent<boolean>) {
+	consoleFullscreenActive.value = Boolean(event.detail)
+}
 
 function handleDirectLinkSyncReport(event: Event) {
 	if (!(event instanceof CustomEvent)) return
@@ -803,6 +815,10 @@ onUnmounted(async () => {
 	document.querySelector('body').removeEventListener('click', handleClick)
 	document.querySelector('body').removeEventListener('auxclick', handleAuxClick)
 	window.removeEventListener(DIRECT_LINKS_SYNCED_EVENT, handleDirectLinkSyncReport)
+	window.removeEventListener(
+		'modrinth-console-fullscreen',
+		handleConsoleFullscreen as EventListener,
+	)
 	clearDelayedUpdatePopup()
 	stopDirectLinkSync?.()
 	await unlistenUpdateDownload?.()
@@ -1300,6 +1316,8 @@ async function setupApp() {
 		transparent_background,
 		transparent_background_opacity,
 		transparent_background_blur,
+		home_widget_background_opacity,
+		hidden_nav_items,
 		sidebar_instance_count,
 		auto_hide_downloads_button,
 		home_layout,
@@ -1356,6 +1374,10 @@ async function setupApp() {
 	themeStore.setTransparentBackgroundClass()
 	await applyWindowFrame()
 	await applyWindowEffects()
+	themeStore.homeWidgetBackgroundOpacity =
+		home_widget_background_opacity ?? 100
+	themeStore.setHomeWidgetBackgroundOpacity()
+	themeStore.hiddenNavItems = hidden_nav_items ?? []
 	themeStore.sidebarInstanceCount = sidebar_instance_count
 	themeStore.autoHideDownloadsButton = auto_hide_downloads_button
 	themeStore.homeLayout = home_layout
@@ -1400,21 +1422,16 @@ async function setupApp() {
 	})
 
 	if (!dev) {
-		document.addEventListener('contextmenu', (event) => {
-			// Keep the launcher's custom context-menu behavior for regular content,
-			// but let native editing controls and selected text expose copy/paste actions.
-			const target = event.target
-			const hasSelectedText = window.getSelection()?.toString().length > 0
-			if (
-				target instanceof HTMLInputElement ||
-				target instanceof HTMLTextAreaElement ||
-				(target instanceof HTMLElement && target.isContentEditable) ||
-				hasSelectedText
-			) {
-				return
-			}
-			event.preventDefault()
-		})
+		// Capture phase so WebView2 never shows its native edit menu (Shift+RMB
+		// on search/inputs included). Copy/paste stays available via keyboard
+		// shortcuts; launcher chrome uses our custom menus.
+		document.addEventListener(
+			'contextmenu',
+			(event) => {
+				event.preventDefault()
+			},
+			{ capture: true },
+		)
 	}
 
 	const osType = await getOsType()
@@ -2511,13 +2528,20 @@ function handleClick(e) {
 	let target = e.target
 	while (target != null) {
 		if (target.matches('a')) {
+			// RouterLinks and same-origin SPA paths must keep default handling /
+			// vue-router click; only intercept true external protocol links.
+			const href = target.getAttribute('href') ?? ''
+			const isRouterLink = target.classList.contains('router-link-active') || href.startsWith('/')
+			const isLocalhost =
+				target.href.startsWith('http://localhost') ||
+				target.href.startsWith('https://tauri.localhost') ||
+				target.href.startsWith('http://tauri.localhost')
 			if (
+				!isRouterLink &&
 				target.href &&
 				['http://', 'https://', 'mailto:', 'tel:'].some((v) => target.href.startsWith(v)) &&
 				!target.classList.contains('router-link-active') &&
-				!target.href.startsWith('http://localhost') &&
-				!target.href.startsWith('https://tauri.localhost') &&
-				!target.href.startsWith('http://tauri.localhost')
+				!isLocalhost
 			) {
 				const parsed = parseModrinthLink(target.href)
 				if (target.target !== '_blank' && parsed) {
@@ -2525,8 +2549,8 @@ function handleClick(e) {
 				} else {
 					openUrl(target.href)
 				}
+				e.preventDefault()
 			}
-			e.preventDefault()
 			break
 		}
 		target = target.parentElement
@@ -2631,10 +2655,15 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			class="app-grid-navbar bg-bg-raised flex flex-col p-[0.5rem] pt-0 gap-[0.5rem] w-[--left-bar-width] overflow-hidden"
 		>
 			<NavRail>
-				<NavButton v-tooltip.right="formatMessage(messages.home)" to="/">
+				<NavButton
+					v-if="!themeStore.isNavItemHidden('home')"
+					v-tooltip.right="formatMessage(messages.home)"
+					to="/"
+				>
 					<HomeIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('screenshots')"
 					v-tooltip.right="formatMessage(messages.screenshots)"
 					data-onboarding-id="nav-screenshots"
 					to="/screenshots"
@@ -2643,13 +2672,14 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<ImagesIcon />
 				</NavButton>
 				<NavButton
-					v-if="themeStore.featureFlags.worlds_tab"
+					v-if="themeStore.featureFlags.worlds_tab && !themeStore.isNavItemHidden('worlds')"
 					v-tooltip.right="formatMessage(messages.worlds)"
 					to="/worlds"
 				>
 					<WorldIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('discover')"
 					v-tooltip.right="formatMessage(messages.discoverContent)"
 					data-onboarding-id="nav-discover"
 					:to="discoverContentPath"
@@ -2660,6 +2690,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<CompassIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('skins')"
 					v-tooltip.right="formatMessage(messages.skinSelector)"
 					data-onboarding-id="nav-skins"
 					to="/skins"
@@ -2667,6 +2698,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<ChangeSkinIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('multiplayer')"
 					v-tooltip.right="formatMessage(messages.multiplayer)"
 					to="/multiplayer"
 					:is-primary="(r) => r.path.startsWith('/multiplayer')"
@@ -2674,6 +2706,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<UsersIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('library')"
 					v-tooltip.right="formatMessage(messages.library)"
 					data-onboarding-id="nav-library"
 					to="/library"
@@ -2688,6 +2721,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<LibraryIcon />
 				</NavButton>
 				<NavButton
+					v-if="!themeStore.isNavItemHidden('lab')"
 					v-tooltip.right="formatMessage(messages.lab)"
 					data-onboarding-id="nav-lab"
 					to="/lab"
@@ -2696,7 +2730,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<FlaskConicalIcon />
 				</NavButton>
 				<NavButton
-					v-if="!themeStore.autoHideDownloadsButton || downloadManager.activeCount.value > 0"
+					v-if="
+						!themeStore.isNavItemHidden('downloads') &&
+						(!themeStore.autoHideDownloadsButton || downloadManager.activeCount.value > 0)
+					"
 					v-tooltip.right="formatMessage(messages.downloads)"
 					data-onboarding-id="nav-downloads"
 					to="/downloads"
@@ -2926,7 +2963,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		:on-error-action="exportNotificationErrorLogs"
 		:error-action-label="formatMessage(messages.exportErrorLogs)"
 	/>
-	<MinecraftCrashModal ref="minecraftCrashModal" @error="handleError" />
+	<MinecraftCrashModal ref="minecraftCrashModal" />
 	<JavaDownloadConfirmationModal ref="javaDownloadConfirmationModal" />
 	<PrivacyConsentModal ref="privacyConsentModal" @saved="handlePrivacyConsentSaved" />
 	<CommunityAnnouncementModal ref="communityAnnouncementModal" />
@@ -3483,6 +3520,14 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	overflow-x: hidden;
 	scrollbar-gutter: stable;
 	padding-bottom: var(--floating-action-bar-clearance, 0px);
+
+	// Programmatic focus target for route handoff and keyboard shortcuts.
+	// Clicking the pane focuses it; Tab/Shift/Esc then paint the UA ring as a
+	// full-pane black frame (issue #579).
+	&:focus,
+	&:focus-visible {
+		outline: none;
+	}
 }
 
 .app-contents::before {
@@ -3499,6 +3544,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	border-width: 1px;
 	border-style: solid;
 	pointer-events: none;
+}
+
+// Console fullscreen teleports above the content pane; the decorative edge
+// must not draw through that opaque overlay.
+body.modrinth-console-fullscreen-active .app-contents::before {
+	opacity: 0;
 }
 
 .sidebar-teleport-content:empty + .sidebar-default-content.sidebar-enabled {

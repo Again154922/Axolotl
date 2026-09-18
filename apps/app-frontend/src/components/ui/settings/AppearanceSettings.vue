@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
 	CheckIcon,
+	ChevronDownIcon,
 	ImageIcon,
 	LayoutTemplateIcon,
 	MinimizeIcon,
@@ -26,6 +27,8 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { exists, mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import HeadlessSelect from '@/components/ui/headless/HeadlessSelect.vue'
+import HeadlessTooltip from '@/components/ui/headless/HeadlessTooltip.vue'
 import { getShowScrollTop, setShowScrollTop } from '@/helpers/scroll-top-state'
 import { get, set } from '@/helpers/settings.ts'
 import { getOS } from '@/helpers/utils'
@@ -311,6 +314,14 @@ const messages = defineMessages({
 		id: 'app.appearance-settings.home-layout.minimal',
 		defaultMessage: 'Minimal',
 	},
+	homeWidgetBackgroundOpacityTitle: {
+		id: 'app.appearance-settings.home-widget-background-opacity.title',
+		defaultMessage: 'Home widget background opacity',
+	},
+	homeWidgetBackgroundOpacityDescription: {
+		id: 'app.appearance-settings.home-widget-background-opacity.description',
+		defaultMessage: 'Lower this to let the launcher background show through home widgets.',
+	},
 	selectOption: {
 		id: 'app.appearance-settings.select-option',
 		defaultMessage: 'Select an option',
@@ -374,10 +385,124 @@ const messages = defineMessages({
 		defaultMessage:
 			'Hide the downloads button in the sidebar when there are no active download tasks.',
 	},
+	hiddenNavItemsTitle: {
+		id: 'app.appearance-settings.hidden-nav-items.title',
+		defaultMessage: 'Navigation items',
+	},
+	hiddenNavItemsDescription: {
+		id: 'app.appearance-settings.hidden-nav-items.description',
+		defaultMessage:
+			'Choose which fixed navigation buttons stay visible. Hidden pages remain reachable by URL or keyboard shortcuts.',
+	},
+	hiddenNavLockedCore: {
+		id: 'app.appearance-settings.hidden-nav-items.locked-core',
+		defaultMessage: 'Home and Library always stay visible so you can find your way back.',
+	},
+	hiddenNavLockedDefaultPage: {
+		id: 'app.appearance-settings.hidden-nav-items.locked-default-page',
+		defaultMessage: 'This item is your default landing page. Change that first to hide it.',
+	},
+	navGroupBrowse: {
+		id: 'app.appearance-settings.hidden-nav-items.group-browse',
+		defaultMessage: 'Browse',
+	},
+	navGroupPlay: {
+		id: 'app.appearance-settings.hidden-nav-items.group-play',
+		defaultMessage: 'Play',
+	},
+	navGroupTools: {
+		id: 'app.appearance-settings.hidden-nav-items.group-tools',
+		defaultMessage: 'Tools',
+	},
+	navHome: { id: 'app.navigation.home', defaultMessage: 'Home' },
+	navDiscover: {
+		id: 'app.navigation.discover-content',
+		defaultMessage: 'Discover content',
+	},
+	navScreenshots: { id: 'app.navigation.screenshots', defaultMessage: 'Screenshots' },
+	navLibrary: { id: 'app.navigation.library', defaultMessage: 'Library' },
+	navWorlds: { id: 'app.navigation.worlds', defaultMessage: 'Worlds' },
+	navMultiplayer: { id: 'app.navigation.multiplayer', defaultMessage: 'Multiplayer' },
+	navSkins: { id: 'app.navigation.skin-selector', defaultMessage: 'Skin selector' },
+	navLab: { id: 'app.navigation.lab', defaultMessage: 'Lab' },
+	navDownloads: { id: 'app.navigation.downloads', defaultMessage: 'Downloads' },
 })
 
 const os = ref(await getOS())
 const settings = ref(await get())
+
+/** Nav ids that must stay visible so the shell remains navigable. */
+const LOCKED_NAV_ITEM_IDS = new Set(['home', 'library'])
+
+/** Maps default_page values onto the nav rail item that serves them. */
+const DEFAULT_PAGE_NAV_ID: Record<string, string> = {
+	Home: 'home',
+	DiscoverContent: 'discover',
+	Library: 'library',
+}
+
+type NavTreeItem = {
+	id: string
+	label: MessageDescriptor
+	/** Parent ids nest under a group row; undefined is a root item. */
+	group?: 'browse' | 'play' | 'tools'
+}
+
+const NAV_TREE_ITEMS: NavTreeItem[] = [
+	{ id: 'home', label: messages.navHome, group: 'browse' },
+	{ id: 'discover', label: messages.navDiscover, group: 'browse' },
+	{ id: 'screenshots', label: messages.navScreenshots, group: 'browse' },
+	{ id: 'library', label: messages.navLibrary, group: 'play' },
+	{ id: 'worlds', label: messages.navWorlds, group: 'play' },
+	{ id: 'multiplayer', label: messages.navMultiplayer, group: 'play' },
+	{ id: 'skins', label: messages.navSkins, group: 'play' },
+	{ id: 'lab', label: messages.navLab, group: 'tools' },
+	{ id: 'downloads', label: messages.navDownloads, group: 'tools' },
+]
+
+const NAV_TREE_GROUPS = [
+	{ id: 'browse' as const, labelKey: messages.navGroupBrowse },
+	{ id: 'play' as const, labelKey: messages.navGroupPlay },
+	{ id: 'tools' as const, labelKey: messages.navGroupTools },
+]
+
+const expandedNavGroups = ref<Record<string, boolean>>({
+	browse: true,
+	play: true,
+	tools: true,
+})
+
+function navItemsInGroup(group: NavTreeItem['group']) {
+	return NAV_TREE_ITEMS.filter((item) => item.group === group)
+}
+
+function navItemLockReason(id: string): MessageDescriptor | null {
+	if (LOCKED_NAV_ITEM_IDS.has(id)) return messages.hiddenNavLockedCore
+	if (DEFAULT_PAGE_NAV_ID[settings.value.default_page] === id) {
+		return messages.hiddenNavLockedDefaultPage
+	}
+	return null
+}
+
+function isNavItemVisible(id: string) {
+	return !settings.value.hidden_nav_items.includes(id)
+}
+
+function setNavItemVisible(id: string, visible: boolean) {
+	if (navItemLockReason(id)) return
+
+	const hidden = new Set(settings.value.hidden_nav_items)
+	if (visible) {
+		hidden.delete(id)
+	} else {
+		hidden.add(id)
+	}
+	// Boundary guard: never persist core items as hidden.
+	for (const locked of LOCKED_NAV_ITEM_IDS) hidden.delete(locked)
+
+	settings.value.hidden_nav_items = [...hidden]
+	themeStore.hiddenNavItems = settings.value.hidden_nav_items
+}
 const customBackgroundPreview = computed(() =>
 	settings.value.custom_background_path
 		? convertFileSrc(settings.value.custom_background_path)
@@ -570,6 +695,8 @@ watch(
 			settings.value.transparent_background,
 			settings.value.transparent_background_opacity,
 			settings.value.transparent_background_blur,
+			settings.value.home_widget_background_opacity,
+			settings.value.hidden_nav_items,
 			settings.value.sidebar_instance_count,
 			settings.value.close_behavior,
 		] as const,
@@ -580,6 +707,8 @@ watch(
 		transparent,
 		transparentOpacity,
 		transparentBlur,
+		homeWidgetBackgroundOpacity,
+		hiddenNavItems,
 		sidebarInstanceCount,
 		closeBehavior,
 	]) => {
@@ -590,6 +719,9 @@ watch(
 		themeStore.transparentBackgroundOpacity = transparentOpacity
 		themeStore.transparentBackgroundBlur = transparentBlur
 		themeStore.setTransparentBackgroundClass()
+		themeStore.homeWidgetBackgroundOpacity = homeWidgetBackgroundOpacity
+		themeStore.setHomeWidgetBackgroundOpacity()
+		themeStore.hiddenNavItems = hiddenNavItems
 		themeStore.sidebarInstanceCount = sidebarInstanceCount
 		themeStore.closeBehavior = closeBehavior as CloseBehavior
 	},
@@ -884,10 +1016,15 @@ watch(
 							v-if="customBackgroundPreview && !isBackgroundDragActive"
 							class="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-surface-1/80 p-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
 						>
-							<Button type="base" native-type="button" @click.stop="chooseCustomBackground">
-								<UploadIcon />
-								{{ formatMessage(messages.customBackgroundReplace) }}
-							</Button>
+							<HeadlessTooltip side="top">
+								<Button type="base" native-type="button" @click.stop="chooseCustomBackground">
+									<UploadIcon />
+									{{ formatMessage(messages.customBackgroundReplace) }}
+								</Button>
+								<template #content>
+									{{ formatMessage(messages.customBackgroundChooseOrDrop) }}
+								</template>
+							</HeadlessTooltip>
 							<Button
 								type="outlined"
 								color="red"
@@ -1028,6 +1165,27 @@ watch(
 					</div>
 				</template>
 			</SettingsRow>
+			<SettingsRow stacked>
+				<template #label>
+					<span id="settings-target-appearance-home-widget-opacity" tabindex="-1">
+						{{ formatMessage(messages.homeWidgetBackgroundOpacityTitle) }}
+					</span>
+				</template>
+				<template #description>{{
+					formatMessage(messages.homeWidgetBackgroundOpacityDescription)
+				}}</template>
+				<template #control>
+					<div class="w-full">
+						<Slider
+							id="home-widget-background-opacity"
+							v-model="settings.home_widget_background_opacity"
+							:min="0"
+							:max="100"
+							:step="5"
+						/>
+					</div>
+				</template>
+			</SettingsRow>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-appearance-default-landing-page" tabindex="-1">
@@ -1039,7 +1197,7 @@ watch(
 				}}</template>
 				<template #control>
 					<div class="w-full">
-						<Combobox
+						<HeadlessSelect
 							id="opening-page"
 							v-model="settings.default_page"
 							:name="formatMessage(messages.defaultLandingPageTitle)"
@@ -1080,6 +1238,68 @@ watch(
 							:max="50"
 							:step="1"
 						/>
+					</div>
+				</template>
+			</SettingsRow>
+			<SettingsRow stacked>
+				<template #label>
+					<span id="settings-target-appearance-hidden-nav-items" tabindex="-1">
+						{{ formatMessage(messages.hiddenNavItemsTitle) }}
+					</span>
+				</template>
+				<template #description>{{ formatMessage(messages.hiddenNavItemsDescription) }}</template>
+				<template #control>
+					<div class="flex w-full flex-col gap-2">
+						<div
+							v-for="group in NAV_TREE_GROUPS"
+							:key="group.id"
+							class="overflow-hidden rounded-lg border border-solid border-surface-4 bg-surface-3"
+						>
+							<button
+								type="button"
+								class="flex w-full items-center justify-between gap-2 border-0 bg-transparent px-3 py-2 text-left text-sm font-semibold text-contrast"
+								:aria-expanded="expandedNavGroups[group.id]"
+								@click="expandedNavGroups[group.id] = !expandedNavGroups[group.id]"
+							>
+								<span>{{ formatMessage(group.labelKey) }}</span>
+								<ChevronDownIcon
+									class="size-4 text-secondary transition-transform"
+									:class="expandedNavGroups[group.id] ? 'rotate-180' : ''"
+									aria-hidden="true"
+								/>
+							</button>
+							<div
+								v-show="expandedNavGroups[group.id]"
+								class="flex flex-col gap-px border-t border-solid border-surface-4"
+							>
+								<label
+									v-for="item in navItemsInGroup(group.id)"
+									:key="item.id"
+									class="flex items-center justify-between gap-3 px-3 py-2"
+									:class="navItemLockReason(item.id) ? 'opacity-60' : ''"
+								>
+									<span
+										class="text-sm"
+										:class="navItemLockReason(item.id) ? 'text-secondary' : 'text-contrast'"
+									>
+										{{ formatMessage(item.label) }}
+									</span>
+									<span
+										v-if="navItemLockReason(item.id)"
+										v-tooltip="formatMessage(navItemLockReason(item.id)!)"
+										class="inline-flex"
+									>
+										<Toggle :id="`nav-item-${item.id}`" :model-value="true" disabled />
+									</span>
+									<Toggle
+										v-else
+										:id="`nav-item-${item.id}`"
+										:model-value="isNavItemVisible(item.id)"
+										@update:model-value="(value) => setNavItemVisible(item.id, !!value)"
+									/>
+								</label>
+							</div>
+						</div>
 					</div>
 				</template>
 			</SettingsRow>

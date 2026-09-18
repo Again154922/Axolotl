@@ -111,6 +111,31 @@ const REVERTIBLE_SCHEMA = {
 			'sync_feature_settings',
 		],
 	},
+	// linked server project sync source; data only
+	20260915090000: {},
+	// minecraft_users_with_identity table; trigger drops are not reversible
+	20260916090000: {
+		tables: ['minecraft_users_with_identity'],
+	},
+	// settings.ignore_ssl_errors
+	20260917120000: {
+		columns: [{ table: 'settings', column: 'ignore_ssl_errors' }],
+	},
+	// settings.home_widget_background_opacity
+	20260917130000: {
+		columns: [{ table: 'settings', column: 'home_widget_background_opacity' }],
+	},
+	// settings.hidden_nav_items
+	20260917131000: {
+		columns: [{ table: 'settings', column: 'hidden_nav_items' }],
+	},
+	// settings.custom_window_title_enabled / default_window_title
+	20260917140000: {
+		columns: [
+			{ table: 'settings', column: 'custom_window_title_enabled' },
+			{ table: 'settings', column: 'default_window_title' },
+		],
+	},
 	// settings.ignore_ssl_errors
 	20260917120000: { columns: [{ table: 'settings', column: 'ignore_ssl_errors' }] },
 }

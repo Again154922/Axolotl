@@ -167,6 +167,9 @@ importers:
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.42(typescript@5.9.3))
+      reka-ui:
+        specifier: ^2.10.1
+        version: 2.10.1(vue@3.5.42(typescript@5.9.3))
       three:
         specifier: ^0.185.1
         version: 0.185.1
@@ -10168,6 +10171,15 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  '@floating-ui/vue@1.1.11(vue@3.5.42(typescript@5.9.3))':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@floating-ui/utils': 0.2.12
+      vue-demi: 0.14.10(vue@3.5.42(typescript@5.9.3))
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
   '@formatjs/cli-native-darwin-arm64@1.1.17':
     optional: true
 
@@ -11773,6 +11785,11 @@ snapshots:
       '@tanstack/virtual-core': 3.17.7
       vue: 3.5.27(typescript@5.9.3)
 
+  '@tanstack/vue-virtual@3.13.35(vue@3.5.42(typescript@5.9.3))':
+    dependencies:
+      '@tanstack/virtual-core': 3.17.7
+      vue: 3.5.42(typescript@5.9.3)
+
   '@taplo/core@0.2.0': {}
 
   '@taplo/lib@0.5.0':
@@ -12893,6 +12910,13 @@ snapshots:
       '@vueuse/shared': 14.4.0(vue@3.5.27(typescript@5.9.3))
       vue: 3.5.27(typescript@5.9.3)
 
+  '@vueuse/core@14.4.0(vue@3.5.42(typescript@5.9.3))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 14.4.0
+      '@vueuse/shared': 14.4.0(vue@3.5.42(typescript@5.9.3))
+      vue: 3.5.42(typescript@5.9.3)
+
   '@vueuse/core@9.13.0(vue@3.5.42(typescript@5.9.3))':
     dependencies:
       '@types/web-bluetooth': 0.0.16
@@ -12927,6 +12951,10 @@ snapshots:
   '@vueuse/shared@14.4.0(vue@3.5.27(typescript@5.9.3))':
     dependencies:
       vue: 3.5.27(typescript@5.9.3)
+
+  '@vueuse/shared@14.4.0(vue@3.5.42(typescript@5.9.3))':
+    dependencies:
+      vue: 3.5.42(typescript@5.9.3)
 
   '@vueuse/shared@9.13.0(vue@3.5.42(typescript@5.9.3))':
     dependencies:
@@ -16554,8 +16582,24 @@ snapshots:
       '@vueuse/shared': 14.4.0(vue@3.5.27(typescript@5.9.3))
       aria-hidden: 1.2.6
       defu: 6.1.7
-      ohash: 2.0.11
+      ohash: 2.0.12
       vue: 3.5.27(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+
+  reka-ui@2.10.1(vue@3.5.42(typescript@5.9.3)):
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@floating-ui/vue': 1.1.11(vue@3.5.42(typescript@5.9.3))
+      '@internationalized/date': 3.12.3
+      '@internationalized/number': 3.6.7
+      '@tanstack/vue-virtual': 3.13.35(vue@3.5.42(typescript@5.9.3))
+      '@vueuse/core': 14.4.0(vue@3.5.42(typescript@5.9.3))
+      '@vueuse/shared': 14.4.0(vue@3.5.42(typescript@5.9.3))
+      aria-hidden: 1.2.6
+      defu: 6.1.7
+      ohash: 2.0.12
+      vue: 3.5.42(typescript@5.9.3)
     transitivePeerDependencies:
       - '@vue/composition-api'
 

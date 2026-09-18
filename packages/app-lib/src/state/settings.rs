@@ -155,6 +155,14 @@ pub struct Settings {
     pub minimal_home_instance_id: Option<String>,
     #[serde(default)]
     pub home_widgets: Option<serde_json::Value>,
+    #[serde(default = "default_home_widget_background_opacity")]
+    pub home_widget_background_opacity: u32,
+    #[serde(default)]
+    pub hidden_nav_items: Vec<String>,
+    #[serde(default)]
+    pub custom_window_title_enabled: bool,
+    #[serde(default = "default_window_title")]
+    pub default_window_title: String,
     #[serde(default = "default_terracotta_public_nodes")]
     pub terracotta_public_nodes: Vec<String>,
 
@@ -213,6 +221,16 @@ pub struct PrivacySettings {
 
 fn default_true() -> bool {
     true
+}
+
+/// Fully opaque home widget cards; users can dial this down to reveal the
+/// custom/transparent window background behind them.
+fn default_home_widget_background_opacity() -> u32 {
+    100
+}
+
+fn default_window_title() -> String {
+    "Minecraft".to_string()
 }
 
 /// Default log level, kept in sync with the `log_level` column default and
@@ -280,6 +298,33 @@ impl Settings {
 
         let close_behavior: String = sqlx::query_scalar(
             "SELECT close_behavior FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+
+        let home_widget_background_opacity: i64 = sqlx::query_scalar(
+            "SELECT home_widget_background_opacity FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+
+        let hidden_nav_items_json: String = sqlx::query_scalar(
+            "SELECT hidden_nav_items FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+        let mut hidden_nav_items: Vec<String> =
+            serde_json::from_str(&hidden_nav_items_json).unwrap_or_default();
+        // Home and Library must stay reachable from the nav rail.
+        hidden_nav_items.retain(|id| id != "home" && id != "library");
+
+        let custom_window_title_enabled: bool = sqlx::query_scalar(
+            "SELECT custom_window_title_enabled FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+        let default_window_title: String = sqlx::query_scalar(
+            "SELECT default_window_title FROM settings WHERE id = 0",
         )
         .fetch_one(exec)
         .await?;
@@ -369,6 +414,12 @@ impl Settings {
                 .home_widgets
                 .as_ref()
                 .and_then(|value| serde_json::from_str(value).ok()),
+            home_widget_background_opacity: home_widget_background_opacity
+                .clamp(0, 100)
+                as u32,
+            hidden_nav_items,
+            custom_window_title_enabled,
+            default_window_title,
             terracotta_public_nodes: res
                 .terracotta_public_nodes
                 .as_ref()
@@ -643,6 +694,36 @@ impl Settings {
             .bind(&self.log_level)
             .execute(exec)
             .await?;
+
+        sqlx::query(
+            "UPDATE settings SET home_widget_background_opacity = ? WHERE id = 0",
+        )
+        .bind(self.home_widget_background_opacity.clamp(0, 100) as i64)
+        .execute(exec)
+        .await?;
+
+        let mut hidden_nav_items = self.hidden_nav_items.clone();
+        // Boundary guard: never persist core nav items as hidden.
+        hidden_nav_items.retain(|id| id != "home" && id != "library");
+
+        sqlx::query("UPDATE settings SET hidden_nav_items = ? WHERE id = 0")
+            .bind(serde_json::to_string(&hidden_nav_items)?)
+            .execute(exec)
+            .await?;
+
+        sqlx::query(
+            "UPDATE settings SET custom_window_title_enabled = ? WHERE id = 0",
+        )
+        .bind(self.custom_window_title_enabled)
+        .execute(exec)
+        .await?;
+
+        sqlx::query(
+            "UPDATE settings SET default_window_title = ? WHERE id = 0",
+        )
+        .bind(self.default_window_title.trim())
+        .execute(exec)
+        .await?;
 
         sqlx::query("UPDATE settings SET download_engine = ? WHERE id = 0")
             .bind(self.download_engine.as_str())
