@@ -414,8 +414,8 @@ impl Settings {
             custom_background_path: res.custom_background_path,
             custom_background_blur: res.custom_background_blur as u32,
             custom_background_opacity: res.custom_background_opacity as u32,
-            custom_background_component_opacity: custom_background_component_opacity
-                .clamp(0, 100) as u32,
+            custom_background_component_opacity:
+                custom_background_component_opacity.clamp(0, 100) as u32,
             transparent_background: res.transparent_background == 1,
             transparent_background_opacity: res.transparent_background_opacity
                 as u32,
