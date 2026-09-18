@@ -2816,10 +2816,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		</div>
 		<div data-tauri-drag-region class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex">
 			<div data-tauri-drag-region class="flex min-w-0 flex-1 overflow-hidden p-3">
-				<div
-					data-tauri-drag-region
-					class="flex shrink min-w-0 items-center gap-2 overflow-hidden"
-				>
+				<div data-tauri-drag-region class="flex shrink-0 items-center gap-2">
 					<AxolotlLogo class="h-full w-auto shrink-0 pointer-events-none" />
 					<span
 						v-if="isBetaBuild"
@@ -2842,7 +2839,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 						<RightArrowIcon />
 					</button>
 				</div>
-				<Breadcrumbs class="min-w-0 flex-1 pt-[2px]" />
+				<Breadcrumbs class="pt-[2px]" />
 			</div>
 			<section data-tauri-drag-region class="flex shrink-0 ml-auto items-center">
 				<div class="flex mr-3">
