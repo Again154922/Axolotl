@@ -504,7 +504,10 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 					class="settings-content-scroll min-h-0 flex-1"
 					:class="activeCategory?.flushContent ? 'overflow-hidden' : 'overflow-y-auto'"
 				>
-					<div class="settings-content-stage relative min-h-0">
+					<div
+						class="settings-content-stage relative min-h-0"
+						:class="activeCategory?.flushContent ? 'h-full' : ''"
+					>
 						<Transition name="settings-content-skeleton">
 							<div v-if="isContentLoading" class="settings-content-skeleton" aria-hidden="true">
 								<div class="settings-content-skeleton-inner">
@@ -855,6 +858,16 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 
 .settings-content-stage {
 	min-height: 100%;
+}
+
+/* flushContent categories (AI features) manage their own inner scrolling.
+   The stage needs a definite height so percentage-height descendants
+   (.settings-content-body.h-full → .ai-provider-layout { height: 100% })
+   resolve against a real box; otherwise their overflow-y: auto never
+   activates and the page either refuses to scroll or collapses oddly. */
+.settings-content-stage.h-full {
+	height: 100%;
+	min-height: 0;
 }
 
 .settings-content-skeleton {
