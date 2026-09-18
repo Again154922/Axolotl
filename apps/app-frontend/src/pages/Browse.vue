@@ -1032,7 +1032,7 @@ if (instance.value) {
 
 onBeforeRouteLeave((to) => {
 	try {
-		const currentPage = searchState.value?.currentPage ?? 1
+		const currentPage = searchState.currentPage.value
 		if (navReturn.isBrowseReturnSourcePath(to.path)) {
 			const viewport = document.querySelector<HTMLElement>('.app-viewport')
 			navReturn.saveBrowseReturnSnapshot({

@@ -320,8 +320,7 @@ const messages = defineMessages({
 	},
 	homeWidgetBackgroundOpacityDescription: {
 		id: 'app.appearance-settings.home-widget-background-opacity.description',
-		defaultMessage:
-			'Lower this to let the launcher background show through home widgets.',
+		defaultMessage: 'Lower this to let the launcher background show through home widgets.',
 	},
 	selectOption: {
 		id: 'app.appearance-settings.select-option',
@@ -415,6 +414,18 @@ const messages = defineMessages({
 		id: 'app.appearance-settings.hidden-nav-items.group-tools',
 		defaultMessage: 'Tools',
 	},
+	navHome: { id: 'app.navigation.home', defaultMessage: 'Home' },
+	navDiscover: {
+		id: 'app.navigation.discover-content',
+		defaultMessage: 'Discover content',
+	},
+	navScreenshots: { id: 'app.navigation.screenshots', defaultMessage: 'Screenshots' },
+	navLibrary: { id: 'app.navigation.library', defaultMessage: 'Library' },
+	navWorlds: { id: 'app.navigation.worlds', defaultMessage: 'Worlds' },
+	navMultiplayer: { id: 'app.navigation.multiplayer', defaultMessage: 'Multiplayer' },
+	navSkins: { id: 'app.navigation.skin-selector', defaultMessage: 'Skin selector' },
+	navLab: { id: 'app.navigation.lab', defaultMessage: 'Lab' },
+	navDownloads: { id: 'app.navigation.downloads', defaultMessage: 'Downloads' },
 })
 
 const os = ref(await getOS())
@@ -432,21 +443,21 @@ const DEFAULT_PAGE_NAV_ID: Record<string, string> = {
 
 type NavTreeItem = {
 	id: string
-	label: string
+	label: MessageDescriptor
 	/** Parent ids nest under a group row; undefined is a root item. */
 	group?: 'browse' | 'play' | 'tools'
 }
 
 const NAV_TREE_ITEMS: NavTreeItem[] = [
-	{ id: 'home', label: 'Home', group: 'browse' },
-	{ id: 'discover', label: 'Discover', group: 'browse' },
-	{ id: 'screenshots', label: 'Screenshots', group: 'browse' },
-	{ id: 'library', label: 'Library', group: 'play' },
-	{ id: 'worlds', label: 'Worlds', group: 'play' },
-	{ id: 'multiplayer', label: 'Multiplayer', group: 'play' },
-	{ id: 'skins', label: 'Skins', group: 'play' },
-	{ id: 'lab', label: 'Lab', group: 'tools' },
-	{ id: 'downloads', label: 'Downloads', group: 'tools' },
+	{ id: 'home', label: messages.navHome, group: 'browse' },
+	{ id: 'discover', label: messages.navDiscover, group: 'browse' },
+	{ id: 'screenshots', label: messages.navScreenshots, group: 'browse' },
+	{ id: 'library', label: messages.navLibrary, group: 'play' },
+	{ id: 'worlds', label: messages.navWorlds, group: 'play' },
+	{ id: 'multiplayer', label: messages.navMultiplayer, group: 'play' },
+	{ id: 'skins', label: messages.navSkins, group: 'play' },
+	{ id: 'lab', label: messages.navLab, group: 'tools' },
+	{ id: 'downloads', label: messages.navDownloads, group: 'tools' },
 ]
 
 const NAV_TREE_GROUPS = [
@@ -1236,9 +1247,7 @@ watch(
 						{{ formatMessage(messages.hiddenNavItemsTitle) }}
 					</span>
 				</template>
-				<template #description>{{
-					formatMessage(messages.hiddenNavItemsDescription)
-				}}</template>
+				<template #description>{{ formatMessage(messages.hiddenNavItemsDescription) }}</template>
 				<template #control>
 					<div class="flex w-full flex-col gap-2">
 						<div
@@ -1259,7 +1268,10 @@ watch(
 									aria-hidden="true"
 								/>
 							</button>
-							<div v-show="expandedNavGroups[group.id]" class="flex flex-col gap-px border-t border-solid border-surface-4">
+							<div
+								v-show="expandedNavGroups[group.id]"
+								class="flex flex-col gap-px border-t border-solid border-surface-4"
+							>
 								<label
 									v-for="item in navItemsInGroup(group.id)"
 									:key="item.id"
@@ -1270,18 +1282,14 @@ watch(
 										class="text-sm"
 										:class="navItemLockReason(item.id) ? 'text-secondary' : 'text-contrast'"
 									>
-										{{ item.label }}
+										{{ formatMessage(item.label) }}
 									</span>
 									<span
 										v-if="navItemLockReason(item.id)"
 										v-tooltip="formatMessage(navItemLockReason(item.id)!)"
 										class="inline-flex"
 									>
-										<Toggle
-											:id="`nav-item-${item.id}`"
-											:model-value="true"
-											disabled
-										/>
+										<Toggle :id="`nav-item-${item.id}`" :model-value="true" disabled />
 									</span>
 									<Toggle
 										v-else
