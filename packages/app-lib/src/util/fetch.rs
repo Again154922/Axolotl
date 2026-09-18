@@ -47,6 +47,7 @@ pub const DOWNLOAD_META_HEADER: &str = "modrinth-download-meta";
 
 const BMCLAPI_BASE_URL: &str = "https://bmclapi2.bangbang93.com";
 const MCIM_BASE_URL: &str = "https://mod.mcimirror.top";
+const ALIYUN_MAVEN_BASE_URL: &str = "https://maven.aliyun.com/repository/public";
 pub(crate) const TIANPAO_HOST: &str = "mod.tianpao.top";
 const TIANPAO_BASE_URL: &str = "https://mod.tianpao.top";
 pub(crate) const MODRINTH_CDN_OFFICIAL_HOST: &str = "cdn-alt.modrinth.com";
@@ -146,6 +147,7 @@ pub enum DownloadRouteSource {
     Bmclapi,
     Mcim,
     Tianpao,
+    Aliyun,
     Alternate,
 }
 
@@ -156,6 +158,7 @@ impl DownloadRouteSource {
             Self::Bmclapi => "bmclapi",
             Self::Mcim => "mcim",
             Self::Tianpao => "tianpao",
+            Self::Aliyun => "aliyun",
             Self::Alternate => "alternate",
         }
     }
@@ -551,6 +554,7 @@ fn official_route(url: &str, resource: ResourceClass) -> DownloadRoute {
             "bmclapi2.bangbang93.com" => DownloadRouteSource::Bmclapi,
             "mod.mcimirror.top" => DownloadRouteSource::Mcim,
             "mod.tianpao.top" => DownloadRouteSource::Tianpao,
+            "maven.aliyun.com" => DownloadRouteSource::Aliyun,
             _ => DownloadRouteSource::Official,
         });
     let is_mirror = matches!(
@@ -558,6 +562,7 @@ fn official_route(url: &str, resource: ResourceClass) -> DownloadRoute {
         DownloadRouteSource::Bmclapi
             | DownloadRouteSource::Mcim
             | DownloadRouteSource::Tianpao
+            | DownloadRouteSource::Aliyun
     );
     let route = route(
         url.clone(),
@@ -648,6 +653,23 @@ fn explicit_mirror_routes(
                 BMCLAPI_BASE_URL,
                 format!("/libraries{path}"),
                 DownloadRouteSource::Bmclapi,
+            );
+        }
+        // Maven Central hosts the bulk of loader-era libraries (Cleanroom,
+        // LiteLoader, Babric, legacy Forge processors). Aliyun's public
+        // repository mirrors it 1:1 and is reachable without a proxy, which
+        // keeps a flaky proxy from stalling a whole install on one authority.
+        "repo.maven.apache.org" | "repo1.maven.org"
+            if path.starts_with("/maven2/") =>
+        {
+            push_mirror(
+                &mut routes,
+                ALIYUN_MAVEN_BASE_URL,
+                format!(
+                    "/repository/public{}",
+                    path.trim_start_matches("/maven2")
+                ),
+                DownloadRouteSource::Aliyun,
             );
         }
         "maven.minecraftforge.net" | "maven.fabricmc.net" => {
@@ -7036,6 +7058,33 @@ mod tests {
             "https://bmclapi2.bangbang93.com/libraries/com/example/library/1/library-1.jar"
         );
         assert_eq!(routes[2].url, source);
+    }
+
+    #[test]
+    fn maven_central_libraries_mirror_to_aliyun_with_official_fallback() {
+        let source = "https://repo.maven.apache.org/maven2/org/javassist/javassist/3.30.2-GA/javassist-3.30.2-GA.jar";
+        let routes = resolve_download_routes_for(
+            source,
+            ResourceClass::MinecraftLibrary,
+            crate::state::DownloadSourceMode::MirrorPreferred,
+        );
+        assert_eq!(routes.len(), 2);
+        assert_eq!(
+            routes[0].url,
+            "https://maven.aliyun.com/repository/public/org/javassist/javassist/3.30.2-GA/javassist-3.30.2-GA.jar"
+        );
+        assert!(routes[0].is_mirror);
+
+        assert_eq!(routes[1].url, source);
+        assert!(!routes[1].is_mirror);
+
+        let official_only = resolve_download_routes_for(
+            source,
+            ResourceClass::MinecraftLibrary,
+            crate::state::DownloadSourceMode::OfficialOnly,
+        );
+        assert_eq!(official_only.len(), 1);
+        assert_eq!(official_only[0].url, source);
     }
 
     #[test]
