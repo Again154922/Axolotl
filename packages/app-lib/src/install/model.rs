@@ -31,6 +31,38 @@ pub enum InstallPauseReason {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum InstallContinuationState {
     InstallingPackToExistingInstance { disabled_project_ids: Vec<String> },
+    ChangeContent { actions: Vec<ContentChangeAction> },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentChangeIntent {
+    UpdateOne {
+        content_id: String,
+    },
+    UpdateAllUserAdded,
+    SwitchVersion {
+        content_id: String,
+        target_release_id: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContentChangeAction {
+    pub content_id: String,
+    pub provider: ContentProvider,
+    pub project_id: Option<String>,
+    pub expected_release_id: Option<String>,
+    pub target_release_id: String,
+    pub relative_path: Option<String>,
+    #[serde(default)]
+    pub completed: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContentChangeSnapshot {
+    pub intent: ContentChangeIntent,
+    pub content_ids: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -225,7 +257,9 @@ pub(crate) fn initial_phase_for_request(
     match request {
         InstallRequest::InstallContent { .. }
         | InstallRequest::InstallCurseForgeContent { .. }
-        | InstallRequest::InstallCurseForgeWorld { .. } => {
+        | InstallRequest::InstallCurseForgeWorld { .. }
+        | InstallRequest::InstallContentBatch { .. }
+        | InstallRequest::ChangeContent { .. } => {
             InstallPhaseId::DownloadingContent
         }
         _ => InstallPhaseId::PreparingInstance,
@@ -1525,6 +1559,13 @@ pub enum InstallRequest {
         #[serde(default)]
         display_icon: Option<String>,
     },
+    ChangeContent {
+        instance_id: String,
+        intent: ContentChangeIntent,
+        display_title: String,
+        #[serde(default)]
+        display_icon: Option<String>,
+    },
     DownloadJava {
         vendor: String,
         version: u32,
@@ -1580,6 +1621,7 @@ impl InstallRequest {
             | Self::InstallCurseForgeContent { .. }
             | Self::InstallCurseForgeWorld { .. }
             | Self::InstallContentBatch { .. }
+            | Self::ChangeContent { .. }
             | Self::DownloadJava { .. } => false,
         }
     }
@@ -1612,6 +1654,7 @@ impl InstallRequest {
                 InstallJobKind::InstallContent
             }
             Self::InstallContentBatch { .. } => InstallJobKind::InstallContent,
+            Self::ChangeContent { .. } => InstallJobKind::ChangeContent,
             Self::DownloadJava { .. } => InstallJobKind::DownloadJava,
         }
     }
@@ -1653,6 +1696,11 @@ impl InstallRequest {
                     instance_id: instance_id.clone(),
                 }
             }
+            Self::ChangeContent { instance_id, .. } => {
+                InstallTarget::ExistingInstance {
+                    instance_id: instance_id.clone(),
+                }
+            }
             _ => InstallTarget::NewInstance { instance_id: None },
         }
     }
@@ -1684,6 +1732,7 @@ impl InstallRequest {
             Self::InstallCurseForgeContent { .. } => InstallCleanup::None,
             Self::InstallCurseForgeWorld { .. } => InstallCleanup::None,
             Self::InstallContentBatch { .. } => InstallCleanup::None,
+            Self::ChangeContent { .. } => InstallCleanup::None,
             _ => InstallCleanup::DeleteNewInstance { instance_id: None },
         }
     }
@@ -1700,6 +1749,7 @@ pub enum InstallJobKind {
     UpgradeUnmanagedInstance,
     InstallPackToExistingInstance,
     InstallContent,
+    ChangeContent,
     DownloadJava,
 }
 
@@ -1814,6 +1864,7 @@ impl InstallJobKind {
                 "install_pack_to_existing_instance"
             }
             Self::InstallContent => "install_content",
+            Self::ChangeContent => "change_content",
             Self::DownloadJava => "download_java",
         }
     }
@@ -1829,6 +1880,7 @@ impl InstallJobKind {
                 Self::InstallPackToExistingInstance
             }
             "install_content" => Self::InstallContent,
+            "change_content" => Self::ChangeContent,
             "download_java" => Self::DownloadJava,
             _ => Self::CreateInstance,
         }
@@ -2361,6 +2413,7 @@ pub struct InstallJobSnapshot {
     pub rollback_error: Option<InstallErrorView>,
     pub pause_reason: Option<InstallPauseReason>,
     pub upgrade_result: Option<InstanceUpgradeResult>,
+    pub content_change: Option<ContentChangeSnapshot>,
     pub created: DateTime<Utc>,
     pub modified: DateTime<Utc>,
     pub finished: Option<DateTime<Utc>>,
@@ -2369,6 +2422,31 @@ pub struct InstallJobSnapshot {
 }
 
 impl InstallJobState {
+    pub fn content_change(&self) -> Option<ContentChangeSnapshot> {
+        let InstallRequest::ChangeContent { intent, .. } = &self.request else {
+            return None;
+        };
+        let content_ids = match &self.continuation {
+            Some(InstallContinuationState::ChangeContent { actions }) => {
+                actions
+                    .iter()
+                    .map(|action| action.content_id.clone())
+                    .collect()
+            }
+            _ => match intent {
+                ContentChangeIntent::UpdateOne { content_id }
+                | ContentChangeIntent::SwitchVersion { content_id, .. } => {
+                    vec![content_id.clone()]
+                }
+                ContentChangeIntent::UpdateAllUserAdded => Vec::new(),
+            },
+        };
+        Some(ContentChangeSnapshot {
+            intent: intent.clone(),
+            content_ids,
+        })
+    }
+
     pub fn source_instance_id(&self) -> Option<String> {
         match &self.request {
             InstallRequest::UpgradeUnmanagedInstance {
@@ -2453,6 +2531,9 @@ impl InstallJobState {
             }
             InstallRequest::InstallContent { .. } => {
                 InstallJobProvider::Modrinth
+            }
+            InstallRequest::ChangeContent { .. } => {
+                InstallJobProvider::Application
             }
             InstallRequest::InstallContentBatch { items, .. } => {
                 if items.iter().all(|item| {

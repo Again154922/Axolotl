@@ -46,6 +46,7 @@ export interface DownloadManager {
 	skipMissingContent: (jobId: string) => Promise<void>
 	remove: (jobId: string) => Promise<void>
 	clearHistory: () => Promise<void>
+	trackJob: (job: InstallJobSnapshot) => void
 	/**
 	 * Insert a synthetic job created on the frontend (e.g. a server download
 	 * that does not go through the backend install-pipeline). The job is kept
@@ -482,6 +483,7 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 		skipMissingContent,
 		remove,
 		clearHistory,
+		trackJob: setJob,
 		addSyntheticJob,
 		setSyntheticJob,
 		onSyntheticCancel,

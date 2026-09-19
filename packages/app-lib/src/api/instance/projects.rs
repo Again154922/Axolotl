@@ -580,6 +580,7 @@ pub async fn switch_content_entry_version(
             "The selected content is not present on disk".to_string(),
         )
     })?;
+    let current_release_id = target.provider_release_id.clone();
     match target.provider {
         Some(ContentProvider::CurseForge) => {
             let file_id = version_id.parse::<u32>().map_err(|_| {
@@ -607,10 +608,13 @@ pub async fn switch_content_entry_version(
 		)
 		.into()),
         _ => {
-            switch_project_version_with_dependencies(
+            let state = State::get().await?;
+            crate::state::instances::commands::switch_project_version_with_dependencies_preserving_name(
                 instance_id,
                 &path,
+                current_release_id.as_deref(),
                 version_id,
+                &state,
             )
             .await
         }
@@ -859,7 +863,7 @@ pub(crate) async fn emit_content_changed(
     .await
 }
 
-async fn content_mutation_target(
+pub(crate) async fn content_mutation_target(
     instance_id: &str,
     content_id: &str,
 ) -> crate::Result<content_rows::ContentMutationTarget> {

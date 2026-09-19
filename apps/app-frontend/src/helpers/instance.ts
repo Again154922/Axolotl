@@ -984,6 +984,46 @@ export async function remove_content_entry(instanceId: string, contentId: string
 	return await invoke('plugin:instance|instance_remove_content_entry', { instanceId, contentId })
 }
 
+export async function queue_content_update(
+	instanceId: string,
+	contentId: string,
+	displayTitle: string,
+	displayIcon?: string,
+): Promise<InstallJobSnapshot> {
+	return await invoke('plugin:instance|instance_queue_content_update', {
+		instanceId,
+		contentId,
+		displayTitle,
+		displayIcon,
+	})
+}
+
+export async function queue_all_content_updates(
+	instanceId: string,
+	displayTitle: string,
+): Promise<InstallJobSnapshot> {
+	return await invoke('plugin:instance|instance_queue_all_content_updates', {
+		instanceId,
+		displayTitle,
+	})
+}
+
+export async function queue_content_version_change(
+	instanceId: string,
+	contentId: string,
+	versionId: string,
+	displayTitle: string,
+	displayIcon?: string,
+): Promise<InstallJobSnapshot> {
+	return await invoke('plugin:instance|instance_queue_content_version_change', {
+		instanceId,
+		contentId,
+		versionId,
+		displayTitle,
+		displayIcon,
+	})
+}
+
 export async function update_content_entry(instanceId: string, contentId: string): Promise<string> {
 	return await invoke('plugin:instance|instance_update_content_entry', { instanceId, contentId })
 }

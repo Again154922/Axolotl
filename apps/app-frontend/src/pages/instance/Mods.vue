@@ -272,13 +272,14 @@ import {
 	type InstanceContentSnapshotItem,
 	list,
 	plan_content_updates,
+	queue_all_content_updates,
+	queue_content_update,
+	queue_content_version_change,
 	remove_content_entry,
 	restore_pack_member_default,
 	rollback_project,
-	switch_content_entry_version,
 	toggle_content_entries,
 	toggle_content_entry,
-	update_content_entry,
 } from '@/helpers/instance'
 import { readInstanceCache, writeInstanceCache } from '@/helpers/instance-cache'
 import {
@@ -292,6 +293,7 @@ import type { CacheBehaviour, GameInstance } from '@/helpers/types'
 import { highlightModInInstance } from '@/helpers/utils.js'
 import i18n from '@/i18n.config'
 import { injectContentInstall } from '@/providers/content-install'
+import { injectDownloadManager } from '@/providers/download-manager'
 import { useTheming } from '@/store/state'
 
 const messages = defineMessages({
@@ -456,6 +458,7 @@ const messages = defineMessages({
 const { formatMessage } = useVIntl()
 const debugState = useDebugLogger('Mods:state')
 const { handleError, addNotification } = injectNotificationManager()
+const downloadManager = injectDownloadManager()
 const {
 	installingItems,
 	installRevisionByInstance,
@@ -805,7 +808,8 @@ const mergedProjects = computed<ContentItem[]>(() => {
 						},
 					}
 				: project
-			return resolved.project?.id && pendingProjectIds.has(resolved.project.id)
+			return (resolved.project?.id && pendingProjectIds.has(resolved.project.id)) ||
+				hasGlobalContentChange(resolved)
 				? { ...resolved, installing: true }
 				: resolved
 		})
@@ -817,7 +821,9 @@ const mergedProjects = computed<ContentItem[]>(() => {
 })
 
 const displayedLinkedModpackContentItems = computed(() => [
-	...linkedModpackContentItems.value,
+	...linkedModpackContentItems.value.map((item) =>
+		hasGlobalContentChange(item) ? { ...item, installing: true } : item,
+	),
 	...manualPendingItems.value,
 ])
 
@@ -938,7 +944,23 @@ watch(
 )
 
 const isModpackUpdating = ref(false)
-const isBulkOperating = ref(false)
+const localBulkOperating = ref(false)
+const activeContentChangeJobs = computed(() =>
+	downloadManager.activeJobs.value.filter(
+		(job) => job.kind === 'change_content' && installJobInstanceId(job) === props.instance.id,
+	),
+)
+const hasActiveUpdateAll = computed(() =>
+	activeContentChangeJobs.value.some(
+		(job) => job.content_change?.intent.type === 'update_all_user_added',
+	),
+)
+const isBulkOperating = computed({
+	get: () => localBulkOperating.value || hasActiveUpdateAll.value,
+	set: (value) => {
+		localBulkOperating.value = value
+	},
+})
 const isInstanceBusy = computed(() => props.instance?.install_stage !== 'installed')
 let contentRequestGeneration = 0
 
@@ -1143,6 +1165,18 @@ function getStableContentId(item: ContentItem) {
 	return item.instanceEntryId ?? item.instanceMemberId ?? item.instanceFileId ?? null
 }
 
+function hasGlobalContentChange(item: ContentItem) {
+	const contentId = getStableContentId(item)
+	return activeContentChangeJobs.value.some((job) => {
+		const change = job.content_change
+		if (!change) return false
+		if (change.intent.type === 'update_all_user_added' && change.content_ids.length === 0) {
+			return item.instanceOwnershipKind === 'user_added'
+		}
+		return contentId != null && change.content_ids.includes(contentId)
+	})
+}
+
 function getContentOperationKeys(item: ContentItem) {
 	return [getContentItemId(item), item.file_path, item.file_name].filter(
 		(key): key is string => !!key,
@@ -1151,7 +1185,10 @@ function getContentOperationKeys(item: ContentItem) {
 
 function hasContentOperation(item: ContentItem) {
 	const keys = getContentOperationKeys(item)
-	return keys.some((key) => activeContentOperationKeys.value.has(key))
+	return (
+		keys.some((key) => activeContentOperationKeys.value.has(key)) ||
+		hasGlobalContentChange(item)
+	)
 }
 
 function canUpdateProject(item: ContentItem) {
@@ -1928,23 +1965,16 @@ async function getDeleteDependencyWarning(items: ContentItem[]) {
 	return dependents.length > 0 ? { items, dependents } : null
 }
 
-async function bulkUpdateAllProjects(onProgress?: (status: BulkOperationStatus) => void) {
+async function bulkUpdateAllProjects(_onProgress?: (status: BulkOperationStatus) => void) {
 	try {
-		if (onProgress) {
-			onProgress({
-				message: formatMessage(messages.bulkUpdateResolvingVersions),
-				waiting: true,
-			})
-		}
-		const plan = await plan_content_updates(props.instance.id, 'user_added')
-		await apply_content_update_plan(plan.id)
-
-		await refreshContentState('bypass')
+		const job = await queue_all_content_updates(
+			props.instance.id,
+			formatMessage(messages.updateAddedContent),
+		)
+		downloadManager.trackJob(job)
 	} catch (err) {
 		handleError(err as Error)
 		throw err
-	} finally {
-		onProgress?.({ message: formatMessage(messages.bulkUpdateFinishing) })
 	}
 }
 
@@ -1952,11 +1982,16 @@ async function updateProject(mod: ContentItem) {
 	if (!canUpdateProject(mod)) return
 	const contentId = getStableContentId(mod)
 	if (!contentId) return
-	const operation = beginContentOperation(mod)
-	if (!operation) return
+	if (hasGlobalContentChange(mod)) return
 
 	try {
-		await update_content_entry(props.instance.id, contentId)
+		const job = await queue_content_update(
+			props.instance.id,
+			contentId,
+			mod.project?.title ?? mod.file_name,
+			mod.project?.icon_url,
+		)
+		downloadManager.trackJob(job)
 
 		trackEvent('InstanceProjectUpdate', {
 			loader: props.instance.loader,
@@ -1968,20 +2003,23 @@ async function updateProject(mod: ContentItem) {
 	} catch (err) {
 		handleError(err as Error)
 		throw err
-	} finally {
-		await refreshContentState('bypass')
-		finishContentOperation(mod, operation)
 	}
 }
 
 async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions.v2.Version) {
 	const contentId = getStableContentId(mod)
 	if (!mod.file_path || !contentId || mod.instanceCapabilities?.canChangeVersion === false) return
-	const operation = beginContentOperation(mod)
-	if (!operation) return
+	if (hasGlobalContentChange(mod)) return
 
 	try {
-		await switch_content_entry_version(props.instance.id, contentId, version.id)
+		const job = await queue_content_version_change(
+			props.instance.id,
+			contentId,
+			version.id,
+			mod.project?.title ?? mod.file_name,
+			mod.project?.icon_url,
+		)
+		downloadManager.trackJob(job)
 
 		trackEvent('InstanceProjectUpdate', {
 			loader: props.instance.loader,
@@ -1992,9 +2030,6 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 		})
 	} catch (err) {
 		handleError(err as Error)
-	} finally {
-		await refreshContentState('bypass')
-		finishContentOperation(mod, operation)
 	}
 }
 

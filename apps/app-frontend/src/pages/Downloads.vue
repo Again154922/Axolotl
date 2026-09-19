@@ -534,6 +534,10 @@ const messages = defineMessages({
 	},
 	copyDiagnostics: { id: 'app.downloads.copy-diagnostics', defaultMessage: 'Copy diagnostics' },
 	upgrade: { id: 'app.downloads.operation.upgrade', defaultMessage: 'Upgrade' },
+	contentChange: {
+		id: 'app.downloads.operation.content-change',
+		defaultMessage: 'Content update',
+	},
 	viewUpgradeResult: {
 		id: 'app.downloads.view-upgrade-result',
 		defaultMessage: 'View upgrade result',
@@ -812,13 +816,17 @@ function providerIcon(value: InstallJobSnapshot['provider']) {
 }
 
 function jobTypeLabel(job: InstallJobSnapshot) {
-	return job.kind === 'upgrade_unmanaged_instance'
+	return job.kind === 'change_content'
+		? formatMessage(messages.contentChange)
+		: job.kind === 'upgrade_unmanaged_instance'
 		? formatMessage(messages.upgrade)
 		: providerLabel(job.provider)
 }
 
 function jobTypeIcon(job: InstallJobSnapshot) {
-	return job.kind === 'upgrade_unmanaged_instance' ? RefreshCwIcon : providerIcon(job.provider)
+	return job.kind === 'upgrade_unmanaged_instance' || job.kind === 'change_content'
+		? RefreshCwIcon
+		: providerIcon(job.provider)
 }
 
 function legacyProvider(bar: LoadingBar): InstallJobSnapshot['provider'] {

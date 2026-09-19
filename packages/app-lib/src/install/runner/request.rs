@@ -323,6 +323,13 @@ pub(super) async fn run_request(
                 Some(InstallContinuationState::InstallingPackToExistingInstance {
                     disabled_project_ids,
                 }) => disabled_project_ids.into_iter().collect(),
+                Some(_) => {
+                    return Err(crate::ErrorKind::InputError(
+                        "Install job continuation does not match its request"
+                            .to_string(),
+                    )
+                    .into());
+                }
                 None => {
                     let disabled_project_ids = remove_existing_pack_content(
                         job_id,
@@ -638,6 +645,15 @@ pub(super) async fn run_request(
             crate::api::instance::emit_content_changed(&instance_id).await?;
             Ok(InstallExecutionOutcome::Completed(Some(instance_id)))
         }
+        InstallRequest::ChangeContent {
+            instance_id,
+            intent,
+            ..
+        } => {
+            run_content_change(job_id, job_state, &instance_id, &intent)
+                .await?;
+            Ok(InstallExecutionOutcome::Completed(Some(instance_id)))
+        }
         InstallRequest::UpdateManagedCurseForgeModpack {
             instance_id,
             file_id,
@@ -704,4 +720,142 @@ pub(super) async fn run_request(
             Ok(InstallExecutionOutcome::Completed(None))
         }
     }
+}
+
+async fn run_content_change(
+    job_id: uuid::Uuid,
+    job_state: &mut InstallJobState,
+    instance_id: &str,
+    intent: &crate::install::ContentChangeIntent,
+) -> crate::Result<()> {
+    let reporter = InstallProgressReporter::new(job_id, job_state.clone());
+    let mut actions = match job_state.continuation.clone() {
+        Some(InstallContinuationState::ChangeContent { actions }) => actions,
+        _ => {
+            let actions = crate::api::instance::resolve_content_change_actions(
+                instance_id,
+                intent,
+            )
+            .await?;
+            let continuation = InstallContinuationState::ChangeContent {
+                actions: actions.clone(),
+            };
+            job_state.continuation = Some(continuation.clone());
+            reporter.set_continuation(Some(continuation)).await?;
+            actions
+        }
+    };
+    let total = actions.len() as u64;
+    reporter
+        .update(
+            InstallPhaseId::DownloadingContent,
+            Some(InstallProgress {
+                current: actions
+                    .iter()
+                    .filter(|action| action.completed)
+                    .count() as u64,
+                total,
+                secondary: None,
+            }),
+            InstallPhaseDetails::Empty,
+        )
+        .await?;
+
+    let mut failed = 0_u64;
+    for index in 0..actions.len() {
+        if actions[index].completed {
+            continue;
+        }
+        let action = actions[index].clone();
+        reporter
+            .record_events(vec![InstallJobEventKind::ContentFileQueued {
+                path: action.content_id.clone(),
+                bytes_total: None,
+                max_attempts: 1,
+            }])
+            .await?;
+
+        let result = async {
+            let current =
+                crate::api::instance::projects::content_mutation_target(
+                    instance_id,
+                    &action.content_id,
+                )
+                .await?;
+            if current.provider_release_id.as_deref()
+                == Some(action.target_release_id.as_str())
+            {
+                return Ok::<(), crate::Error>(());
+            }
+            if current.provider != Some(action.provider)
+                || action.expected_release_id.is_some()
+                    && current.provider_release_id != action.expected_release_id
+            {
+                return Err(crate::ErrorKind::InputError(format!(
+                    "Content {} changed after the update was queued",
+                    action.content_id
+                ))
+                .into());
+            }
+            crate::api::instance::switch_content_entry_version(
+                instance_id,
+                &action.content_id,
+                &action.target_release_id,
+            )
+            .await?;
+            Ok(())
+        }
+        .await;
+
+        match result {
+            Ok(()) => {
+                actions[index].completed = true;
+                let continuation = InstallContinuationState::ChangeContent {
+                    actions: actions.clone(),
+                };
+                job_state.continuation = Some(continuation.clone());
+                reporter.set_continuation(Some(continuation)).await?;
+                reporter
+                    .record_events(vec![
+                        InstallJobEventKind::ContentFileCompleted {
+                            path: action.content_id,
+                            bytes: 0,
+                        },
+                    ])
+                    .await?;
+            }
+            Err(error) => {
+                failed += 1;
+                reporter
+                    .record_events(vec![
+                        InstallJobEventKind::ContentFileFailed {
+                            path: action.content_id,
+                            reason: error.to_string(),
+                            project_id: action.project_id,
+                            version_id: Some(action.target_release_id),
+                        },
+                    ])
+                    .await?;
+            }
+        }
+        reporter
+            .update(
+                InstallPhaseId::ApplyingContent,
+                Some(InstallProgress {
+                    current: (index + 1) as u64,
+                    total,
+                    secondary: None,
+                }),
+                InstallPhaseDetails::Empty,
+            )
+            .await?;
+    }
+
+    if failed > 0 {
+        return Err(crate::ErrorKind::OtherError(format!(
+            "{failed} content change(s) failed"
+        ))
+        .into());
+    }
+    Ok(())
 }

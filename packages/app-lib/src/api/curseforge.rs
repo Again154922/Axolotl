@@ -5803,6 +5803,7 @@ pub async fn update_installed_file(
         instance_id,
         relative_path,
         project_id,
+        current_file_id,
         latest.id,
         project_type,
         ownership_kind,
@@ -5877,6 +5878,7 @@ pub async fn switch_installed_file_version(
         instance_id,
         relative_path,
         project_id,
+        current_file_id,
         file_id,
         project_type,
         ownership_kind,
@@ -5890,13 +5892,21 @@ async fn install_selected_file(
     instance_id: &str,
     relative_path: &str,
     project_id: u32,
+    current_file_id: Option<u32>,
     file_id: u32,
     project_type: String,
     ownership_kind: crate::state::instances::ContentOwnershipKind,
     game_version: String,
     mod_loader_type: Option<u32>,
 ) -> crate::Result<CurseForgeInstallResult> {
-    let result = install_file(CurseForgeInstallRequest {
+    let old_provider_file_name = match current_file_id {
+        Some(current_file_id) => {
+            Some(get_file(project_id, current_file_id).await?.file_name)
+        }
+        None => None,
+    };
+    let new_provider_file_name = get_file(project_id, file_id).await?.file_name;
+    let mut result = install_file(CurseForgeInstallRequest {
         instance_id: instance_id.to_string(),
         project_id,
         file_id,
@@ -5930,29 +5940,25 @@ async fn install_selected_file(
         )
         .await?;
     }
-    if let Some(new_path) = result
-        .installed
-        .iter()
-        .find(|file| {
-            !file.dependency
-                && file.project_id == project_id
-                && file.relative_path != relative_path
-        })
-        .map(|file| file.relative_path.clone())
-    {
+    if let Some(primary_index) = result.installed.iter().position(|file| {
+        !file.dependency
+            && file.project_id == project_id
+            && file.relative_path != relative_path
+    }) {
         let state = State::get().await?;
-        if crate::state::instances::commands::archive_project_file(
-            instance_id,
-            relative_path,
-            &new_path,
-            &state,
-        )
-        .await?
-        .is_none()
-        {
-            crate::api::instance::remove_project(instance_id, relative_path)
-                .await?;
-        }
+        let installed_path =
+            result.installed[primary_index].relative_path.clone();
+        let final_path =
+            crate::state::instances::commands::finalize_updated_project_path(
+                instance_id,
+                relative_path,
+                &installed_path,
+                old_provider_file_name.as_deref(),
+                &new_provider_file_name,
+                &state,
+            )
+            .await?;
+        result.installed[primary_index].relative_path = final_path;
     }
     Ok(result)
 }

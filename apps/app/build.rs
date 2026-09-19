@@ -582,6 +582,9 @@ fn main() {
                         "instance_rollback_project",
                         "instance_remove_project",
                         "instance_remove_content_entry",
+                        "instance_queue_content_update",
+                        "instance_queue_all_content_updates",
+                        "instance_queue_content_version_change",
                         "instance_update_content_entry",
                         "instance_switch_content_entry_version",
                         "instance_restore_pack_member_default",
@@ -628,6 +631,13 @@ fn main() {
                         "instance_get_local_game_options_config",
                         "instance_preview_local_game_option_changes",
                         "instance_save_local_game_option_changes",
+                        "instance_get_pack_sync_preview",
+                        "instance_sync_pack",
+                        "instance_desync_pack",
+                        "instance_list_synced_packs",
+                        "instance_upload_synced_pack",
+                        "instance_set_synced_pack_enabled",
+                        "instance_remove_synced_pack",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,

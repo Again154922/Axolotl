@@ -151,6 +151,7 @@ export interface InstallJobSnapshot {
 		| 'install_existing_instance'
 		| 'install_pack_to_existing_instance'
 		| 'install_content'
+		| 'change_content'
 		| 'upgrade_unmanaged_instance'
 		| 'download_java'
 	status: InstallJobStatus
@@ -179,6 +180,13 @@ export interface InstallJobSnapshot {
 	rollback_error?: InstallErrorView | null
 	pause_reason?: InstallPauseReason | null
 	upgrade_result?: InstanceUpgradeResult | null
+	content_change?: {
+		intent:
+			| { type: 'update_one'; content_id: string }
+			| { type: 'update_all_user_added' }
+			| { type: 'switch_version'; content_id: string; target_release_id: string }
+		content_ids: string[]
+	} | null
 	created: string
 	modified: string
 	finished?: string | null

@@ -97,6 +97,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_rollback_project,
             instance_remove_project,
             instance_remove_content_entry,
+            instance_queue_content_update,
+            instance_queue_all_content_updates,
+            instance_queue_content_version_change,
             instance_update_content_entry,
             instance_switch_content_entry_version,
             instance_restore_pack_member_default,
@@ -1795,6 +1798,58 @@ pub async fn instance_remove_content_entry(
 ) -> Result<()> {
     theseus::instance::remove_content_entry(instance_id, content_id).await?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn instance_queue_content_update(
+    instance_id: &str,
+    content_id: &str,
+    display_title: String,
+    display_icon: Option<String>,
+) -> Result<theseus::install::InstallJobSnapshot> {
+    Ok(theseus::install::queue_content_change(
+        instance_id.to_string(),
+        theseus::install::ContentChangeIntent::UpdateOne {
+            content_id: content_id.to_string(),
+        },
+        display_title,
+        display_icon,
+    )
+    .await?)
+}
+
+#[tauri::command]
+pub async fn instance_queue_all_content_updates(
+    instance_id: &str,
+    display_title: String,
+) -> Result<theseus::install::InstallJobSnapshot> {
+    Ok(theseus::install::queue_content_change(
+        instance_id.to_string(),
+        theseus::install::ContentChangeIntent::UpdateAllUserAdded,
+        display_title,
+        None,
+    )
+    .await?)
+}
+
+#[tauri::command]
+pub async fn instance_queue_content_version_change(
+    instance_id: &str,
+    content_id: &str,
+    version_id: &str,
+    display_title: String,
+    display_icon: Option<String>,
+) -> Result<theseus::install::InstallJobSnapshot> {
+    Ok(theseus::install::queue_content_change(
+        instance_id.to_string(),
+        theseus::install::ContentChangeIntent::SwitchVersion {
+            content_id: content_id.to_string(),
+            target_release_id: version_id.to_string(),
+        },
+        display_title,
+        display_icon,
+    )
+    .await?)
 }
 
 #[tauri::command]

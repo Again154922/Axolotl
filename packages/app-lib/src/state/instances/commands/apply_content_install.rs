@@ -403,6 +403,23 @@ pub(crate) async fn switch_project_version_with_dependencies(
     version_id: &str,
     state: &State,
 ) -> crate::Result<String> {
+    switch_project_version_with_dependencies_preserving_name(
+        instance_id,
+        project_path,
+        None,
+        version_id,
+        state,
+    )
+    .await
+}
+
+pub(crate) async fn switch_project_version_with_dependencies_preserving_name(
+    instance_id: &str,
+    project_path: &str,
+    current_version_id: Option<&str>,
+    version_id: &str,
+    state: &State,
+) -> crate::Result<String> {
     let version = CachedEntry::get_version(
         &ModrinthVersionId::new(version_id.to_string())?,
         Some(CacheBehaviour::MustRevalidate),
@@ -421,7 +438,7 @@ pub(crate) async fn switch_project_version_with_dependencies(
     let plan = resolve_install_plan(
         instance_id,
         InstanceInstallProjectRequest {
-            project_id: version.project_id,
+            project_id: version.project_id.clone(),
             version_id: Some(version_id.to_string()),
             content_type,
             selected: ResolutionPreferences::default(),
@@ -431,6 +448,19 @@ pub(crate) async fn switch_project_version_with_dependencies(
         state,
     )
     .await?;
+    let new_provider_file_name = primary_version_file_name(&version)?;
+    let old_provider_file_name = match current_version_id {
+        Some(current_version_id) => CachedEntry::get_version(
+            &ModrinthVersionId::new(current_version_id.to_string())?,
+            Some(CacheBehaviour::MustRevalidate),
+            &state.pool,
+            &state.api_semaphore,
+        )
+        .await?
+        .map(|version| primary_version_file_name(&version))
+        .transpose()?,
+        None => None,
+    };
 
     let was_disabled = project_path.ends_with(".disabled");
     let ownership_kind =
@@ -474,15 +504,171 @@ pub(crate) async fn switch_project_version_with_dependencies(
     )
     .await?;
 
-    if new_path != project_path
-        && archive_project_file(instance_id, project_path, &new_path, state)
+    finalize_updated_project_path(
+        instance_id,
+        project_path,
+        &new_path,
+        old_provider_file_name.as_deref(),
+        &new_provider_file_name,
+        state,
+    )
+    .await
+}
+
+pub(crate) fn primary_version_file_name(
+    version: &crate::state::Version,
+) -> crate::Result<String> {
+    version
+        .files
+        .iter()
+        .find(|file| file.primary)
+        .or_else(|| version.files.first())
+        .map(|file| file.filename.clone())
+        .ok_or_else(|| {
+            crate::ErrorKind::InputError(format!(
+                "Version {} has no downloadable file",
+                version.id
+            ))
+            .into()
+        })
+}
+
+pub(crate) fn preserved_update_relative_path(
+    current_path: &str,
+    old_provider_file_name: Option<&str>,
+    new_provider_file_name: &str,
+) -> crate::Result<String> {
+    let current_name = Path::new(current_path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            crate::ErrorKind::InputError(
+                "The current content filename is invalid".to_string(),
+            )
+        })?;
+    let disabled = current_name.ends_with(".disabled");
+    let current_base = current_name.trim_end_matches(".disabled");
+    let replacement = match old_provider_file_name {
+        Some(old_name) if current_base == old_name => {
+            new_provider_file_name.to_string()
+        }
+        Some(old_name)
+            if !old_name.is_empty()
+                && current_base.match_indices(old_name).count() == 1 =>
+        {
+            current_base.replacen(old_name, new_provider_file_name, 1)
+        }
+        _ => current_base.to_string(),
+    };
+    let file_name = if disabled {
+        format!("{replacement}.disabled")
+    } else {
+        replacement
+    };
+    if file_name.is_empty()
+        || Path::new(&file_name).components().count() != 1
+        || file_name == "."
+        || file_name == ".."
+    {
+        return Err(crate::ErrorKind::InputError(
+            "The preserved content filename is invalid".to_string(),
+        )
+        .into());
+    }
+    let parent = Path::new(current_path)
+        .parent()
+        .and_then(|parent| parent.to_str())
+        .unwrap_or_default();
+    let relative_path = if parent.is_empty() {
+        file_name
+    } else {
+        format!("{parent}/{file_name}")
+    };
+    path_util::SafeRelativeUtf8UnixPathBuf::try_from(relative_path.clone())?;
+    Ok(relative_path)
+}
+
+pub(crate) async fn finalize_updated_project_path(
+    instance_id: &str,
+    old_path: &str,
+    installed_path: &str,
+    old_provider_file_name: Option<&str>,
+    new_provider_file_name: &str,
+    state: &State,
+) -> crate::Result<String> {
+    let desired_path = preserved_update_relative_path(
+        old_path,
+        old_provider_file_name,
+        new_provider_file_name,
+    )?;
+    let mut old_archived = false;
+    if desired_path == old_path && installed_path != old_path {
+        if archive_project_file(instance_id, old_path, installed_path, state)
             .await?
             .is_none()
-    {
-        remove_project(instance_id, project_path, state).await?;
+        {
+            remove_project(instance_id, old_path, state).await?;
+        }
+        old_archived = true;
     }
+    let final_path = if desired_path != installed_path {
+        match rename_project_file(
+            instance_id,
+            installed_path,
+            &desired_path,
+            state,
+        )
+        .await
+        {
+            Ok(()) => desired_path,
+            Err(error) => {
+                let _ =
+                    remove_project(instance_id, installed_path, state).await;
+                return Err(error);
+            }
+        }
+    } else {
+        installed_path.to_string()
+    };
+    if !old_archived && final_path != old_path {
+        if archive_project_file(instance_id, old_path, &final_path, state)
+            .await?
+            .is_none()
+        {
+            remove_project(instance_id, old_path, state).await?;
+        }
+    }
+    Ok(final_path)
+}
 
-    Ok(new_path)
+async fn rename_project_file(
+    instance_id: &str,
+    current_path: &str,
+    new_path: &str,
+    state: &State,
+) -> crate::Result<()> {
+    let _instance_lock = state.lock_instance_content(instance_id).await;
+    let scope = resolve_content_scope(instance_id, None, state).await?;
+    let base = instance_full_path(state, &scope.instance);
+    let target = join_content_path(&base, new_path);
+    if target.exists() {
+        return Err(crate::ErrorKind::InputError(format!(
+            "Cannot preserve the content filename because {new_path} already exists"
+        ))
+        .into());
+    }
+    io::rename_or_move(&join_content_path(&base, current_path), &target)
+        .await?;
+    rename_indexed_file(
+        &scope,
+        current_path,
+        current_path,
+        new_path,
+        !new_path.ends_with(".disabled"),
+        state,
+    )
+    .await?;
+    Ok(())
 }
 
 pub(crate) async fn add_resolved_content(
@@ -3560,5 +3746,49 @@ mod tests {
             .unwrap()
             .unwrap();
         second.rollback().await.unwrap();
+    }
+
+    #[test]
+    fn update_filename_replaces_the_official_name_inside_custom_names() {
+        assert_eq!(
+            preserved_update_relative_path(
+                "mods/【世界生成】Terralith_v2.5.1.jar",
+                Some("Terralith_v2.5.1.jar"),
+                "Terralith_v2.6.1.jar",
+            )
+            .unwrap(),
+            "mods/【世界生成】Terralith_v2.6.1.jar"
+        );
+        assert_eq!(
+            preserved_update_relative_path(
+                "mods/prefix-old.jar-suffix.disabled",
+                Some("old.jar"),
+                "new.jar",
+            )
+            .unwrap(),
+            "mods/prefix-new.jar-suffix.disabled"
+        );
+    }
+
+    #[test]
+    fn update_filename_preserves_unmatched_or_ambiguous_custom_names() {
+        assert_eq!(
+            preserved_update_relative_path(
+                "mods/my-custom-name.jar",
+                Some("official-old.jar"),
+                "official-new.jar",
+            )
+            .unwrap(),
+            "mods/my-custom-name.jar"
+        );
+        assert_eq!(
+            preserved_update_relative_path(
+                "mods/old.jar-old.jar",
+                Some("old.jar"),
+                "new.jar",
+            )
+            .unwrap(),
+            "mods/old.jar-old.jar"
+        );
     }
 }

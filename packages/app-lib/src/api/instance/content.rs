@@ -315,6 +315,84 @@ pub async fn apply_content_update_plan(
     crate::state::get_content_snapshot(&plan.instance_id, false, &state).await
 }
 
+pub(crate) async fn resolve_content_change_actions(
+    instance_id: &str,
+    intent: &crate::install::ContentChangeIntent,
+) -> crate::Result<Vec<crate::install::ContentChangeAction>> {
+    use crate::install::{ContentChangeAction, ContentChangeIntent};
+
+    match intent {
+        ContentChangeIntent::UpdateOne { content_id } => {
+            let plan = plan_content_updates(
+                instance_id,
+                ContentUpdateScope::Item,
+                Some(content_id),
+            )
+            .await?;
+            CONTENT_UPDATE_PLANS.remove(&plan.id);
+            let actions = plan
+                .actions
+                .into_iter()
+                .map(content_change_action)
+                .collect::<Vec<_>>();
+            if actions.is_empty() {
+                return Err(crate::ErrorKind::InputError(
+                    "The selected content has no available update".to_string(),
+                )
+                .into());
+            }
+            Ok(actions)
+        }
+        ContentChangeIntent::UpdateAllUserAdded => {
+            let plan = plan_content_updates(
+                instance_id,
+                ContentUpdateScope::UserAdded,
+                None,
+            )
+            .await?;
+            CONTENT_UPDATE_PLANS.remove(&plan.id);
+            Ok(plan
+                .actions
+                .into_iter()
+                .map(content_change_action)
+                .collect())
+        }
+        ContentChangeIntent::SwitchVersion {
+            content_id,
+            target_release_id,
+        } => {
+            let target = super::projects::content_mutation_target(
+                instance_id,
+                content_id,
+            )
+            .await?;
+            Ok(vec![ContentChangeAction {
+                content_id: content_id.clone(),
+                provider: target.provider.unwrap_or(ContentProvider::Modrinth),
+                project_id: target.provider_project_id,
+                expected_release_id: target.provider_release_id,
+                target_release_id: target_release_id.clone(),
+                relative_path: target.relative_path,
+                completed: false,
+            }])
+        }
+    }
+}
+
+fn content_change_action(
+    action: ContentUpdatePlanAction,
+) -> crate::install::ContentChangeAction {
+    crate::install::ContentChangeAction {
+        content_id: action.content_id,
+        provider: action.provider,
+        project_id: None,
+        expected_release_id: action.current_release_id,
+        target_release_id: action.target_release_id,
+        relative_path: action.relative_path,
+        completed: false,
+    }
+}
+
 fn update_action(
     content_id: String,
     relative_path: Option<String>,

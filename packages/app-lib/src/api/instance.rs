@@ -10,7 +10,7 @@ mod lifecycle;
 mod mcarchive;
 mod paths;
 mod planet_minecraft;
-mod projects;
+pub(crate) mod projects;
 mod run;
 mod screenshot_groups;
 mod screenshots;
@@ -25,6 +25,7 @@ mod synced_packs_axolotl;
 pub(crate) mod synced_servers;
 mod upgrade;
 
+pub(crate) use self::content::resolve_content_change_actions;
 pub use self::content::{
     apply_content_update_plan, get_content_items, get_content_items_by_paths,
     get_content_snapshot, get_dependencies_as_content_items,

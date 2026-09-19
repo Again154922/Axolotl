@@ -298,6 +298,21 @@ pub async fn install_content_batch(
     .await
 }
 
+pub async fn queue_content_change(
+    instance_id: String,
+    intent: crate::install::ContentChangeIntent,
+    display_title: String,
+    display_icon: Option<String>,
+) -> crate::Result<InstallJobSnapshot> {
+    start(InstallRequest::ChangeContent {
+        instance_id,
+        intent,
+        display_title,
+        display_icon,
+    })
+    .await
+}
+
 pub async fn download_java(
     vendor: String,
     version: u32,
@@ -381,7 +396,9 @@ pub async fn retry_job(job_id: Uuid) -> crate::Result<InstallJobSnapshot> {
     job.state.error = None;
     job.state.rollback_error = None;
     job.state.pause_reason = None;
-    job.state.continuation = None;
+    if !matches!(job.state.request, InstallRequest::ChangeContent { .. }) {
+        job.state.continuation = None;
+    }
     job.state.context = None;
     job.state.progress.phase = initial_phase_for_request(&job.state.request);
     job.state.progress.progress = None;
