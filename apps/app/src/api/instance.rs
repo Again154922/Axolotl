@@ -97,6 +97,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_rollback_project,
             instance_remove_project,
             instance_remove_content_entry,
+            instance_queue_content_change,
             instance_queue_content_update,
             instance_queue_all_content_updates,
             instance_queue_content_version_change,
@@ -1799,6 +1800,22 @@ pub async fn instance_remove_content_entry(
 }
 
 #[tauri::command]
+pub async fn instance_queue_content_change(
+    instance_id: &str,
+    intent: theseus::install::ContentChangeIntent,
+    display_title: String,
+    display_icon: Option<String>,
+) -> Result<theseus::install::InstallJobSnapshot> {
+    Ok(theseus::install::queue_content_change(
+        instance_id.to_string(),
+        intent,
+        display_title,
+        display_icon,
+    )
+    .await?)
+}
+
+#[tauri::command]
 pub async fn instance_queue_content_update(
     instance_id: &str,
     content_id: &str,
@@ -1809,6 +1826,7 @@ pub async fn instance_queue_content_update(
         instance_id.to_string(),
         theseus::install::ContentChangeIntent::UpdateOne {
             content_id: content_id.to_string(),
+            target_release_id: None,
         },
         display_title,
         display_icon,

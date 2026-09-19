@@ -729,8 +729,42 @@ async fn run_content_change(
     intent: &crate::install::ContentChangeIntent,
 ) -> crate::Result<()> {
     let reporter = InstallProgressReporter::new(job_id, job_state.clone());
-    let mut actions = match job_state.continuation.clone() {
-        Some(InstallContinuationState::ChangeContent { actions }) => actions,
+    let (mut actions, continuation_needs_upgrade) = match job_state
+        .continuation
+        .clone()
+    {
+        Some(InstallContinuationState::ChangeContent {
+            version,
+            mut actions,
+        }) => {
+            if version < crate::install::CONTENT_CHANGE_PLAN_VERSION {
+                let switch_content_id = match intent {
+                    crate::install::ContentChangeIntent::SwitchVersion {
+                        content_id,
+                        ..
+                    } => Some(content_id.as_str()),
+                    _ => None,
+                };
+                for action in &mut actions {
+                    action.operation = if switch_content_id
+                        == Some(action.content_id.as_str())
+                    {
+                        crate::install::ContentChangeOperation::SwitchVersion
+                    } else {
+                        crate::install::ContentChangeOperation::Update
+                    };
+                    action.status = action.effective_status();
+                    if action.final_relative_path.is_none() {
+                        action.final_relative_path =
+                            action.relative_path.clone();
+                    }
+                }
+            }
+            (
+                actions,
+                version < crate::install::CONTENT_CHANGE_PLAN_VERSION,
+            )
+        }
         _ => {
             let actions = crate::api::instance::resolve_content_change_actions(
                 instance_id,
@@ -738,13 +772,22 @@ async fn run_content_change(
             )
             .await?;
             let continuation = InstallContinuationState::ChangeContent {
+                version: crate::install::CONTENT_CHANGE_PLAN_VERSION,
                 actions: actions.clone(),
             };
             job_state.continuation = Some(continuation.clone());
             reporter.set_continuation(Some(continuation)).await?;
-            actions
+            (actions, false)
         }
     };
+    if continuation_needs_upgrade {
+        let continuation = InstallContinuationState::ChangeContent {
+            version: crate::install::CONTENT_CHANGE_PLAN_VERSION,
+            actions: actions.clone(),
+        };
+        job_state.continuation = Some(continuation.clone());
+        reporter.set_continuation(Some(continuation)).await?;
+    }
     let total = actions.len() as u64;
     reporter
         .update(
@@ -752,7 +795,7 @@ async fn run_content_change(
             Some(InstallProgress {
                 current: actions
                     .iter()
-                    .filter(|action| action.completed)
+                    .filter(|action| action.is_complete())
                     .count() as u64,
                 total,
                 secondary: None,
@@ -766,7 +809,7 @@ async fn run_content_change(
     // mutations remain serial without holding that lock during network I/O.
     let mut pending = tokio::task::JoinSet::new();
     for index in 0..actions.len() {
-        if actions[index].completed {
+        if actions[index].is_complete() {
             continue;
         }
         let action = actions[index].clone();
@@ -823,7 +866,7 @@ async fn run_content_change(
 
     let mut failed = 0_u64;
     let mut processed =
-        actions.iter().filter(|action| action.completed).count() as u64;
+        actions.iter().filter(|action| action.is_complete()).count() as u64;
     while let Some(joined) = pending.join_next().await {
         let (index, action, event_path, result) = joined.map_err(|error| {
             crate::ErrorKind::OtherError(format!(
@@ -832,8 +875,11 @@ async fn run_content_change(
         })?;
         match result {
             Ok(()) => {
-                actions[index].completed = true;
+                actions[index].set_status(
+                    crate::install::ContentChangeActionStatus::Completed,
+                );
                 let continuation = InstallContinuationState::ChangeContent {
+                    version: crate::install::CONTENT_CHANGE_PLAN_VERSION,
                     actions: actions.clone(),
                 };
                 job_state.continuation = Some(continuation.clone());
@@ -849,6 +895,15 @@ async fn run_content_change(
             }
             Err(error) => {
                 failed += 1;
+                actions[index].status =
+                    crate::install::ContentChangeActionStatus::Failed;
+                actions[index].error = Some(error.to_string());
+                let continuation = InstallContinuationState::ChangeContent {
+                    version: crate::install::CONTENT_CHANGE_PLAN_VERSION,
+                    actions: actions.clone(),
+                };
+                job_state.continuation = Some(continuation.clone());
+                reporter.set_continuation(Some(continuation)).await?;
                 reporter
                     .record_events(vec![
                         InstallJobEventKind::ContentFileFailed {

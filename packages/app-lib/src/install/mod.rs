@@ -19,10 +19,14 @@ pub use missing_content::{
     scan_missing_modpack_files,
 };
 pub use model::{
-    ContentChangeAction, ContentChangeIntent, ContentChangeSnapshot,
-    DownloadItemSnapshot, DownloadItemStatus, DownloadJobSummary,
-    InstallContentBatchItem, InstallErrorContext, InstallErrorView,
-    InstallJavaStep, InstallJobEventKind, InstallJobKind, InstallJobProvider,
+    CONTENT_CHANGE_PLAN_VERSION, ContentChangeAction,
+    ContentChangeActionSnapshot, ContentChangeActionStatus,
+    ContentChangeDependency, ContentChangeFile, ContentChangeFileIntegrity,
+    ContentChangeFileRole, ContentChangeIntent, ContentChangeOperation,
+    ContentChangeSnapshot, ContentChangeTarget, DownloadItemSnapshot,
+    DownloadItemStatus, DownloadJobSummary, InstallContentBatchItem,
+    InstallErrorContext, InstallErrorView, InstallJavaStep,
+    InstallJobEventKind, InstallJobKind, InstallJobProvider,
     InstallJobSnapshot, InstallJobStatus, InstallModpackPreview,
     InstallPhaseDetails, InstallPhaseId, InstallPostInstallEdit,
     InstallProgress, InstallProgressSecondary, InstallRequest,

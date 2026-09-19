@@ -30,8 +30,22 @@ pub enum InstallPauseReason {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum InstallContinuationState {
-    InstallingPackToExistingInstance { disabled_project_ids: Vec<String> },
-    ChangeContent { actions: Vec<ContentChangeAction> },
+    InstallingPackToExistingInstance {
+        disabled_project_ids: Vec<String>,
+    },
+    ChangeContent {
+        #[serde(default)]
+        version: u32,
+        actions: Vec<ContentChangeAction>,
+    },
+}
+
+pub const CONTENT_CHANGE_PLAN_VERSION: u32 = 2;
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContentChangeTarget {
+    pub content_id: String,
+    pub target_release_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -39,6 +53,11 @@ pub enum InstallContinuationState {
 pub enum ContentChangeIntent {
     UpdateOne {
         content_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target_release_id: Option<String>,
+    },
+    UpdateSelected {
+        targets: Vec<ContentChangeTarget>,
     },
     UpdateAllUserAdded,
     SwitchVersion {
@@ -47,22 +66,156 @@ pub enum ContentChangeIntent {
     },
 }
 
+#[derive(
+    Serialize, Deserialize, Clone, Copy, Debug, Default, Eq, PartialEq,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentChangeOperation {
+    #[default]
+    Update,
+    SwitchVersion,
+}
+
+#[derive(
+    Serialize, Deserialize, Clone, Copy, Debug, Default, Eq, PartialEq,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentChangeActionStatus {
+    #[default]
+    Pending,
+    Prepared,
+    Downloaded,
+    WaitingForUser,
+    Applying,
+    Completed,
+    Skipped,
+    Failed,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentChangeFileRole {
+    Primary,
+    Dependency,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+pub struct ContentChangeFileIntegrity {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha1: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha512: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub md5: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContentChangeFile {
+    pub id: String,
+    pub role: ContentChangeFileRole,
+    pub provider: ContentProvider,
+    pub project_id: String,
+    pub release_id: String,
+    pub file_name: String,
+    pub target_relative_path: String,
+    #[serde(default)]
+    pub urls: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manual_download_url: Option<String>,
+    #[serde(default)]
+    pub integrity: ContentChangeFileIntegrity,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContentChangeDependency {
+    pub parent_file_id: String,
+    pub child_file_id: String,
+    pub provider: ContentProvider,
+    pub project_id: String,
+    pub release_id: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContentChangeAction {
     pub content_id: String,
+    #[serde(default)]
+    pub operation: ContentChangeOperation,
     pub provider: ContentProvider,
     pub project_id: Option<String>,
     pub expected_release_id: Option<String>,
     pub target_release_id: String,
     pub relative_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_provider_file_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_provider_file_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub final_relative_path: Option<String>,
+    #[serde(default)]
+    pub files: Vec<ContentChangeFile>,
+    #[serde(default)]
+    pub dependencies: Vec<ContentChangeDependency>,
+    #[serde(default)]
+    pub status: ContentChangeActionStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    // Read old continuations that only persisted a completion flag. New
+    // continuations use `status`, but retaining this field keeps old jobs
+    // retryable without changing their frozen target release.
     #[serde(default)]
     pub completed: bool,
+}
+
+impl ContentChangeAction {
+    pub fn effective_status(&self) -> ContentChangeActionStatus {
+        if self.completed && self.status == ContentChangeActionStatus::Pending {
+            ContentChangeActionStatus::Completed
+        } else {
+            self.status
+        }
+    }
+
+    pub fn is_complete(&self) -> bool {
+        matches!(
+            self.effective_status(),
+            ContentChangeActionStatus::Completed
+                | ContentChangeActionStatus::Skipped
+        )
+    }
+
+    pub fn set_status(&mut self, status: ContentChangeActionStatus) {
+        self.status = status;
+        self.completed = matches!(
+            status,
+            ContentChangeActionStatus::Completed
+                | ContentChangeActionStatus::Skipped
+        );
+        if status != ContentChangeActionStatus::Failed {
+            self.error = None;
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+pub struct ContentChangeActionSnapshot {
+    pub content_id: String,
+    pub operation: ContentChangeOperation,
+    pub target_release_id: String,
+    pub final_relative_path: Option<String>,
+    pub status: ContentChangeActionStatus,
+    pub error: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct ContentChangeSnapshot {
     pub intent: ContentChangeIntent,
     pub content_ids: Vec<String>,
+    pub plan_version: Option<u32>,
+    pub actions: Vec<ContentChangeActionSnapshot>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1217,13 +1370,22 @@ mod tests {
             Vec::<String>::new()
         );
         state.continuation = Some(InstallContinuationState::ChangeContent {
+            version: CONTENT_CHANGE_PLAN_VERSION,
             actions: vec![ContentChangeAction {
                 content_id: "entry".to_string(),
+                operation: ContentChangeOperation::Update,
                 provider: ContentProvider::Modrinth,
                 project_id: Some("project".to_string()),
                 expected_release_id: Some("old".to_string()),
                 target_release_id: "new".to_string(),
                 relative_path: Some("mods/example.jar".to_string()),
+                current_provider_file_name: Some("example.jar".to_string()),
+                target_provider_file_name: Some("example-new.jar".to_string()),
+                final_relative_path: Some("mods/example-new.jar".to_string()),
+                files: Vec::new(),
+                dependencies: Vec::new(),
+                status: ContentChangeActionStatus::Completed,
+                error: None,
                 completed: true,
             }],
         });
@@ -1236,9 +1398,41 @@ mod tests {
                 .unwrap();
         assert!(matches!(
             restored.continuation,
-            Some(InstallContinuationState::ChangeContent { actions })
-                if actions[0].completed
+            Some(InstallContinuationState::ChangeContent {
+                version: CONTENT_CHANGE_PLAN_VERSION,
+                actions,
+            }) if actions[0].is_complete()
         ));
+    }
+
+    #[test]
+    fn legacy_content_change_continuation_keeps_its_frozen_target() {
+        let continuation: InstallContinuationState =
+            serde_json::from_value(serde_json::json!({
+                "type": "change_content",
+                "actions": [{
+                    "content_id": "entry",
+                    "provider": "modrinth",
+                    "project_id": "project",
+                    "expected_release_id": "old",
+                    "target_release_id": "frozen-target",
+                    "relative_path": "mods/example.jar",
+                    "completed": true
+                }]
+            }))
+            .unwrap();
+
+        let InstallContinuationState::ChangeContent { version, actions } =
+            continuation
+        else {
+            panic!("wrong continuation variant");
+        };
+        assert_eq!(version, 0);
+        assert_eq!(actions[0].target_release_id, "frozen-target");
+        assert_eq!(
+            actions[0].effective_status(),
+            ContentChangeActionStatus::Completed
+        );
     }
 
     #[test]
@@ -2503,24 +2697,51 @@ impl InstallJobState {
         let InstallRequest::ChangeContent { intent, .. } = &self.request else {
             return None;
         };
-        let content_ids = match &self.continuation {
-            Some(InstallContinuationState::ChangeContent { actions }) => {
+        let (content_ids, plan_version, actions) = match &self.continuation {
+            Some(InstallContinuationState::ChangeContent {
+                version,
+                actions,
+            }) => (
                 actions
                     .iter()
                     .map(|action| action.content_id.clone())
-                    .collect()
-            }
+                    .collect(),
+                Some(*version),
+                actions
+                    .iter()
+                    .map(|action| ContentChangeActionSnapshot {
+                        content_id: action.content_id.clone(),
+                        operation: action.operation,
+                        target_release_id: action.target_release_id.clone(),
+                        final_relative_path: action.final_relative_path.clone(),
+                        status: action.effective_status(),
+                        error: action.error.clone(),
+                    })
+                    .collect(),
+            ),
             _ => match intent {
-                ContentChangeIntent::UpdateOne { content_id }
+                ContentChangeIntent::UpdateOne { content_id, .. }
                 | ContentChangeIntent::SwitchVersion { content_id, .. } => {
-                    vec![content_id.clone()]
+                    (vec![content_id.clone()], None, Vec::new())
                 }
-                ContentChangeIntent::UpdateAllUserAdded => Vec::new(),
+                ContentChangeIntent::UpdateSelected { targets } => (
+                    targets
+                        .iter()
+                        .map(|target| target.content_id.clone())
+                        .collect(),
+                    None,
+                    Vec::new(),
+                ),
+                ContentChangeIntent::UpdateAllUserAdded => {
+                    (Vec::new(), None, Vec::new())
+                }
             },
         };
         Some(ContentChangeSnapshot {
             intent: intent.clone(),
             content_ids,
+            plan_version,
+            actions,
         })
     }
 

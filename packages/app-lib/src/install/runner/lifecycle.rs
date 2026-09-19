@@ -76,15 +76,7 @@ async fn run_job(job_id: Uuid) -> crate::Result<()> {
         return Ok(());
     }
 
-    // Content changes serialize application with the per-instance content lock
-    // and use the download semaphore for transfers, so an unrelated global
-    // install job must not keep them queued.
-    let _install_permit =
-        if matches!(job.state.request, InstallRequest::ChangeContent { .. }) {
-            None
-        } else {
-            Some(state.install_job_semaphore.acquire().await?)
-        };
+    let _install_permit = state.install_job_semaphore.acquire().await?;
     job = store::get_required(job_id, &state).await?;
 
     if job.status != InstallJobStatus::Queued {
@@ -160,7 +152,12 @@ async fn run_job(job_id: Uuid) -> crate::Result<()> {
             job_state.error = None;
             job_state.rollback_error = None;
             job_state.pause_reason = None;
-            job_state.continuation = None;
+            if !matches!(
+                job_state.request,
+                InstallRequest::ChangeContent { .. }
+            ) {
+                job_state.continuation = None;
+            }
             job_state.missing_content = None;
             job_state.skipped_missing_content_paths.clear();
             job_state.context = None;
