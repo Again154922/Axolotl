@@ -10,6 +10,7 @@ pub(super) async fn create_shortcut(
     launch_url: &Url,
     output_path: &Path,
     icon_path: Option<&Path>,
+    _app_identifier: &str,
 ) -> Result<()> {
     let target_path = std::env::current_exe()?;
     tokio::fs::write(

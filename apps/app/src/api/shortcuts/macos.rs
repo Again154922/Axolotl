@@ -13,6 +13,7 @@ pub(super) async fn create_shortcut(
     launch_url: &Url,
     output_path: &Path,
     icon_path: Option<&Path>,
+    _app_identifier: &str,
 ) -> Result<()> {
     let contents_dir = output_path.join("Contents");
     let macos_dir = contents_dir.join("MacOS");

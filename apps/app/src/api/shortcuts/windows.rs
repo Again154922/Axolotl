@@ -6,12 +6,13 @@ use std::{
 use url::Url;
 use windows::{
     Win32::{
+        Storage::EnhancedStorage::PKEY_AppUserModel_ID,
         System::Com::{
             CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
             COINIT_DISABLE_OLE1DDE, CoCreateInstance, CoInitializeEx,
-            CoUninitialize, IPersistFile,
+            CoUninitialize, IPersistFile, StructuredStorage::PROPVARIANT,
         },
-        UI::Shell::{IShellLinkW, ShellLink},
+        UI::Shell::{IShellLinkW, PropertiesSystem::IPropertyStore, ShellLink},
     },
     core::{Interface, PCWSTR},
 };
@@ -24,6 +25,7 @@ pub(super) async fn create_shortcut(
     launch_url: &Url,
     output_path: &Path,
     icon_path: Option<&Path>,
+    app_identifier: &str,
 ) -> Result<()> {
     let target_path = std::env::current_exe()?;
     let working_dir = target_path
@@ -33,6 +35,7 @@ pub(super) async fn create_shortcut(
     let output_path = output_path.to_path_buf();
     let icon_path = icon_path.map(Path::to_path_buf);
     let launch_url = launch_url.to_string();
+    let app_identifier = app_identifier.to_string();
 
     tokio::task::spawn_blocking(move || {
         create_windows_shortcut(
@@ -41,6 +44,7 @@ pub(super) async fn create_shortcut(
             working_dir,
             launch_url,
             icon_path,
+            app_identifier,
         )
     })
     .await
@@ -59,6 +63,7 @@ fn create_windows_shortcut(
     working_dir: PathBuf,
     launch_url: String,
     icon_path: Option<PathBuf>,
+    app_identifier: String,
 ) -> std::io::Result<()> {
     let output_path = windows_wide_path(&output_path);
     let target_path = windows_wide_path(&target_path);
@@ -96,6 +101,13 @@ fn create_windows_shortcut(
         windows_result(
             shortcut.SetIconLocation(windows_pcwstr(&icon_path), 0),
         )?;
+
+        let property_store: IPropertyStore = windows_result(shortcut.cast())?;
+        let app_identifier = PROPVARIANT::from(app_identifier.as_str());
+        windows_result(
+            property_store.SetValue(&PKEY_AppUserModel_ID, &app_identifier),
+        )?;
+        windows_result(property_store.Commit())?;
 
         let persist_file: IPersistFile = windows_result(shortcut.cast())?;
         windows_result(persist_file.Save(windows_pcwstr(&output_path), true))?;

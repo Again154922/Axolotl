@@ -80,6 +80,7 @@ pub async fn create_instance_shortcut<R: Runtime>(
         &launch_url,
         &output_path,
         shortcut_icon.as_deref(),
+        &app.config().identifier,
     )
     .await
     {
