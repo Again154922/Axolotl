@@ -1436,6 +1436,15 @@
   "app.downloads.open-manual-download": {
     "message": "Open"
   },
+  "app.downloads.operation.content-change": {
+    "message": "Content update"
+  },
+  "app.downloads.operation.content-switch-version": {
+    "message": "Switch content version"
+  },
+  "app.downloads.operation.content-update-all": {
+    "message": "Update all content"
+  },
   "app.downloads.operation.upgrade": {
     "message": "Upgrade"
   },
