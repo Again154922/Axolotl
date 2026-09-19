@@ -2,7 +2,10 @@ import { createContext } from '@modrinth/ui'
 import { computed, type ComputedRef, type Ref, ref } from 'vue'
 
 import { setCurseForgeManualDownloads } from '@/helpers/curseforge-manual'
-import { mergeRefreshedDownloadJobs } from '@/helpers/download-job-refresh'
+import {
+	isRegressiveActiveJobSnapshot,
+	mergeRefreshedDownloadJobs,
+} from '@/helpers/download-job-refresh'
 import { download_request_listener, install_job_listener, loading_listener } from '@/helpers/events'
 import {
 	download_history_clear,
@@ -125,6 +128,9 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 		// flush can regress a completed item back to downloading.
 		flushRequestUpdates()
 		const current = jobs.value.find((candidate) => candidate.job_id === job.job_id)
+		if (current && isRegressiveActiveJobSnapshot(current, job, ACTIVE_INSTALL_JOB_STATUSES)) {
+			return
+		}
 		if (current && current.modified.localeCompare(job.modified) > 0) return
 		const currentIndex = jobs.value.findIndex((candidate) => candidate.job_id === job.job_id)
 		if (currentIndex !== -1) {
@@ -207,13 +213,14 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 	}
 
 	function syncLiveByteProgress(job: InstallJobSnapshot) {
-		const total = job.summary.bytes_total
+		const itemTotal = job.items.reduce((sum, item) => sum + (item.bytes_total ?? 0), 0)
+		const total = Math.max(job.summary.bytes_total ?? 0, itemTotal) || null
 		const downloaded = job.items.reduce((sum, item) => sum + item.bytes_downloaded, 0)
 		const current = Math.max(
 			job.summary.bytes_downloaded,
 			total == null ? downloaded : Math.min(downloaded, total),
 		)
-		job.summary = { ...job.summary, bytes_downloaded: current }
+		job.summary = { ...job.summary, bytes_downloaded: current, bytes_total: total }
 		if (job.phase === 'downloading_content' && job.progress?.secondary) {
 			job.progress = {
 				...job.progress,
@@ -229,7 +236,14 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 	}
 
 	function applyRequestUpdateToJob(update: DownloadRequestUpdate, job: InstallJobSnapshot) {
-		const itemIndex = job.items.findIndex((item) => item.id === update.id)
+		const normalizePath = (value: string) => value.replaceAll('\\', '/').replace(/^\/+/, '')
+		const updatePath = normalizePath(update.id)
+		let itemIndex = job.items.findIndex((item) => {
+			if (item.id === update.id) return true
+			const itemPath = normalizePath(item.id)
+			return updatePath.endsWith(`/${itemPath}`) || itemPath.endsWith(`/${updatePath}`)
+		})
+		if (itemIndex === -1 && job.kind === 'change_content' && job.items.length === 1) itemIndex = 0
 		const current = itemIndex === -1 ? null : job.items[itemIndex]
 		let item: InstallJobSnapshot['items'][number]
 

@@ -186,6 +186,7 @@ pub async fn curseforge_switch_installed_file_version(
         &instance_id,
         &relative_path,
         file_id,
+        None,
     )
     .await?)
 }

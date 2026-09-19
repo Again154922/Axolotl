@@ -306,6 +306,7 @@ pub async fn apply_content_update_plan(
                 &plan.instance_id,
                 &action.content_id,
                 &action.target_release_id,
+                None,
             )
             .await?;
         }

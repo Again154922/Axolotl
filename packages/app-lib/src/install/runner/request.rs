@@ -779,6 +779,7 @@ async fn run_content_change(
                 max_attempts: 1,
             }])
             .await?;
+        let action_reporter = reporter.clone();
         pending.push(async move {
             let result = async {
                 let _instance_lock =
@@ -809,6 +810,7 @@ async fn run_content_change(
                     instance_id,
                     &action.content_id,
                     &action.target_release_id,
+                    Some(action_reporter),
                 )
                 .await?;
                 Ok(())

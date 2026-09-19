@@ -1206,7 +1206,7 @@ function hasContentOperation(item: ContentItem) {
 }
 
 function canUpdateProject(item: ContentItem) {
-	return !!item.file_path && item.update != null && (item.instanceCapabilities?.canUpdate ?? true)
+	return item.update != null && (item.instanceCapabilities?.canUpdate ?? true)
 }
 
 function contentUpdateId(item: ContentItem): string | null {
@@ -2088,117 +2088,13 @@ async function handleUpdate(id: string) {
 	const item =
 		projects.value.find((p) => getContentItemId(p) === id) ??
 		linkedModpackContentItems.value.find((p) => getContentItemId(p) === id)
-	if (!item || !canUpdateProject(item) || !item.project?.id || !item.version?.id) return
-	if (item.update?.provider === 'curseforge') {
-		await updateProject(item)
-		return
-	}
-
-	const requestId = beginUpdateRequest()
-	const itemId = getContentItemId(item)
-
-	debug('handleUpdate triggered', {
-		fileName: item.file_name,
-		projectType: item.project_type,
-		projectId: item.project.id,
-		projectTitle: item.project.title,
-		currentVersionId: item.version.id,
-		currentVersionNumber: item.version.version_number,
-		updateVersionId: contentUpdateId(item),
-		instanceGameVersion: props.instance.game_version,
-		instanceLoader: props.instance.loader,
-	})
-
-	updatingModpack.value = false
-	updatingProject.value = item
-	updatingProjectVersions.value = []
-	loadingVersions.value = true
-	loadingChangelog.value = false
-
-	await nextTick()
-
-	const initialVersionId = contentUpdateId(item) ?? undefined
-	debug('handleUpdate: opening content updater modal', {
-		type: 'content',
-		initialVersionId,
-		item: {
-			id: item.id,
-			fileName: item.file_name,
-			projectType: item.project_type,
-			projectId: item.project.id,
-			projectTitle: item.project.title,
-			currentVersionId: item.version.id,
-			currentVersionNumber: item.version.version_number,
-			updateVersionId: contentUpdateId(item),
-		},
-		instance: {
-			path: props.instance.id,
-			name: props.instance.name,
-			gameVersion: props.instance.game_version,
-			loader: props.instance.loader,
-			link: props.instance.link,
-		},
-		modalStateBeforeFetch: {
-			updatingModpack: updatingModpack.value,
-			updatingProjectId: updatingProject.value?.id,
-			updatingProjectVersions: updatingProjectVersions.value.map((version) => ({
-				id: version.id,
-				versionNumber: version.version_number,
-				gameVersions: version.game_versions,
-				loaders: version.loaders,
-				datePublished: version.date_published,
-			})),
-		},
-	})
-	contentUpdaterModal.value?.show(initialVersionId)
-
-	const versions = await getUpdaterProjectVersions(item.project.id, initialVersionId, item)
-
-	if (!isActiveUpdateRequest(requestId) || getContentItemId(updatingProject.value) !== itemId)
-		return
-
-	loadingVersions.value = false
-
-	if (versions.length === 0) {
-		debug('handleUpdate: no versions returned', { projectId: item.project.id })
-		return
-	}
-
-	debug('handleUpdate: fetched versions', {
-		projectId: item.project.id,
-		projectType: item.project_type,
-		totalVersions: versions.length,
-		versionSample: versions.slice(0, 5).map((v) => ({
-			id: v.id,
-			number: v.version_number,
-			loaders: v.loaders,
-			gameVersions: v.game_versions,
-		})),
-		currentVersionInList: versions.some((v) => v.id === item.version?.id),
-		updateVersionInList: versions.some((v) => v.id === contentUpdateId(item)),
-	})
-
-	const preselectedVersion =
-		versions.find((version) => version.id === initialVersionId) ?? versions[0] ?? null
-	debug('handleUpdate: resolved content updater preselection', {
-		type: 'content',
-		initialVersionId,
-		foundInitialVersion: versions.some((version) => version.id === initialVersionId),
-		preselectedVersion: preselectedVersion
-			? {
-					id: preselectedVersion.id,
-					versionNumber: preselectedVersion.version_number,
-					gameVersions: preselectedVersion.game_versions,
-					loaders: preselectedVersion.loaders,
-					datePublished: preselectedVersion.date_published,
-				}
-			: null,
-		versionCount: versions.length,
-		currentVersionId: item.version.id,
-		updateVersionId: contentUpdateId(item),
-	})
-
-	updatingProjectVersions.value = versions
+	// The content list can expose an update before its version metadata has finished loading.
+	// Updating uses the stable content ID and update target.
+	if (!item || !canUpdateProject(item) || !item.project?.id) return
+	// The update badge already identifies the provider's resolved target. Submit
+	// that target as a background job directly; opening the version picker here
+	// made the row action depend on asynchronously loaded version metadata.
+	await updateProject(item)
 }
 
 async function handleSwitchVersion(item: ContentItem) {

@@ -538,6 +538,7 @@ pub(crate) async fn switch_content_entry_version(
     instance_id: &str,
     content_id: &str,
     version_id: &str,
+    reporter: Option<crate::install::InstallProgressReporter>,
 ) -> crate::Result<String> {
     let target = content_mutation_target(instance_id, content_id).await?;
     let path = target.relative_path.ok_or_else(|| {
@@ -553,12 +554,14 @@ pub(crate) async fn switch_content_entry_version(
                     "The selected CurseForge file ID is invalid".to_string(),
                 )
             })?;
-            let result = crate::api::curseforge::switch_installed_file_version(
-                instance_id,
-                &path,
-                file_id,
-            )
-            .await?;
+            let result =
+                crate::api::curseforge::switch_installed_file_version(
+                    instance_id,
+                    &path,
+                    file_id,
+                    reporter,
+                )
+                .await?;
             let updated_path = result
                 .installed
                 .iter()
@@ -579,6 +582,7 @@ pub(crate) async fn switch_content_entry_version(
                 &path,
                 current_release_id.as_deref(),
                 version_id,
+                reporter,
                 &state,
             )
             .await

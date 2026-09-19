@@ -408,6 +408,7 @@ pub(crate) async fn switch_project_version_with_dependencies(
         project_path,
         None,
         version_id,
+        None,
         state,
     )
     .await
@@ -418,6 +419,7 @@ pub(crate) async fn switch_project_version_with_dependencies_preserving_name(
     project_path: &str,
     current_version_id: Option<&str>,
     version_id: &str,
+    reporter: Option<crate::install::InstallProgressReporter>,
     state: &State,
 ) -> crate::Result<String> {
     let version = CachedEntry::get_version(
@@ -465,16 +467,31 @@ pub(crate) async fn switch_project_version_with_dependencies_preserving_name(
     let was_disabled = project_path.ends_with(".disabled");
     let ownership_kind =
         content_ownership_for_path(instance_id, project_path, state).await?;
-    let mut new_path = add_project_from_version(
+    let total_bytes = resolved_plan_total_bytes(&plan, state).await?;
+    let file_count = (plan.dependencies.len() + 1) as u64;
+    let mut base_bytes = 0_u64;
+    let primary_progress =
+        reporter
+            .as_ref()
+            .map(|reporter| ResolvedContentDownloadProgress {
+                reporter: reporter.clone(),
+                file_index: 0,
+                file_count,
+                base_bytes,
+                total_bytes,
+            });
+    let mut new_path = add_project_from_version_with_progress(
         instance_id,
         &plan.primary.version_id,
         DownloadReason::Update,
         None,
         ContentSourceKind::Local,
         ownership_kind,
+        primary_progress,
         state,
     )
     .await?;
+    base_bytes += resolved_content_file_size(&plan.primary, state).await?;
 
     if was_disabled {
         new_path =
@@ -484,17 +501,29 @@ pub(crate) async fn switch_project_version_with_dependencies_preserving_name(
 
     let mut installed_paths = Vec::with_capacity(plan.dependencies.len() + 1);
     installed_paths.push(new_path.clone());
-    for dependency in &plan.dependencies {
+    for (index, dependency) in plan.dependencies.iter().enumerate() {
+        let progress =
+            reporter
+                .as_ref()
+                .map(|reporter| ResolvedContentDownloadProgress {
+                    reporter: reporter.clone(),
+                    file_index: (index + 1) as u64,
+                    file_count,
+                    base_bytes,
+                    total_bytes,
+                });
         installed_paths.push(
-            add_resolved_content(
+            add_resolved_content_with_progress(
                 instance_id,
                 dependency,
                 DownloadReason::Dependency,
                 true,
+                progress,
                 state,
             )
             .await?,
         );
+        base_bytes += resolved_content_file_size(dependency, state).await?;
     }
     persist_resolved_plan_dependency_edges(
         instance_id,

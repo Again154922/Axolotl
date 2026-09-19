@@ -5809,6 +5809,7 @@ pub async fn update_installed_file(
         ownership_kind,
         game_version,
         mod_loader_type,
+        None,
     )
     .await
 }
@@ -5817,6 +5818,7 @@ pub async fn switch_installed_file_version(
     instance_id: &str,
     relative_path: &str,
     file_id: u32,
+    reporter: Option<InstallProgressReporter>,
 ) -> crate::Result<CurseForgeInstallResult> {
     use sqlx::Row;
 
@@ -5884,6 +5886,7 @@ pub async fn switch_installed_file_version(
         ownership_kind,
         game_version,
         mod_loader_type,
+        reporter,
     )
     .await
 }
@@ -5898,6 +5901,7 @@ async fn install_selected_file(
     ownership_kind: crate::state::instances::ContentOwnershipKind,
     game_version: String,
     mod_loader_type: Option<u32>,
+    reporter: Option<InstallProgressReporter>,
 ) -> crate::Result<CurseForgeInstallResult> {
     let old_provider_file_name = match current_file_id {
         Some(current_file_id) => {
@@ -5906,7 +5910,7 @@ async fn install_selected_file(
         None => None,
     };
     let new_provider_file_name = get_file(project_id, file_id).await?.file_name;
-    let mut result = install_file(CurseForgeInstallRequest {
+    let request = CurseForgeInstallRequest {
         instance_id: instance_id.to_string(),
         project_id,
         file_id,
@@ -5925,8 +5929,11 @@ async fn install_selected_file(
         verification_tx: None,
         pre_resolved_relative_path: None,
         expected_file_name: None,
-    })
-    .await?;
+    };
+    let mut result = match reporter {
+        Some(reporter) => install_file_with_reporter(request, reporter).await?,
+        None => install_file(request).await?,
+    };
     if ownership_kind
         == crate::state::instances::ContentOwnershipKind::PackManaged
         && let Some(installed) = result
