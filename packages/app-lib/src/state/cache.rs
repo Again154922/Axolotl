@@ -150,7 +150,8 @@ impl CacheValueType {
             // app restart, so version manifests share the loader refresh window.
             CacheValueType::LoaderManifest
             | CacheValueType::MinecraftManifest
-            | CacheValueType::GameVersions => BACKGROUND_REFRESH_THRESHOLD,
+            | CacheValueType::GameVersions
+            | CacheValueType::ProjectVersions => BACKGROUND_REFRESH_THRESHOLD,
             _ => PERMANENT_CACHE_SECONDS,
         }
     }
@@ -215,7 +216,50 @@ mod loader_manifest_expiry_tests {
             CacheValueType::GameVersions.expiry(),
             BACKGROUND_REFRESH_THRESHOLD
         );
+        assert_eq!(
+            CacheValueType::ProjectVersions.expiry(),
+            BACKGROUND_REFRESH_THRESHOLD
+        );
         assert_eq!(CacheValueType::Project.expiry(), PERMANENT_CACHE_SECONDS);
+    }
+}
+
+/// Expire rows written under a longer historical TTL when policy shrinks.
+fn cache_entry_expired(type_: CacheValueType, expires: i64, now: i64) -> bool {
+    expires <= now || expires.saturating_sub(now) > type_.expiry()
+}
+
+#[cfg(test)]
+mod cache_expiry_tests {
+    use super::{
+        BACKGROUND_REFRESH_THRESHOLD, CacheValueType, PERMANENT_CACHE_SECONDS,
+        cache_entry_expired,
+    };
+
+    #[test]
+    fn project_version_cache_rejects_legacy_permanent_expiry() {
+        let now = 1_000_000;
+
+        assert!(cache_entry_expired(
+            CacheValueType::ProjectVersions,
+            now + PERMANENT_CACHE_SECONDS,
+            now,
+        ));
+        assert!(!cache_entry_expired(
+            CacheValueType::ProjectVersions,
+            now + BACKGROUND_REFRESH_THRESHOLD,
+            now,
+        ));
+        assert!(!cache_entry_expired(
+            CacheValueType::Project,
+            now + PERMANENT_CACHE_SECONDS,
+            now,
+        ));
+        assert!(cache_entry_expired(
+            CacheValueType::ProjectVersions,
+            now - 1,
+            now,
+        ));
     }
 }
 
@@ -2025,7 +2069,7 @@ impl CachedEntry {
                     None
                 };
 
-                if row.expires <= now {
+                if cache_entry_expired(type_, row.expires, now) {
                     if cache_behaviour == CacheBehaviour::MustRevalidate {
                         continue;
                     } else {

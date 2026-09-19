@@ -42,10 +42,23 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 					'zh-CN': '添加截图中心和跨实例同步（Beta）。',
 				},
 			],
+			changed: [
+				{
+					'en-US':
+						'Improved instance upgrade planning performance.',
+					'zh-CN': '提升实例升级计划的计算速度。',
+				},
+			],
 			fixed: [
 				{
 					'en-US': 'Fixed the issue where the launcher would crash on startup due to ashpd.',
 					'zh-CN': '修复启动时因 ashpd 导致崩溃的问题。',
+				},
+				{
+					'en-US':
+						'Fixed disabled content incorrectly showing a warning that keeping its version may make the upgraded instance incompatible.',
+					'zh-CN':
+						'修复禁用当前内容后仍错误显示“保留此版本可能导致升级后的实例不兼容”告警的问题。',
 				},
 			],
 		},
