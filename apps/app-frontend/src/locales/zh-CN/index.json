@@ -467,6 +467,12 @@
   "app.appearance-settings.custom-background.choose-or-drop": {
     "message": "点击选择，或拖放图片到此处"
   },
+  "app.appearance-settings.custom-background.component-opacity": {
+    "message": "组件不透明度"
+  },
+  "app.appearance-settings.custom-background.component-opacity-description": {
+    "message": "自定义背景图启用时，界面组件与顶栏/侧栏保持多不透明。100% 时组件完全不透明；调低可让背景图透出界面。"
+  },
   "app.appearance-settings.custom-background.description": {
     "message": "选择或拖入自定义图片，并调整它与启动器界面的融合效果。"
   },

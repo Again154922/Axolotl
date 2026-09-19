@@ -139,6 +139,8 @@ pub struct Settings {
     pub custom_background_path: Option<String>,
     pub custom_background_blur: u32,
     pub custom_background_opacity: u32,
+    #[serde(default = "default_custom_background_component_opacity")]
+    pub custom_background_component_opacity: u32,
     pub transparent_background: bool,
     pub transparent_background_opacity: u32,
     pub transparent_background_blur: bool,
@@ -229,6 +231,12 @@ fn default_home_widget_background_opacity() -> u32 {
     100
 }
 
+/// Fully opaque launcher components over a custom background image. Lowering
+/// this lets the image show through chrome and the content surface (#335).
+fn default_custom_background_component_opacity() -> u32 {
+    100
+}
+
 fn default_window_title() -> String {
     "Minecraft".to_string()
 }
@@ -304,6 +312,12 @@ impl Settings {
 
         let home_widget_background_opacity: i64 = sqlx::query_scalar(
             "SELECT home_widget_background_opacity FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
+
+        let custom_background_component_opacity: i64 = sqlx::query_scalar(
+            "SELECT custom_background_component_opacity FROM settings WHERE id = 0",
         )
         .fetch_one(exec)
         .await?;
@@ -400,6 +414,8 @@ impl Settings {
             custom_background_path: res.custom_background_path,
             custom_background_blur: res.custom_background_blur as u32,
             custom_background_opacity: res.custom_background_opacity as u32,
+            custom_background_component_opacity:
+                custom_background_component_opacity.clamp(0, 100) as u32,
             transparent_background: res.transparent_background == 1,
             transparent_background_opacity: res.transparent_background_opacity
                 as u32,
@@ -699,6 +715,13 @@ impl Settings {
             "UPDATE settings SET home_widget_background_opacity = ? WHERE id = 0",
         )
         .bind(self.home_widget_background_opacity.clamp(0, 100) as i64)
+        .execute(exec)
+        .await?;
+
+        sqlx::query(
+            "UPDATE settings SET custom_background_component_opacity = ? WHERE id = 0",
+        )
+        .bind(self.custom_background_component_opacity.clamp(0, 100) as i64)
         .execute(exec)
         .await?;
 

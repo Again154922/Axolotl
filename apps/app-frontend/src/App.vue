@@ -1313,6 +1313,7 @@ async function setupApp() {
 		custom_background_path,
 		custom_background_blur,
 		custom_background_opacity,
+		custom_background_component_opacity,
 		transparent_background,
 		transparent_background_opacity,
 		transparent_background_blur,
@@ -1368,6 +1369,8 @@ async function setupApp() {
 	themeStore.customBackgroundPath = custom_background_path
 	themeStore.customBackgroundBlur = custom_background_blur
 	themeStore.customBackgroundOpacity = custom_background_opacity
+	themeStore.customBackgroundComponentOpacity = custom_background_component_opacity ?? 100
+	themeStore.setCustomBackgroundComponentOpacity()
 	themeStore.transparentBackground = transparent_background
 	themeStore.transparentBackgroundOpacity = transparent_background_opacity
 	themeStore.transparentBackgroundBlur = transparent_background_blur
@@ -2605,8 +2608,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	<div
 		v-if="stateInitialized && themeStore.customBackgroundPath && !themeStore.transparentBackground"
 		class="launcher-background"
-		:style="customBackgroundStyle"
-	/>
+	>
+		<div class="launcher-background-image" :style="customBackgroundStyle" />
+	</div>
 	<div
 		v-if="stateInitialized"
 		class="app-grid-layout relative"
@@ -3253,6 +3257,15 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	inset: -3rem;
 	z-index: 0;
 	pointer-events: none;
+	// Opaque floor under the custom image: lowering "background visibility"
+	// dims the image against the app surface instead of revealing the desktop.
+	background-color: var(--color-raised-bg);
+}
+
+.launcher-background-image {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
 	background-position: center;
 	background-size: cover;
 	background-repeat: no-repeat;
@@ -3275,7 +3288,13 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-grid-layout.has-custom-background {
 	.app-grid-navbar,
 	.app-grid-statusbar {
-		background-color: color-mix(in srgb, var(--color-raised-bg) 82%, transparent) !important;
+		// Driven by the "Component opacity" setting (#335). Default 100% keeps
+		// chrome fully opaque over the custom background image.
+		background-color: color-mix(
+			in srgb,
+			var(--color-raised-bg) var(--custom-bg-component-opacity, 100%),
+			transparent
+		) !important;
 
 		backdrop-filter: none;
 		-webkit-backdrop-filter: none;
@@ -3327,7 +3346,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 
 	&.has-custom-background,
 	&.has-transparent-background {
-		background-color: color-mix(in srgb, var(--color-bg) 76%, transparent);
 		border-top-left-radius: 0;
 
 		&::before {
@@ -3337,9 +3355,21 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	}
 
 	&.has-custom-background {
+		// Content surface opacity follows the "Component opacity" setting so a
+		// custom background fades behind solid UI by default (#335).
+		background-color: color-mix(
+			in srgb,
+			var(--color-bg) var(--custom-bg-component-opacity, 100%),
+			transparent
+		);
+
 		.loading-indicator-container {
 			border-top-left-radius: 0;
 		}
+	}
+
+	&.has-transparent-background {
+		background-color: color-mix(in srgb, var(--color-bg) 76%, transparent);
 	}
 }
 
