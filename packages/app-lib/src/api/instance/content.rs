@@ -519,6 +519,7 @@ async fn resolve_content_change_action(
         target_provider_file_name: None,
         files: Vec::new(),
         dependencies: Vec::new(),
+        modrinth_plan: None,
         status: crate::install::ContentChangeActionStatus::Pending,
         error: None,
         completed: false,

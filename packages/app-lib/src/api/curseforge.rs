@@ -525,6 +525,7 @@ pub struct CurseForgeInstalledFile {
     pub dependency: bool,
 }
 
+#[derive(Clone)]
 pub(crate) struct StagedCurseForgeUpgrade {
     pub path: PathBuf,
     pub file: CurseForgeFile,
@@ -600,9 +601,34 @@ pub(crate) async fn apply_staged_curseforge_upgrade_file(
     relative_path: &str,
 ) -> crate::Result<String> {
     let state = State::get().await?;
-    let full_path = crate::api::instance::get_full_path(instance_id)
-        .await?
-        .join(relative_path);
+    apply_staged_curseforge_upgrade_file_with_state(
+        instance_id,
+        staged,
+        ownership_kind,
+        relative_path,
+        &state,
+    )
+    .await
+}
+
+pub(crate) async fn apply_staged_curseforge_upgrade_file_with_state(
+    instance_id: &str,
+    staged: StagedCurseForgeUpgrade,
+    ownership_kind: crate::state::instances::ContentOwnershipKind,
+    relative_path: &str,
+    state: &State,
+) -> crate::Result<String> {
+    let scope = crate::state::instances::commands::resolve_content_scope(
+        instance_id,
+        None,
+        state,
+    )
+    .await?;
+    let full_path = crate::state::instances::commands::instance_full_path(
+        state,
+        &scope.instance,
+    )
+    .join(relative_path);
     let _instance_lock = state.lock_instance_content(instance_id).await;
     let previous_path =
         crate::state::materialize_project_download(&staged.path, &full_path)
@@ -614,7 +640,7 @@ pub(crate) async fn apply_staged_curseforge_upgrade_file(
         &staged.file,
         staged.project_type,
         ownership_kind,
-        &state,
+        state,
     )
     .await;
     match record_result {
@@ -6063,10 +6089,32 @@ pub(crate) async fn prepare_curseforge_content_change_action(
                     provider: ContentProvider::CurseForge,
                     project_id: item.project_id.to_string(),
                     release_id: item.file_id.to_string(),
+                    kind: Some(if item.required {
+                        crate::state::instances::ContentDependencyKind::Required
+                    } else {
+                        crate::state::instances::ContentDependencyKind::Include
+                    }),
                 });
         }
     }
     for fallback in preview.modrinth_fallbacks {
+        action
+            .dependencies
+            .push(crate::install::ContentChangeDependency {
+                parent_file_id: format!(
+                    "curseforge:{}:unknown",
+                    fallback.parent_project_id
+                ),
+                child_file_id: format!("modrinth:{}", fallback.version_id),
+                provider: ContentProvider::Modrinth,
+                project_id: fallback.project_id.clone(),
+                release_id: fallback.version_id.clone(),
+                kind: Some(if fallback.required {
+                    crate::state::instances::ContentDependencyKind::Required
+                } else {
+                    crate::state::instances::ContentDependencyKind::Include
+                }),
+            });
         let prepared =
             crate::state::instances::commands::prepare_version_download(
                 instance_id,

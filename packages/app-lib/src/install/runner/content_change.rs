@@ -1,7 +1,12 @@
 use super::*;
-use futures::{StreamExt, stream};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
+
+#[derive(Clone)]
+enum DownloadedContent {
+    Modrinth(crate::state::instances::commands::DownloadedProjectVersion),
+    CurseForge(crate::api::curseforge::StagedCurseForgeUpgrade),
+}
 
 pub(super) async fn run(
     job_id: Uuid,
@@ -30,7 +35,7 @@ pub(super) async fn run(
     )
     .await?;
 
-    download_prepared_files(
+    let downloaded = download_prepared_files(
         job_state,
         instance_id,
         &mut actions,
@@ -45,6 +50,8 @@ pub(super) async fn run(
         &mut actions,
         &reporter,
         &cancellation,
+        &downloaded,
+        &state,
     )
     .await?;
 
@@ -74,11 +81,7 @@ async fn prepare_actions(
 ) -> crate::Result<()> {
     let pending = actions
         .iter()
-        .filter(|action| {
-            !action.is_complete()
-                && action.effective_status()
-                    != crate::install::ContentChangeActionStatus::Downloaded
-        })
+        .filter(|action| needs_preparation(action))
         .count() as u64;
     reporter
         .update(
@@ -98,14 +101,10 @@ async fn prepare_actions(
         let pending_actions = actions
             .iter()
             .enumerate()
-            .filter(|(_, action)| {
-                !action.is_complete()
-                    && action.effective_status()
-                        != crate::install::ContentChangeActionStatus::Downloaded
-            })
+            .filter(|(_, action)| needs_preparation(action))
             .map(|(index, action)| (index, action.clone()))
             .collect::<Vec<_>>();
-        let mut preparations = stream::iter(pending_actions.into_iter().map(
+        let mut preparations = spawn_bounded(pending_actions.into_iter().map(
             |(index, mut action)| {
                 let cancellation = cancellation.clone();
                 let instance_id = instance_id.to_string();
@@ -138,6 +137,8 @@ async fn prepare_actions(
                         .into()),
                     };
                     if let Err(error) = result {
+                        action.files.clear();
+                        action.modrinth_plan = None;
                         action.status =
                             crate::install::ContentChangeActionStatus::Failed;
                         action.error = Some(error.to_string());
@@ -145,11 +146,12 @@ async fn prepare_actions(
                     Ok::<_, crate::Error>((index, action))
                 }
             },
-        ))
-        .buffer_unordered(concurrency);
+        ), concurrency);
 
-        while let Some(result) = preparations.next().await {
-            let (index, action) = result?;
+        while let Some(result) = preparations.join_next().await {
+            let (index, action) = result.map_err(|error| {
+                crate::ErrorKind::OtherError(error.to_string())
+            })??;
             actions[index] = action;
             completed += 1;
             reporter
@@ -230,12 +232,12 @@ async fn download_prepared_files(
     instance_id: &str,
     actions: &mut [crate::install::ContentChangeAction],
     reporter: &InstallProgressReporter,
-    state: &State,
+    state: &std::sync::Arc<State>,
     cancellation: &tokio_util::sync::CancellationToken,
-) -> crate::Result<()> {
+) -> crate::Result<HashMap<String, DownloadedContent>> {
     let files = unique_pending_files(actions);
     if files.is_empty() {
-        return Ok(());
+        return Ok(HashMap::new());
     }
     let total_bytes = files
         .iter()
@@ -275,20 +277,22 @@ async fn download_prepared_files(
 
     let worker_reporter = reporter.clone().without_phase_updates();
     let concurrency = state.download_concurrency().max(1);
-    let mut downloads = stream::iter(files.into_iter().map(|file| {
-        let reporter = worker_reporter.clone();
-        let instance_id = instance_id.to_string();
-        async move {
-            if file.manual_download_url.is_some() && file.urls.is_empty() {
-                return (
-                    file,
-                    Err(crate::Error::from(crate::ErrorKind::InputError(
-                        "This content file requires a manual download"
-                            .to_string(),
-                    ))),
-                );
-            }
-            let result = match file.provider {
+    let mut downloads = spawn_bounded(
+        files.into_iter().map(|file| {
+            let reporter = worker_reporter.clone();
+            let instance_id = instance_id.to_string();
+            let state = state.clone();
+            async move {
+                if file.manual_download_url.is_some() && file.urls.is_empty() {
+                    return (
+                        file,
+                        Err(crate::Error::from(crate::ErrorKind::InputError(
+                            "This content file requires a manual download"
+                                .to_string(),
+                        ))),
+                    );
+                }
+                let result = match file.provider {
 				ContentProvider::Modrinth => {
 					crate::state::instances::commands::download_project_version_with_reporter(
 						&instance_id,
@@ -300,10 +304,10 @@ async fn download_prepared_files(
 						},
 						None,
 						reporter,
-						state,
+						&state,
 					)
 					.await
-					.map(|_| ())
+					.map(DownloadedContent::Modrinth)
 				}
 				ContentProvider::CurseForge => {
 					match (
@@ -318,7 +322,7 @@ async fn download_prepared_files(
 								Some(&reporter),
 							)
 							.await
-							.map(|_| ())
+								.map(DownloadedContent::CurseForge)
 						}
 						_ => Err(crate::ErrorKind::InputError(
 							"Invalid CurseForge project or file ID".to_string(),
@@ -332,10 +336,11 @@ async fn download_prepared_files(
 				))
 				.into()),
 			};
-            (file, result)
-        }
-    }))
-    .buffer_unordered(concurrency);
+                (file, result)
+            }
+        }),
+        concurrency,
+    );
     let progress = async {
         let mut ticker = tokio::time::interval(Duration::from_millis(150));
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -367,9 +372,14 @@ async fn download_prepared_files(
     };
     let download = async {
         let mut failed_files = HashSet::new();
-        while let Some((file, result)) = downloads.next().await {
+        let mut downloaded = HashMap::new();
+        while let Some(result) = downloads.join_next().await {
+            let (file, result) = result.map_err(|error| {
+                crate::ErrorKind::OtherError(error.to_string())
+            })?;
             match result {
-                Ok(()) => {
+                Ok(content) => {
+                    downloaded.insert(file.id.clone(), content);
                     reporter
                         .record_events(vec![
                             InstallJobEventKind::ContentFileCompleted {
@@ -394,9 +404,9 @@ async fn download_prepared_files(
                 }
             }
         }
-        Ok(failed_files)
+        Ok((failed_files, downloaded))
     };
-    let failed_files =
+    let (failed_files, downloaded) =
         drive_downloads(cancellation, download, progress).await?;
     for action in actions.iter_mut().filter(|action| !action.is_complete()) {
         if action.effective_status()
@@ -419,7 +429,8 @@ async fn download_prepared_files(
             );
         }
     }
-    persist_actions(job_state, reporter, actions).await
+    persist_actions(job_state, reporter, actions).await?;
+    Ok(downloaded)
 }
 
 async fn publish_actions(
@@ -428,6 +439,8 @@ async fn publish_actions(
     actions: &mut [crate::install::ContentChangeAction],
     reporter: &InstallProgressReporter,
     cancellation: &tokio_util::sync::CancellationToken,
+    downloaded: &HashMap<String, DownloadedContent>,
+    state: &State,
 ) -> crate::Result<()> {
     let total = actions.len() as u64;
     for index in 0..actions.len() {
@@ -449,6 +462,7 @@ async fn publish_actions(
                 InstallPhaseDetails::Empty,
             )
             .await?;
+        let _instance_lock = state.lock_instance_content(instance_id).await;
         let current = crate::api::instance::projects::content_mutation_target(
             instance_id,
             &actions[index].content_id,
@@ -475,14 +489,13 @@ async fn publish_actions(
                 );
                 persist_actions(job_state, reporter, actions).await?;
                 check_canceled(cancellation)?;
-                crate::api::instance::projects::switch_content_entry_version(
+                publish_downloaded_action(
                     instance_id,
-                    &actions[index].content_id,
-                    &actions[index].target_release_id,
-                    None,
+                    &actions[index],
+                    downloaded,
+                    state,
                 )
                 .await
-                .map(|_| ())
             }
             Ok(_) => Err(crate::ErrorKind::InputError(format!(
                 "Content {} changed after the task was queued",
@@ -497,6 +510,8 @@ async fn publish_actions(
                     actions[index].set_status(
                         crate::install::ContentChangeActionStatus::Completed,
                     );
+                    crate::api::instance::emit_content_changed(instance_id)
+                        .await?;
                 }
             }
             Err(error) => {
@@ -523,6 +538,281 @@ async fn persist_actions(
     reporter.set_continuation(Some(continuation)).await
 }
 
+fn needs_preparation(action: &crate::install::ContentChangeAction) -> bool {
+    !action.is_complete()
+        && (action.files.is_empty()
+            || (action.provider == ContentProvider::Modrinth
+                && action.modrinth_plan.is_none()))
+}
+
+async fn publish_downloaded_action(
+    instance_id: &str,
+    action: &crate::install::ContentChangeAction,
+    downloaded: &HashMap<String, DownloadedContent>,
+    state: &State,
+) -> crate::Result<()> {
+    use crate::state::instances::adapters::sqlite::content_rows;
+    use crate::state::instances::commands as content;
+    use crate::state::instances::{ContentOwnershipKind, ContentSourceKind};
+
+    let old_path = action.relative_path.as_deref().ok_or_else(|| {
+        crate::ErrorKind::InputError("Missing current content path".into())
+    })?;
+    let final_path =
+        action.final_relative_path.as_deref().ok_or_else(|| {
+            crate::ErrorKind::InputError("Missing final content path".into())
+        })?;
+    let scope =
+        content::resolve_content_scope(instance_id, None, state).await?;
+    let base = content::instance_full_path(state, &scope.instance);
+    path_util::SafeRelativeUtf8UnixPathBuf::try_from(final_path.to_string())?;
+    if final_path != old_path && base.join(final_path).exists() {
+        return Err(crate::ErrorKind::InputError(format!(
+            "Content target {final_path} already exists"
+        ))
+        .into());
+    }
+    let ownership =
+        content::content_ownership_for_path(instance_id, old_path, state)
+            .await?;
+    let primary_index = action
+        .files
+        .iter()
+        .position(|file| {
+            file.role == crate::install::ContentChangeFileRole::Primary
+        })
+        .ok_or_else(|| {
+            crate::ErrorKind::InputError(
+                "Content plan has no primary file".into(),
+            )
+        })?;
+    let mut paths = vec![String::new(); action.files.len()];
+    let apply_order = (0..action.files.len())
+        .filter(|index| *index != primary_index)
+        .chain(std::iter::once(primary_index));
+    for index in apply_order {
+        let file = &action.files[index];
+        let primary =
+            file.role == crate::install::ContentChangeFileRole::Primary;
+        if !primary {
+            if let Some(entry) =
+                content_rows::get_content_entry_by_provider_ref(
+                    &scope.content_set_id,
+                    file.provider,
+                    &file.project_id,
+                    &file.release_id,
+                    &state.pool,
+                )
+                .await?
+            {
+                let target = content_rows::get_content_mutation_target(
+                    instance_id,
+                    &entry.id,
+                    &state.pool,
+                )
+                .await?;
+                if let Some(path) =
+                    target.and_then(|target| target.relative_path)
+                {
+                    if base.join(&path).is_file() {
+                        paths[index] = path;
+                        continue;
+                    }
+                }
+            }
+        }
+        let artifact = downloaded.get(&file.id).ok_or_else(|| {
+            crate::ErrorKind::InputError(format!(
+                "Missing staged content {}",
+                file.id
+            ))
+        })?;
+        let ownership = if primary {
+            ownership
+        } else {
+            ContentOwnershipKind::UserAdded
+        };
+        let install_path = if primary {
+            final_path.to_string()
+        } else {
+            let folder = match artifact {
+                DownloadedContent::Modrinth(downloaded) => {
+                    downloaded.project_type.get_folder()
+                }
+                DownloadedContent::CurseForge(staged) => {
+                    staged.project_type.get_folder()
+                }
+            };
+            format!("{folder}/{}", file.file_name)
+        };
+        path_util::SafeRelativeUtf8UnixPathBuf::try_from(install_path.clone())?;
+        if (!primary || install_path != old_path)
+            && base.join(&install_path).exists()
+        {
+            return Err(crate::ErrorKind::InputError(format!(
+                "Content target {install_path} already exists"
+            ))
+            .into());
+        }
+        let path = match artifact {
+            DownloadedContent::Modrinth(downloaded) => {
+                content::apply_downloaded_project_version_at_path(
+                    instance_id,
+                    &install_path,
+                    downloaded.clone(),
+                    ContentSourceKind::Local,
+                    ownership,
+                    state,
+                )
+                .await?
+            }
+            DownloadedContent::CurseForge(staged) => {
+                crate::api::curseforge::apply_staged_curseforge_upgrade_file_with_state(
+                    instance_id,
+                    staged.clone(),
+                    ownership,
+                    &install_path,
+                    state,
+                )
+                .await?
+            }
+        };
+        if !primary {
+            if let Some(entry) =
+                content_rows::get_content_entry_by_relative_path(
+                    &scope.content_set_id,
+                    &path,
+                    &state.pool,
+                )
+                .await?
+            {
+                content_rows::set_content_entry_auto_dependency(
+                    &entry.id,
+                    true,
+                    &state.pool,
+                )
+                .await?;
+            }
+        }
+        paths[index] = path;
+    }
+    content::finalize_updated_project_path(
+        instance_id,
+        old_path,
+        &paths[primary_index],
+        action.current_provider_file_name.as_deref(),
+        action.target_provider_file_name.as_deref().ok_or_else(|| {
+            crate::ErrorKind::InputError("Missing target filename".into())
+        })?,
+        state,
+    )
+    .await?;
+    if let Some(plan) = &action.modrinth_plan {
+        content::persist_resolved_plan_dependency_edges(
+            instance_id,
+            &paths,
+            plan,
+            state,
+        )
+        .await?;
+    } else {
+        persist_prepared_dependency_edges(
+            &scope.content_set_id,
+            action,
+            &paths,
+            downloaded,
+            state,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+async fn persist_prepared_dependency_edges(
+    content_set_id: &str,
+    action: &crate::install::ContentChangeAction,
+    paths: &[String],
+    downloaded: &HashMap<String, DownloadedContent>,
+    state: &State,
+) -> crate::Result<()> {
+    use crate::state::instances::adapters::sqlite::content_rows;
+    let mut edges = Vec::new();
+    for dependency in &action.dependencies {
+        let parent_index = action.files.iter().position(|file| {
+            file.id == dependency.parent_file_id
+                || (file.provider == ContentProvider::CurseForge
+                    && format!("curseforge:{}:unknown", file.project_id)
+                        == dependency.parent_file_id)
+        });
+        let child_index = action
+            .files
+            .iter()
+            .position(|file| file.id == dependency.child_file_id);
+        let (Some(parent_index), Some(child_index)) =
+            (parent_index, child_index)
+        else {
+            continue;
+        };
+        let parent = &action.files[parent_index];
+        let child = &action.files[child_index];
+        let parent_entry = content_rows::get_content_entry_by_relative_path(
+            content_set_id,
+            &paths[parent_index],
+            &state.pool,
+        )
+        .await?;
+        let child_entry = content_rows::get_content_entry_by_relative_path(
+            content_set_id,
+            &paths[child_index],
+            &state.pool,
+        )
+        .await?;
+        let (Some(parent_entry), Some(child_entry)) =
+            (parent_entry, child_entry)
+        else {
+            continue;
+        };
+        let now = chrono::Utc::now();
+        edges.push(crate::state::instances::ContentDependencyEdge {
+            id: format!("content-dependency:{}", Uuid::new_v4()),
+            content_set_id: content_set_id.to_string(),
+            parent_entry_id: parent_entry.id,
+            child_entry_id: child_entry.id,
+            evidence_provider: action.provider,
+            parent_provider: parent.provider,
+            child_provider: child.provider,
+            dependency_kind: match downloaded.get(&parent.id) {
+                Some(DownloadedContent::CurseForge(staged)) if child.provider == ContentProvider::CurseForge => {
+                    staged.file.dependencies.iter().find(|reference| reference.mod_id.to_string() == child.project_id)
+                        .map(|reference| if reference.relation_type == crate::api::curseforge::DEPENDENCY_RELATION_REQUIRED {
+                            crate::state::instances::ContentDependencyKind::Required
+                        } else {
+                            crate::state::instances::ContentDependencyKind::Include
+                        })
+                }
+                _ => None,
+            }.or(dependency.kind).unwrap_or(crate::state::instances::ContentDependencyKind::Required),
+            parent_project_id: parent.project_id.clone(),
+            parent_release_id: parent.release_id.clone(),
+            child_project_id: child.project_id.clone(),
+            child_release_id: child.release_id.clone(),
+            created_at: now,
+            modified_at: now,
+        });
+    }
+    if !edges.is_empty() {
+        let mut tx = state.pool.begin().await?;
+        for edge in edges {
+            content_rows::upsert_content_dependency_edge_in_transaction(
+                &edge, &mut tx,
+            )
+            .await?;
+        }
+        tx.commit().await?;
+    }
+    Ok(())
+}
+
 fn check_canceled(
     cancellation: &tokio_util::sync::CancellationToken,
 ) -> crate::Result<()> {
@@ -533,6 +823,32 @@ fn check_canceled(
         .into());
     }
     Ok(())
+}
+
+/// Workers must keep polling while the consumer persists progress using the
+/// same reporter and database pool. Dropping the set aborts all pending workers.
+fn spawn_bounded<T, F>(
+    work: impl IntoIterator<Item = F>,
+    concurrency: usize,
+) -> tokio::task::JoinSet<T>
+where
+    T: Send + 'static,
+    F: std::future::Future<Output = T> + Send + 'static,
+{
+    let permits =
+        std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency.max(1)));
+    let mut tasks = tokio::task::JoinSet::new();
+    for future in work {
+        let permits = permits.clone();
+        tasks.spawn(async move {
+            let _permit = permits
+                .acquire_owned()
+                .await
+                .expect("worker semaphore stays open");
+            future.await
+        });
+    }
+    tasks
 }
 
 async fn cancelable<T>(
@@ -628,6 +944,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn workers_release_resources_while_consumer_waits_to_persist() {
+        let lock = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+        let held = std::sync::Arc::new(tokio::sync::Notify::new());
+        let persisting = std::sync::Arc::new(tokio::sync::Notify::new());
+        let mut tasks = spawn_bounded(
+            (0..2).map(|index| {
+                let lock = lock.clone();
+                let held = held.clone();
+                let persisting = persisting.clone();
+                async move {
+                    if index == 0 {
+                        held.notified().await;
+                    } else {
+                        let _guard = lock.lock().await;
+                        held.notify_one();
+                        persisting.notified().await;
+                        tokio::task::yield_now().await;
+                    }
+                    index
+                }
+            }),
+            2,
+        );
+        tokio::time::timeout(Duration::from_secs(1), async {
+            assert_eq!(tasks.join_next().await.unwrap().unwrap(), 0);
+            persisting.notify_one();
+            let _guard = lock.lock().await;
+            assert_eq!(tasks.join_next().await.unwrap().unwrap(), 1);
+        })
+        .await
+        .expect(
+            "worker must release its lock while consumer persists a completion",
+        );
+    }
+
+    #[tokio::test]
+    async fn dropping_workers_aborts_in_flight_work_and_respects_limit() {
+        let active = std::sync::Arc::new(tokio::sync::Semaphore::new(2));
+        let started = std::sync::Arc::new(tokio::sync::Notify::new());
+        let tasks = spawn_bounded(
+            (0..4).map(|_| {
+                let active = active.clone();
+                let started = started.clone();
+                async move {
+                    let _permit = active
+                        .try_acquire()
+                        .expect("at most two downloads may run");
+                    started.notify_one();
+                    std::future::pending::<()>().await;
+                }
+            }),
+            2,
+        );
+        started.notified().await;
+        drop(tasks);
+        let _permits = tokio::time::timeout(
+            Duration::from_secs(1),
+            active.acquire_many(2),
+        )
+        .await
+        .expect("aborted downloads must release their resources")
+        .unwrap();
+    }
+
+    #[tokio::test]
     async fn cancel_interrupts_pending_downloads_and_progress() {
         let cancellation = tokio_util::sync::CancellationToken::new();
         let (started_tx, started_rx) = tokio::sync::oneshot::channel();
@@ -704,10 +1085,298 @@ mod tests {
             final_relative_path: Some(format!("mods/{id}.jar")),
             files,
             dependencies: Vec::new(),
+            modrinth_plan: None,
             status,
             error: None,
             completed: false,
         }
+    }
+
+    #[test]
+    fn prepared_plan_survives_serialization_and_retry() {
+        let mut prepared = action(
+            "primary",
+            ContentChangeActionStatus::Failed,
+            vec![file("primary")],
+        );
+        assert!(needs_preparation(&prepared));
+        prepared.modrinth_plan =
+            Some(modrinth_content_management::ResolveContentPlan {
+                primary: modrinth_content_management::ResolvedContent {
+                    project_id: "projectA".into(),
+                    version_id: "versionA".into(),
+                    dependent_on_version_id: None,
+                    required: true,
+                },
+                dependencies: Vec::new(),
+                skipped: Vec::new(),
+            });
+        let serialized = serde_json::to_string(&prepared).unwrap();
+        let restored: ContentChangeAction =
+            serde_json::from_str(&serialized).unwrap();
+        assert!(!needs_preparation(&restored));
+        assert_eq!(prepared.modrinth_plan, restored.modrinth_plan);
+        let mut old = serde_json::to_value(&prepared).unwrap();
+        old.as_object_mut().unwrap().remove("modrinth_plan");
+        let restored: ContentChangeAction =
+            serde_json::from_value(old).unwrap();
+        assert!(needs_preparation(&restored));
+    }
+
+    async fn publish_fixture()
+    -> (tempfile::TempDir, std::sync::Arc<State>, String) {
+        use crate::state::instances::{CreateInstance, create_instance};
+        use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+        let temp = tempfile::tempdir().unwrap();
+        let directories = crate::state::DirectoryInfo {
+            settings_dir: temp.path().to_path_buf(),
+            config_dir: temp.path().to_path_buf(),
+            app_identifier: "content-change-test".into(),
+        };
+        std::fs::create_dir_all(directories.instances_dir()).unwrap();
+        let pool = SqlitePoolOptions::new()
+            .max_connections(4)
+            .connect_with(
+                SqliteConnectOptions::new()
+                    .filename(temp.path().join("state.db"))
+                    .create_if_missing(true)
+                    .foreign_keys(true),
+            )
+            .await
+            .unwrap();
+        sqlx::migrate!().run(&pool).await.unwrap();
+        let state = crate::state::test_state(directories, pool).await.unwrap();
+        let instance = create_instance(
+            CreateInstance {
+                name: "Content change".into(),
+                path: Some("content-change".into()),
+                game_version: "1.21.4".into(),
+                loader: ModLoader::Vanilla,
+                loader_version: None,
+                icon_path: None,
+                link: InstanceLink::Unmanaged,
+                symlink_target: None,
+                game_dir_override: None,
+            },
+            &state,
+        )
+        .await
+        .unwrap();
+        (temp, state, instance.id)
+    }
+
+    #[tokio::test]
+    async fn publish_downloaded_content_is_offline_and_preserves_custom_disabled_name()
+     {
+        use crate::state::instances::adapters::sqlite::content_rows;
+        use crate::state::instances::commands as content;
+        let (temp, state, instance_id) = publish_fixture().await;
+        let scope = content::resolve_content_scope(&instance_id, None, &state)
+            .await
+            .unwrap();
+        let base = content::instance_full_path(&state, &scope.instance);
+        std::fs::create_dir_all(base.join("mods")).unwrap();
+        let old_path = "mods/[中文名]old.jar.disabled";
+        let final_path = "mods/[中文名]new.jar.disabled";
+        std::fs::write(base.join(old_path), b"old content").unwrap();
+        let cache = temp.path().join("downloaded.jar");
+        std::fs::write(&cache, b"new content").unwrap();
+        let (size, sha1) =
+            crate::util::fetch::sha1_file_async(&cache).await.unwrap();
+        let mut primary = file("primary");
+        primary.role = ContentChangeFileRole::Primary;
+        primary.project_id = "projectA".into();
+        primary.release_id = "versionA".into();
+        primary.file_name = "new.jar".into();
+        let mut action = action(
+            "primary",
+            ContentChangeActionStatus::Downloaded,
+            vec![primary],
+        );
+        action.relative_path = Some(old_path.into());
+        action.final_relative_path = Some(final_path.into());
+        action.current_provider_file_name = Some("old.jar".into());
+        action.target_provider_file_name = Some("new.jar".into());
+        let artifacts = HashMap::from([(
+            "primary".into(),
+            DownloadedContent::Modrinth(content::DownloadedProjectVersion {
+                file_name: "new.jar".into(),
+                path: cache,
+                sha1,
+                size,
+                project_type: crate::state::ProjectType::Mod,
+                project_id: "projectA".into(),
+                version_id: "versionA".into(),
+            }),
+        )]);
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            publish_downloaded_action(
+                &instance_id,
+                &action,
+                &artifacts,
+                &state,
+            ),
+        )
+        .await
+        .expect("publishing must not resolve metadata or download again")
+        .unwrap();
+        assert_eq!(
+            std::fs::read(base.join(final_path)).unwrap(),
+            b"new content"
+        );
+        assert!(!base.join(old_path).exists());
+        assert!(!base.join("mods/new.jar").exists());
+        let entry = content_rows::get_content_entry_by_relative_path(
+            &scope.content_set_id,
+            final_path,
+            &state.pool,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(!entry.enabled);
+        let refs =
+            content_rows::get_content_provider_refs(&entry.id, &state.pool)
+                .await
+                .unwrap();
+        assert!(
+            refs.iter()
+                .any(|reference| reference.database_release_id().as_deref()
+                    == Some("versionA"))
+        );
+
+        std::fs::write(base.join(old_path), b"original").unwrap();
+        let result = publish_downloaded_action(
+            &instance_id,
+            &action,
+            &artifacts,
+            &state,
+        )
+        .await;
+        assert!(
+            result.is_err(),
+            "existing destination must fail before writing"
+        );
+        assert_eq!(std::fs::read(base.join(old_path)).unwrap(), b"original");
+        assert_eq!(
+            std::fs::read(base.join(final_path)).unwrap(),
+            b"new content"
+        );
+    }
+
+    #[tokio::test]
+    async fn publish_curseforge_content_is_offline_and_restores_file_on_index_failure()
+     {
+        use crate::state::instances::commands as content;
+        let (temp, state, instance_id) = publish_fixture().await;
+        let scope = content::resolve_content_scope(&instance_id, None, &state)
+            .await
+            .unwrap();
+        let base = content::instance_full_path(&state, &scope.instance);
+        std::fs::create_dir_all(base.join("mods")).unwrap();
+        let path = "mods/custom.jar.disabled";
+        std::fs::write(base.join(path), b"original").unwrap();
+        let cache = temp.path().join("downloaded.jar");
+        std::fs::write(&cache, b"downloaded").unwrap();
+        let (size, sha1) =
+            crate::util::fetch::sha1_file_async(&cache).await.unwrap();
+        let staged_file = serde_json::from_value(serde_json::json!({
+            "id": 456, "modId": 123, "gameId": 432, "isAvailable": true,
+            "displayName": "new", "fileName": "new.jar", "releaseType": 1, "fileStatus": 4,
+            "fileDate": "", "fileLength": size, "downloadCount": 0, "fileFingerprint": 0,
+            "hashes": [{ "algo": 1, "value": sha1 }]
+        })).unwrap();
+        let mut artifacts = HashMap::from([(
+            "primary".into(),
+            DownloadedContent::CurseForge(
+                crate::api::curseforge::StagedCurseForgeUpgrade {
+                    path: cache.clone(),
+                    file: staged_file,
+                    project_type: crate::state::ProjectType::Mod,
+                },
+            ),
+        )]);
+        let mut primary = file("primary");
+        primary.role = ContentChangeFileRole::Primary;
+        primary.provider = ContentProvider::CurseForge;
+        primary.project_id = "123".into();
+        primary.release_id = "456".into();
+        let mut action = action(
+            "primary",
+            ContentChangeActionStatus::Downloaded,
+            vec![primary],
+        );
+        action.provider = ContentProvider::CurseForge;
+        action.relative_path = Some(path.into());
+        action.final_relative_path = Some(path.into());
+        action.current_provider_file_name = Some("old.jar".into());
+        action.target_provider_file_name = Some("new.jar".into());
+
+        sqlx::query("CREATE TRIGGER reject_content_insert BEFORE INSERT ON instance_content_entries BEGIN SELECT RAISE(ABORT, 'injected index failure'); END")
+            .execute(&state.pool).await.unwrap();
+        assert!(
+            publish_downloaded_action(
+                &instance_id,
+                &action,
+                &artifacts,
+                &state
+            )
+            .await
+            .is_err()
+        );
+        assert_eq!(std::fs::read(base.join(path)).unwrap(), b"original");
+        sqlx::query("DROP TRIGGER reject_content_insert")
+            .execute(&state.pool)
+            .await
+            .unwrap();
+        let mut dependency = file("dependency");
+        dependency.project_id = "projectA".into();
+        dependency.release_id = "versionA".into();
+        action.files.push(dependency);
+        action
+            .dependencies
+            .push(crate::install::ContentChangeDependency {
+                parent_file_id: "primary".into(),
+                child_file_id: "dependency".into(),
+                provider: ContentProvider::Modrinth,
+                project_id: "projectA".into(),
+                release_id: "versionA".into(),
+                kind: Some(
+                    crate::state::instances::ContentDependencyKind::Include,
+                ),
+            });
+        let (size, sha1) =
+            crate::util::fetch::sha1_file_async(&cache).await.unwrap();
+        artifacts.insert(
+            "dependency".into(),
+            DownloadedContent::Modrinth(content::DownloadedProjectVersion {
+                file_name: "dependency.jar".into(),
+                path: cache,
+                sha1,
+                size,
+                project_type: crate::state::ProjectType::Mod,
+                project_id: "projectA".into(),
+                version_id: "versionA".into(),
+            }),
+        );
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            publish_downloaded_action(
+                &instance_id,
+                &action,
+                &artifacts,
+                &state,
+            ),
+        )
+        .await
+        .expect("CurseForge publishing must not access the API")
+        .unwrap();
+        assert_eq!(std::fs::read(base.join(path)).unwrap(), b"downloaded");
+        assert!(!base.join("mods/new.jar").exists());
+        let kind: String = sqlx::query_scalar("SELECT dependency_kind FROM instance_content_dependencies WHERE content_set_id = ?")
+            .bind(&scope.content_set_id).fetch_one(&state.pool).await.unwrap();
+        assert_eq!(kind, "include");
     }
 
     #[test]

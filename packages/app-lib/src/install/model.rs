@@ -137,6 +137,8 @@ pub struct ContentChangeDependency {
     pub provider: ContentProvider,
     pub project_id: String,
     pub release_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<crate::state::instances::ContentDependencyKind>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -159,6 +161,8 @@ pub struct ContentChangeAction {
     pub files: Vec<ContentChangeFile>,
     #[serde(default)]
     pub dependencies: Vec<ContentChangeDependency>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modrinth_plan: Option<modrinth_content_management::ResolveContentPlan>,
     #[serde(default)]
     pub status: ContentChangeActionStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1384,6 +1388,7 @@ mod tests {
                 final_relative_path: Some("mods/example-new.jar".to_string()),
                 files: Vec::new(),
                 dependencies: Vec::new(),
+                modrinth_plan: None,
                 status: ContentChangeActionStatus::Completed,
                 error: None,
                 completed: true,

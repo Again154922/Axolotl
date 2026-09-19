@@ -7,6 +7,7 @@ import {
 	hasDeterminateInstallProgress,
 	installProgressFraction,
 	installProgressTextSource,
+	preserveMonotonicProgress,
 } from './install-progress.ts'
 
 function progressJob(overrides: Record<string, unknown> = {}) {
@@ -24,6 +25,51 @@ function progressJob(overrides: Record<string, unknown> = {}) {
 		...overrides,
 	}
 }
+
+test('content snapshots preserve displayed bytes without losing new item state', () => {
+	const before = {
+		...progressJob(),
+		kind: 'change_content',
+		phase: 'downloading_content',
+		summary: { files_completed: 0, bytes_downloaded: 80, bytes_total: 100 },
+		items: [{ status: 'downloading' }],
+	}
+	const next = {
+		...before,
+		summary: { files_completed: 1, bytes_downloaded: 60, bytes_total: 100 },
+		items: [{ status: 'completed' }],
+	}
+	const merged = preserveMonotonicProgress(before, next)
+	assert.equal(installProgressFraction(merged), 0.8)
+	assert.equal(merged.summary.files_completed, 1)
+	assert.equal(merged.items[0].status, 'completed')
+	assert.equal(next.summary.bytes_downloaded, 60)
+})
+
+test('new phases, retries and terminal results retain authoritative progress', () => {
+	const before = { ...progressJob(), progress: { current: 80, total: 100 } }
+	for (const next of [
+		{ ...before, phase: 'applying_content', progress: { current: 0, total: 100 } },
+		{ ...before, status: 'queued', progress: { current: 0, total: 100 } },
+		{ ...before, status: 'failed', progress: { current: 60, total: 100 } },
+	])
+		assert.equal(preserveMonotonicProgress(before, next), next)
+})
+
+test('modpack secondary byte progress remains monotonic', () => {
+	const before = {
+		...progressJob(),
+		phase: 'downloading_content',
+		progress: { current: 1, total: 3, secondary: { current: 80, total: 100 } },
+	}
+	const next = {
+		...before,
+		progress: { current: 2, total: 3, secondary: { current: 60, total: 100 } },
+	}
+	const merged = preserveMonotonicProgress(before, next)
+	assert.equal(installProgressFraction(merged), 0.8)
+	assert.equal(merged.progress.current, 2)
+})
 
 test('clears completed content progress when the next phase has no progress', () => {
 	const completed = {

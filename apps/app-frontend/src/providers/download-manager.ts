@@ -21,7 +21,7 @@ import {
 	type InstallJobSnapshot,
 } from '@/helpers/install'
 import { ACTIVE_INSTALL_JOB_STATUSES, isActiveInstallJobStatus } from '@/helpers/install-job-status'
-import { effectiveInstallProgress, hasDeterminateInstallProgress } from '@/helpers/install-progress'
+import { preserveMonotonicProgress } from '@/helpers/install-progress'
 import { queue_content_change, type ContentChangeIntent } from '@/helpers/instance'
 import type { LoadingBar } from '@/helpers/state'
 import { progress_bars_list } from '@/helpers/state'
@@ -341,34 +341,6 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 
 		if (itemIndex === -1) job.items.push(item)
 		else job.items[itemIndex] = item
-	}
-
-	function preserveMonotonicProgress(
-		current: InstallJobSnapshot,
-		next: InstallJobSnapshot,
-	): InstallJobSnapshot {
-		if (current.phase !== next.phase) return next
-		const currentProgress = effectiveInstallProgress(current)
-		const nextProgress = effectiveInstallProgress(next)
-		if (
-			!hasDeterminateInstallProgress(currentProgress) ||
-			!hasDeterminateInstallProgress(nextProgress)
-		) {
-			return next
-		}
-		if (currentProgress.total !== nextProgress.total) return next
-		if (nextProgress.current >= currentProgress.current) return next
-
-		if (next.phase === 'downloading_content' && next.progress?.secondary) {
-			return {
-				...next,
-				progress: {
-					...next.progress,
-					secondary: current.progress?.secondary ?? next.progress.secondary,
-				},
-			}
-		}
-		return { ...next, progress: current.progress }
 	}
 
 	async function refresh() {

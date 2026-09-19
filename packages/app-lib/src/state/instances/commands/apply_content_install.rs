@@ -63,6 +63,7 @@ pub(crate) struct InstalledContentFile {
     pub enabled: bool,
 }
 
+#[derive(Clone)]
 pub(crate) struct DownloadedProjectVersion {
     pub file_name: String,
     pub path: PathBuf,
@@ -220,6 +221,21 @@ pub(crate) async fn resolve_install_plan(
     request: InstanceInstallProjectRequest,
     state: &State,
 ) -> crate::Result<ResolveContentPlan> {
+    resolve_install_plan_with_cache(
+        instance_id,
+        request,
+        Some(CacheBehaviour::MustRevalidate),
+        state,
+    )
+    .await
+}
+
+async fn resolve_install_plan_with_cache(
+    instance_id: &str,
+    request: InstanceInstallProjectRequest,
+    cache_behaviour: Option<CacheBehaviour>,
+    state: &State,
+) -> crate::Result<ResolveContentPlan> {
     let content_set =
         content_rows::get_applied_content_set(instance_id, &state.pool)
             .await?
@@ -237,7 +253,7 @@ pub(crate) async fn resolve_install_plan(
         .await?;
     let provider = CachedEntryContentProvider {
         state,
-        cache_behaviour: Some(CacheBehaviour::MustRevalidate),
+        cache_behaviour,
     };
     let content_type = request.content_type;
     let request = ResolveContentRequest {
@@ -569,7 +585,7 @@ pub(crate) async fn prepare_modrinth_content_change_action(
 ) -> crate::Result<()> {
     let version = CachedEntry::get_version(
         &ModrinthVersionId::new(action.target_release_id.clone())?,
-        Some(CacheBehaviour::MustRevalidate),
+        None,
         &state.pool,
         &state.api_semaphore,
     )
@@ -583,7 +599,7 @@ pub(crate) async fn prepare_modrinth_content_change_action(
     let content_type = ProjectType::get_from_loaders(version.loaders.clone())
         .map(ContentType::from)
         .unwrap_or(ContentType::Mod);
-    let plan = resolve_install_plan(
+    let plan = resolve_install_plan_with_cache(
         instance_id,
         InstanceInstallProjectRequest {
             project_id: version.project_id.clone(),
@@ -593,6 +609,7 @@ pub(crate) async fn prepare_modrinth_content_change_action(
             excluded_project_ids: Vec::new(),
             force_project_ids: Vec::new(),
         },
+        None,
         state,
     )
     .await?;
@@ -669,14 +686,18 @@ pub(crate) async fn prepare_modrinth_content_change_action(
             action
                 .dependencies
                 .push(crate::install::ContentChangeDependency {
-                    parent_file_id: format!("modrinth:{parent}"),
-                    child_file_id: id,
-                    provider: ContentProvider::Modrinth,
-                    project_id: resolved.project_id.clone(),
-                    release_id: resolved.version_id.clone(),
-                });
+                parent_file_id: format!("modrinth:{parent}"),
+                child_file_id: id,
+                provider: ContentProvider::Modrinth,
+                project_id: resolved.project_id.clone(),
+                release_id: resolved.version_id.clone(),
+                kind: Some(
+                    crate::state::instances::ContentDependencyKind::Required,
+                ),
+            });
         }
     }
+    action.modrinth_plan = Some(plan);
     action.set_status(crate::install::ContentChangeActionStatus::Prepared);
     Ok(())
 }

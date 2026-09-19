@@ -64,6 +64,37 @@ export function effectiveParallelProgress(
 	}
 }
 
+export function preserveMonotonicProgress<T extends ProgressSnapshot & { status: string }>(
+	current: T,
+	next: T,
+): T {
+	if (current.phase !== next.phase || current.status !== next.status) return next
+	const before = effectiveInstallProgress(current)
+	const after = effectiveInstallProgress(next)
+	if (
+		!hasDeterminateInstallProgress(before) ||
+		!hasDeterminateInstallProgress(after) ||
+		before.total !== after.total ||
+		after.current >= before.current
+	)
+		return next
+
+	if (next.phase === 'downloading_content' && next.progress?.secondary) {
+		return { ...next, progress: { ...next.progress, secondary: before } }
+	}
+	if (
+		next.phase === 'downloading_content' &&
+		next.kind === 'change_content' &&
+		next.summary?.bytes_total
+	) {
+		return {
+			...next,
+			summary: { ...next.summary, bytes_downloaded: before.current },
+		}
+	}
+	return { ...next, progress: current.progress }
+}
+
 export function hasDeterminateInstallProgress(
 	progress: ProgressValue | null | undefined,
 ): progress is ProgressValue {
