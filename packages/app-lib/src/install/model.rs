@@ -1165,6 +1165,83 @@ mod tests {
     }
 
     #[test]
+    fn content_change_request_is_persistent_and_round_trips() {
+        let request = InstallRequest::ChangeContent {
+            instance_id: "instance".to_string(),
+            intent: ContentChangeIntent::SwitchVersion {
+                content_id: "entry".to_string(),
+                target_release_id: "target".to_string(),
+            },
+            display_title: "Example".to_string(),
+            display_icon: None,
+        };
+        assert_eq!(request.kind(), InstallJobKind::ChangeContent);
+        assert_eq!(request.kind().as_str(), "change_content");
+        assert_eq!(
+            InstallJobKind::from_stored_str("change_content"),
+            InstallJobKind::ChangeContent
+        );
+        assert_eq!(request.cleanup(), InstallCleanup::None);
+        assert_eq!(
+            request.target(),
+            InstallTarget::ExistingInstance {
+                instance_id: "instance".to_string()
+            }
+        );
+
+        let restored: InstallRequest =
+            serde_json::from_value(serde_json::to_value(&request).unwrap())
+                .unwrap();
+        assert!(matches!(
+            restored,
+            InstallRequest::ChangeContent {
+                intent: ContentChangeIntent::SwitchVersion {
+                    content_id,
+                    target_release_id
+                },
+                ..
+            } if content_id == "entry" && target_release_id == "target"
+        ));
+    }
+
+    #[test]
+    fn content_change_snapshot_uses_persisted_action_ids() {
+        let mut state = InstallJobState::new(InstallRequest::ChangeContent {
+            instance_id: "instance".to_string(),
+            intent: ContentChangeIntent::UpdateAllUserAdded,
+            display_title: "Update content".to_string(),
+            display_icon: None,
+        });
+        assert_eq!(
+            state.content_change().unwrap().content_ids,
+            Vec::<String>::new()
+        );
+        state.continuation = Some(InstallContinuationState::ChangeContent {
+            actions: vec![ContentChangeAction {
+                content_id: "entry".to_string(),
+                provider: ContentProvider::Modrinth,
+                project_id: Some("project".to_string()),
+                expected_release_id: Some("old".to_string()),
+                target_release_id: "new".to_string(),
+                relative_path: Some("mods/example.jar".to_string()),
+                completed: true,
+            }],
+        });
+        assert_eq!(
+            state.content_change().unwrap().content_ids,
+            vec!["entry".to_string()]
+        );
+        let restored: InstallJobState =
+            serde_json::from_value(serde_json::to_value(&state).unwrap())
+                .unwrap();
+        assert!(matches!(
+            restored.continuation,
+            Some(InstallContinuationState::ChangeContent { actions })
+                if actions[0].completed
+        ));
+    }
+
+    #[test]
     fn instance_upgrade_completes_install_stage() {
         assert!(
             upgrade_request(SharedUpgradeMode::Direct)

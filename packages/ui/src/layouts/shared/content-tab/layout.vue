@@ -976,13 +976,6 @@ async function confirmBulkUpdate() {
 	if (items.length === 0 && !modpackHasUpdate) return
 	if (!hasBulkUpdateSupport.value) return
 
-	const setBulkStatus = (status: BulkOperationStatus) => {
-		bulkStatusMessage.value = status.message ?? null
-		bulkProgress.value = status.progress ?? bulkProgress.value
-		bulkTotal.value = status.total ?? bulkTotal.value
-		bulkWaiting.value = status.waiting ?? false
-	}
-
 	try {
 		if (pendingBulkUpdateAll.value && ctx.bulkUpdateAll) {
 			const totalCount = items.length + (modpackHasUpdate ? 1 : 0)
@@ -990,9 +983,7 @@ async function confirmBulkUpdate() {
 			await runBulkWithWaiting(
 				'update',
 				totalCount,
-				async () => {
-					await ctx.bulkUpdateAll(setBulkStatus)
-				},
+				ctx.bulkUpdateAll,
 				() => {
 					clearSelection()
 					bulkItemCount.value = 0

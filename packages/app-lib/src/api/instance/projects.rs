@@ -534,42 +534,7 @@ pub async fn remove_content_entry(
 }
 
 #[tracing::instrument]
-pub async fn update_content_entry(
-    instance_id: &str,
-    content_id: &str,
-) -> crate::Result<String> {
-    let target = content_mutation_target(instance_id, content_id).await?;
-    let path = target.relative_path.ok_or_else(|| {
-        crate::ErrorKind::InputError(
-            "The selected content is not present on disk".to_string(),
-        )
-    })?;
-    match target.provider {
-        Some(ContentProvider::CurseForge) => {
-            let result = crate::api::curseforge::update_installed_file(
-                instance_id,
-                &path,
-            )
-            .await?;
-            let updated_path = result
-                .installed
-                .iter()
-                .find(|file| !file.dependency)
-                .map_or(path, |file| file.relative_path.clone());
-            emit_content_changed(instance_id).await?;
-            Ok(updated_path)
-        }
-        Some(ContentProvider::McArchive) => Err(crate::ErrorKind::InputError(
-            "MCArchive content updates require selecting a file manually"
-                .to_string(),
-        )
-        .into()),
-        _ => update_project(instance_id, &path, None).await,
-    }
-}
-
-#[tracing::instrument]
-pub async fn switch_content_entry_version(
+pub(crate) async fn switch_content_entry_version(
     instance_id: &str,
     content_id: &str,
     version_id: &str,

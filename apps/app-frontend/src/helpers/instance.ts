@@ -1024,22 +1024,6 @@ export async function queue_content_version_change(
 	})
 }
 
-export async function update_content_entry(instanceId: string, contentId: string): Promise<string> {
-	return await invoke('plugin:instance|instance_update_content_entry', { instanceId, contentId })
-}
-
-export async function switch_content_entry_version(
-	instanceId: string,
-	contentId: string,
-	versionId: string,
-): Promise<string> {
-	return await invoke('plugin:instance|instance_switch_content_entry_version', {
-		instanceId,
-		contentId,
-		versionId,
-	})
-}
-
 export async function restore_pack_member_default(
 	instanceId: string,
 	memberId: string,

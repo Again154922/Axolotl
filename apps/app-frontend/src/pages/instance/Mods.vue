@@ -215,7 +215,6 @@ import {
 	UndoIcon,
 } from '@modrinth/assets'
 import {
-	type BulkOperationStatus,
 	ButtonStyled,
 	CollapsibleAdmonition,
 	commonMessages,
@@ -254,6 +253,11 @@ import { useWorldDatapacks } from '@/composables/useWorldDatapacks'
 import { trackEvent } from '@/helpers/analytics'
 import { get_project_versions, get_version, get_version_many } from '@/helpers/cache.js'
 import { applyContentItemUpdates, matchesContentItem } from '@/helpers/content-item-state'
+import {
+	activeContentChangeJobs as selectActiveContentChangeJobs,
+	contentItemStableId,
+	hasActiveContentChange,
+} from '@/helpers/content-change-jobs'
 import { lookupContentWikiIds, translateContentItemTitles } from '@/helpers/content-search'
 import { type CurseForgeFile, getCurseForgeChangelog } from '@/helpers/curseforge'
 import {
@@ -946,9 +950,7 @@ watch(
 const isModpackUpdating = ref(false)
 const localBulkOperating = ref(false)
 const activeContentChangeJobs = computed(() =>
-	downloadManager.activeJobs.value.filter(
-		(job) => job.kind === 'change_content' && installJobInstanceId(job) === props.instance.id,
-	),
+	selectActiveContentChangeJobs(downloadManager.jobs.value, props.instance.id),
 )
 const hasActiveUpdateAll = computed(() =>
 	activeContentChangeJobs.value.some(
@@ -1162,19 +1164,11 @@ function handleVisibleItems(items: ContentItem[]) {
 }
 
 function getStableContentId(item: ContentItem) {
-	return item.instanceEntryId ?? item.instanceMemberId ?? item.instanceFileId ?? null
+	return contentItemStableId(item)
 }
 
 function hasGlobalContentChange(item: ContentItem) {
-	const contentId = getStableContentId(item)
-	return activeContentChangeJobs.value.some((job) => {
-		const change = job.content_change
-		if (!change) return false
-		if (change.intent.type === 'update_all_user_added' && change.content_ids.length === 0) {
-			return item.instanceOwnershipKind === 'user_added'
-		}
-		return contentId != null && change.content_ids.includes(contentId)
-	})
+	return hasActiveContentChange(activeContentChangeJobs.value, item)
 }
 
 function getContentOperationKeys(item: ContentItem) {
@@ -1965,7 +1959,7 @@ async function getDeleteDependencyWarning(items: ContentItem[]) {
 	return dependents.length > 0 ? { items, dependents } : null
 }
 
-async function bulkUpdateAllProjects(_onProgress?: (status: BulkOperationStatus) => void) {
+async function bulkUpdateAllProjects() {
 	try {
 		const job = await queue_all_content_updates(
 			props.instance.id,

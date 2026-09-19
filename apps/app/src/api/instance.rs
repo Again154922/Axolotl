@@ -100,8 +100,6 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_queue_content_update,
             instance_queue_all_content_updates,
             instance_queue_content_version_change,
-            instance_update_content_entry,
-            instance_switch_content_entry_version,
             instance_restore_pack_member_default,
             instance_update_managed_modrinth_version,
             instance_repair_managed_modrinth,
@@ -1848,31 +1846,6 @@ pub async fn instance_queue_content_version_change(
         },
         display_title,
         display_icon,
-    )
-    .await?)
-}
-
-#[tauri::command]
-pub async fn instance_update_content_entry(
-    instance_id: &str,
-    content_id: &str,
-) -> Result<String> {
-    Ok(
-        theseus::instance::update_content_entry(instance_id, content_id)
-            .await?,
-    )
-}
-
-#[tauri::command]
-pub async fn instance_switch_content_entry_version(
-    instance_id: &str,
-    content_id: &str,
-    version_id: &str,
-) -> Result<String> {
-    Ok(theseus::instance::switch_content_entry_version(
-        instance_id,
-        content_id,
-        version_id,
     )
     .await?)
 }

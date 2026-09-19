@@ -585,8 +585,6 @@ fn main() {
                         "instance_queue_content_update",
                         "instance_queue_all_content_updates",
                         "instance_queue_content_version_change",
-                        "instance_update_content_entry",
-                        "instance_switch_content_entry_version",
                         "instance_restore_pack_member_default",
                         "instance_update_managed_modrinth_version",
                         "instance_repair_managed_modrinth",
