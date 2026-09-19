@@ -984,19 +984,26 @@ export async function remove_content_entry(instanceId: string, contentId: string
 	return await invoke('plugin:instance|instance_remove_content_entry', { instanceId, contentId })
 }
 
-export async function update_content_entry(instanceId: string, contentId: string): Promise<string> {
-	return await invoke('plugin:instance|instance_update_content_entry', { instanceId, contentId })
-}
+export type ContentChangeIntent =
+	| { type: 'update_one'; content_id: string; target_release_id?: string | null }
+	| {
+			type: 'update_selected'
+			targets: Array<{ content_id: string; target_release_id: string }>
+	  }
+	| { type: 'update_all_user_added' }
+	| { type: 'switch_version'; content_id: string; target_release_id: string }
 
-export async function switch_content_entry_version(
+export async function queue_content_change(
 	instanceId: string,
-	contentId: string,
-	versionId: string,
-): Promise<string> {
-	return await invoke('plugin:instance|instance_switch_content_entry_version', {
+	intent: ContentChangeIntent,
+	displayTitle: string,
+	displayIcon?: string,
+): Promise<InstallJobSnapshot> {
+	return await invoke('plugin:instance|instance_queue_content_change', {
 		instanceId,
-		contentId,
-		versionId,
+		intent,
+		displayTitle,
+		displayIcon,
 	})
 }
 

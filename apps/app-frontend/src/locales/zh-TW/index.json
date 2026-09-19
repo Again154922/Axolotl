@@ -1355,6 +1355,15 @@
   "app.downloads.open-instance": {
     "message": "開啟實例"
   },
+  "app.downloads.operation.content-change": {
+    "message": "內容更新"
+  },
+  "app.downloads.operation.content-switch-version": {
+    "message": "切換內容版本"
+  },
+  "app.downloads.operation.content-update-all": {
+    "message": "更新所有內容"
+  },
   "app.downloads.operation.upgrade": {
     "message": "升級"
   },

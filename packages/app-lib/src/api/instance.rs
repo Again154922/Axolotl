@@ -10,7 +10,7 @@ mod lifecycle;
 mod mcarchive;
 mod paths;
 mod planet_minecraft;
-mod projects;
+pub(crate) mod projects;
 mod run;
 mod screenshot_groups;
 mod screenshots;
@@ -25,6 +25,7 @@ mod synced_packs_axolotl;
 pub(crate) mod synced_servers;
 mod upgrade;
 
+pub(crate) use self::content::resolve_content_change_actions;
 pub use self::content::{
     apply_content_update_plan, get_content_items, get_content_items_by_paths,
     get_content_snapshot, get_dependencies_as_content_items,
@@ -73,10 +74,9 @@ pub use self::projects::{
     queue_curseforge_content, queue_curseforge_world,
     queue_project_with_dependencies, remove_content_entry, remove_project,
     repair_managed_modrinth, restore_pack_member_default, rollback_project,
-    switch_content_entry_version, switch_project_version_with_dependencies,
-    toggle_content_entries, toggle_content_entry, toggle_disable_project,
-    update_all_projects, update_content_entry, update_managed_modrinth_version,
-    update_project,
+    switch_project_version_with_dependencies, toggle_content_entries,
+    toggle_content_entry, toggle_disable_project, update_all_projects,
+    update_managed_modrinth_version, update_project,
 };
 pub use self::run::{
     GcLaunchIntent, GcLaunchReport, QuickPlayType, kill, run,
