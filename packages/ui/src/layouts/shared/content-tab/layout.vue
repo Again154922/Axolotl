@@ -523,7 +523,7 @@ function mapToTableItem(item: ContentItem, group?: string): ContentCardTableItem
 			: (base.toggleDisabledTooltip ?? null),
 		installing: item.installing === true,
 		pendingManualDownload: item.pendingManualDownload === true,
-		hasUpdate: group ? false : item.update != null,
+		hasUpdate: !group && item.update != null && item.instanceCapabilities?.canUpdate !== false,
 		rollbackFileName: item.rollback?.file_name,
 		hideSwitchVersion: base.hideSwitchVersion ?? !base.versionLink,
 		overflowOptions: buildItemOverflowOptions(item),

@@ -259,6 +259,7 @@ import {
 	hasActiveContentChange,
 	pendingContentChangeAffectsItem,
 } from '@/helpers/content-change-jobs'
+import { mergeContentItemMetadata } from '@/helpers/content-item-metadata'
 import { lookupContentWikiIds, translateContentItemTitles } from '@/helpers/content-search'
 import { type CurseForgeFile, getCurseForgeChangelog } from '@/helpers/curseforge'
 import {
@@ -1071,10 +1072,7 @@ function mergeVisibleMetadataItems(refreshedItems: ContentItem[]) {
 
 			if (!refreshed) return item
 
-			return {
-				...item,
-				...refreshed,
-			}
+			return mergeContentItemMetadata(item, refreshed)
 		})
 
 	projects.value = mergeItems(projects.value)

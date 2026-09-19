@@ -720,6 +720,9 @@ pub async fn retry_job_as_new(
 
 pub async fn cancel_job(job_id: Uuid) -> crate::Result<InstallJobSnapshot> {
     let state = State::get().await?;
+    if let Some(token) = state.install_job_cancellations.get(&job_id) {
+        token.value().cancel();
+    }
     let mut job = loop {
         let mut job = store::get_required(job_id, &state).await?;
         match job.status {
@@ -753,7 +756,9 @@ pub async fn cancel_job(job_id: Uuid) -> crate::Result<InstallJobSnapshot> {
                 emit_install_job(&record.snapshot()).await?;
                 return Ok(record.snapshot());
             }
-            InstallJobStatus::Canceling => return Ok(job.snapshot()),
+            InstallJobStatus::Canceling | InstallJobStatus::Canceled => {
+                return Ok(job.snapshot());
+            }
             InstallJobStatus::Queued | InstallJobStatus::WaitingForUser => {
                 let expected = job.status;
                 begin_canceling_job(&mut job.state);

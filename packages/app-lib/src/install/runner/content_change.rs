@@ -12,16 +12,21 @@ pub(super) async fn run(
     let state = State::get().await?;
     let reporter = InstallProgressReporter::new(job_id, job_state.clone());
     let cancellation = reporter.cancellation_token();
-    let mut actions =
-        load_or_resolve_actions(job_state, instance_id, intent, &reporter)
-            .await?;
-    prepare_actions(
-        job_state,
-        instance_id,
-        &mut actions,
-        &reporter,
-        &state,
+    let mut actions = cancelable(
         &cancellation,
+        load_or_resolve_actions(job_state, instance_id, intent, &reporter),
+    )
+    .await?;
+    cancelable(
+        &cancellation,
+        prepare_actions(
+            job_state,
+            instance_id,
+            &mut actions,
+            &reporter,
+            &state,
+            &cancellation,
+        ),
     )
     .await?;
 
@@ -331,75 +336,68 @@ async fn download_prepared_files(
         }
     }))
     .buffer_unordered(concurrency);
-    let mut ticker = tokio::time::interval(Duration::from_millis(150));
-    let mut failed_files = HashSet::new();
-    let mut cancellation_seen = false;
-    loop {
-        tokio::select! {
-            _ = ticker.tick() => {
-                let current = reporter.current_state().await?;
-                let summary = current.download_summary();
-                let (current, total) = match total_bytes {
-                    Some(total) => (
-                        summary.bytes_downloaded.min(total),
-                        total.max(1),
-                    ),
-                    None => (
-                        summary.files_completed,
-                        summary.files_total.unwrap_or_default().max(1),
-                    ),
-                };
-                reporter
-                    .update(
-                        InstallPhaseId::DownloadingContent,
-                        Some(InstallProgress {
-                            current,
-                            total,
-                            secondary: None,
-                        }),
-                        InstallPhaseDetails::Empty,
-                    )
-                    .await?;
-                cancellation_seen |= cancellation.is_cancelled();
-            }
-            result = downloads.next() => {
-                let Some((file, result)) = result else {
-                    break;
-                };
-                match result {
-                    Ok(()) => {
-                        reporter
-                            .record_events(vec![
-                                InstallJobEventKind::ContentFileCompleted {
-                                    path: file.target_relative_path,
-                                    bytes: file.integrity.size.unwrap_or_default(),
-                                },
-                            ])
-                            .await?;
-                    }
-                    Err(error) => {
-                        failed_files.insert(file.id.clone());
-                        reporter
-                            .record_events(vec![
-                                InstallJobEventKind::ContentFileFailed {
-                                    path: file.target_relative_path,
-                                    reason: error.to_string(),
-                                    project_id: Some(file.project_id),
-                                    version_id: Some(file.release_id),
-                                },
-                            ])
-                            .await?;
-                    }
+    let progress = async {
+        let mut ticker = tokio::time::interval(Duration::from_millis(150));
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            ticker.tick().await;
+            let current = reporter.current_state().await?;
+            let summary = current.download_summary();
+            let (current, total) = match total_bytes {
+                Some(total) => {
+                    (summary.bytes_downloaded.min(total), total.max(1))
+                }
+                None => (
+                    summary.files_completed,
+                    summary.files_total.unwrap_or_default().max(1),
+                ),
+            };
+            reporter
+                .update(
+                    InstallPhaseId::DownloadingContent,
+                    Some(InstallProgress {
+                        current,
+                        total,
+                        secondary: None,
+                    }),
+                    InstallPhaseDetails::Empty,
+                )
+                .await?;
+        }
+    };
+    let download = async {
+        let mut failed_files = HashSet::new();
+        while let Some((file, result)) = downloads.next().await {
+            match result {
+                Ok(()) => {
+                    reporter
+                        .record_events(vec![
+                            InstallJobEventKind::ContentFileCompleted {
+                                path: file.target_relative_path,
+                                bytes: file.integrity.size.unwrap_or_default(),
+                            },
+                        ])
+                        .await?;
+                }
+                Err(error) => {
+                    failed_files.insert(file.id.clone());
+                    reporter
+                        .record_events(vec![
+                            InstallJobEventKind::ContentFileFailed {
+                                path: file.target_relative_path,
+                                reason: error.to_string(),
+                                project_id: Some(file.project_id),
+                                version_id: Some(file.release_id),
+                            },
+                        ])
+                        .await?;
                 }
             }
         }
-    }
-    if cancellation_seen || cancellation.is_cancelled() {
-        return Err(crate::ErrorKind::InputError(
-            "Content change canceled".to_string(),
-        )
-        .into());
-    }
+        Ok(failed_files)
+    };
+    let failed_files =
+        drive_downloads(cancellation, download, progress).await?;
     for action in actions.iter_mut().filter(|action| !action.is_complete()) {
         if action.effective_status()
             == crate::install::ContentChangeActionStatus::Failed
@@ -456,6 +454,7 @@ async fn publish_actions(
             &actions[index].content_id,
         )
         .await;
+        check_canceled(cancellation)?;
         let result = match current {
             Ok(current)
                 if current.provider_release_id.as_deref()
@@ -475,6 +474,7 @@ async fn publish_actions(
                     crate::install::ContentChangeActionStatus::Applying,
                 );
                 persist_actions(job_state, reporter, actions).await?;
+                check_canceled(cancellation)?;
                 crate::api::instance::projects::switch_content_entry_version(
                     instance_id,
                     &actions[index].content_id,
@@ -535,6 +535,38 @@ fn check_canceled(
     Ok(())
 }
 
+async fn cancelable<T>(
+    cancellation: &tokio_util::sync::CancellationToken,
+    work: impl std::future::Future<Output = crate::Result<T>>,
+) -> crate::Result<T> {
+    tokio::select! {
+        biased;
+        _ = cancellation.cancelled() => {
+            Err(crate::ErrorKind::InputError("Content change canceled".to_string()).into())
+        }
+        result = work => result,
+    }
+}
+
+// Keep polling the download workers while progress waits for their reporter lock.
+async fn drive_downloads<T>(
+    cancellation: &tokio_util::sync::CancellationToken,
+    downloads: impl std::future::Future<Output = crate::Result<T>>,
+    progress: impl std::future::Future<Output = crate::Result<()>>,
+) -> crate::Result<T> {
+    cancelable(cancellation, async {
+        tokio::pin!(downloads);
+        tokio::select! {
+            result = &mut downloads => result,
+            result = progress => {
+                result?;
+                downloads.await
+            }
+        }
+    })
+    .await
+}
+
 fn unique_pending_files(
     actions: &[crate::install::ContentChangeAction],
 ) -> Vec<crate::install::ContentChangeFile> {
@@ -562,6 +594,82 @@ mod tests {
         ContentChangeFileIntegrity, ContentChangeFileRole,
         ContentChangeOperation,
     };
+
+    #[tokio::test]
+    async fn progress_wait_does_not_stop_polling_download_workers() {
+        let lock = tokio::sync::Mutex::new(());
+        let (locked_tx, locked_rx) = tokio::sync::oneshot::channel();
+        let (sampling_tx, sampling_rx) = tokio::sync::oneshot::channel();
+        let downloads = async {
+            let _guard = lock.lock().await;
+            locked_tx.send(()).unwrap();
+            sampling_rx.await.unwrap();
+            tokio::task::yield_now().await;
+            Ok(42)
+        };
+        let progress = async {
+            locked_rx.await.unwrap();
+            sampling_tx.send(()).unwrap();
+            let _guard = lock.lock().await;
+            Ok(())
+        };
+        let result = tokio::time::timeout(
+            Duration::from_secs(1),
+            drive_downloads(
+                &tokio_util::sync::CancellationToken::new(),
+                downloads,
+                progress,
+            ),
+        )
+        .await
+        .expect("progress must not suspend a worker holding the reporter lock")
+        .unwrap();
+        assert_eq!(result, 42);
+    }
+
+    #[tokio::test]
+    async fn cancel_interrupts_pending_downloads_and_progress() {
+        let cancellation = tokio_util::sync::CancellationToken::new();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let held = tokio::sync::Mutex::new(());
+        let downloads = async {
+            let _guard = held.lock().await;
+            started_tx.send(()).unwrap();
+            std::future::pending::<crate::Result<()>>().await
+        };
+        let cancel = async {
+            started_rx.await.unwrap();
+            cancellation.cancel();
+        };
+        let (result, ()) =
+            tokio::time::timeout(Duration::from_secs(1), async {
+                tokio::join!(
+                    drive_downloads(
+                        &cancellation,
+                        downloads,
+                        std::future::pending()
+                    ),
+                    cancel,
+                )
+            })
+            .await
+            .expect(
+                "cancellation must not wait for the pending network operation",
+            );
+        assert!(result.is_err());
+        assert!(held.try_lock().is_ok(), "download future must be dropped");
+    }
+
+    #[tokio::test]
+    async fn canceled_preparation_does_not_start_more_work() {
+        let cancellation = tokio_util::sync::CancellationToken::new();
+        cancellation.cancel();
+        let result = cancelable::<()>(&cancellation, async {
+            panic!("canceled work must not be polled")
+        })
+        .await;
+        assert!(result.is_err());
+    }
 
     fn file(id: &str) -> ContentChangeFile {
         ContentChangeFile {
