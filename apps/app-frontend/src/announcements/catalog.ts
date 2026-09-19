@@ -28,6 +28,137 @@ export const ANNOUNCEMENT_CHANGE_TYPES: readonly AnnouncementChangeType[] = [
 
 export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 	{
+		id: 'launcher-1.9.7-beta.2',
+		version: '1.9.7-beta.2',
+		publishedAt: '2026-09-19',
+		title: {
+			'en-US': 'Axolotl Launcher 1.9.7-beta.2',
+			'zh-CN': 'Axolotl Launcher 1.9.7-beta.2',
+		},
+		changes: {
+			added: [
+				{
+					'en-US':
+						'Added persistent background jobs for content changes, including mod updates, with progress, cancellation, and localized status messages.',
+					'zh-CN':
+						'新增内容变更后台任务机制，支持 Mod 更新等操作的进度显示、取消与本地化状态信息。',
+				},
+				{
+					'en-US': 'Added an option to pin local servers to the Home page.',
+					'zh-CN': '新增将本地服务器固定到主页的功能。',
+				},
+				{
+					'en-US':
+						'Added custom icons for launcher shortcuts and support for sending launch shortcuts to the desktop.',
+					'zh-CN': '新增启动快捷方式的自定义图标，并支持将启动快捷方式发送到桌面。',
+				},
+				{
+					'en-US': 'Added an Experimental Features settings page with staged rollout controls.',
+					'zh-CN': '新增实验性功能设置页面，并支持灰度发布控制。',
+				},
+				{
+					'en-US': 'Added custom Minecraft window titles for individual instances.',
+					'zh-CN': '新增为单个实例自定义 Minecraft 窗口标题的功能。',
+				},
+				{
+					'en-US': 'Added an option to ignore SSL certificate errors when required.',
+					'zh-CN': '新增在必要时忽略 SSL 证书错误的选项。',
+				},
+				{
+					'en-US': 'Added armor and armor-trim rendering to the skin preview.',
+					'zh-CN': '皮肤预览新增盔甲和盔甲纹饰渲染。',
+				},
+				{
+					'en-US':
+						'Added controls to hide fixed navigation items and adjust the opacity of Home widgets and custom-background components.',
+					'zh-CN': '新增隐藏固定导航项的控制，并支持调整主页组件和自定义背景组件的不透明度。',
+				},
+				{
+					'en-US': 'Added more URL scheme commands for opening launcher features from links.',
+					'zh-CN': '新增更多 URL Scheme 命令，可通过链接打开启动器功能。',
+				},
+				{
+					'en-US': 'Added support for running server hooks before a server starts.',
+					'zh-CN': '新增服务器启动前钩子支持。',
+				},
+				{
+					'en-US':
+						'Added Nix Flake, NixOS, and Home Manager support for building and installing Axolotl Launcher.',
+					'zh-CN':
+						'新增 Nix Flake、NixOS 和 Home Manager 支持，可用于构建和安装 Axolotl Launcher。',
+				},
+			],
+			changed: [
+				{
+					'en-US':
+						'Improved app navigation and route-state retention so returning from Browse, content management, and upgrade flows preserves context more reliably.',
+					'zh-CN':
+						'改进应用导航和路由状态保留机制，返回发现页、内容管理页和实例升级流程时可更可靠地保留上下文。',
+				},
+				{
+					'en-US':
+						'Refined the launcher interface with improved top-bar behavior, headless UI component foundations, updated settings controls, and more consistent dialogs.',
+					'zh-CN':
+						'优化启动器界面，包括改进顶部栏行为、引入无头 UI 组件基础、更新设置控件，并统一对话框体验。',
+				},
+				{
+					'en-US':
+						'Improved build performance and release configuration, including more efficient frontend loading and Nix build caching.',
+					'zh-CN': '优化构建性能和发布配置，包括更高效的前端加载与 Nix 构建缓存。',
+				},
+			],
+			fixed: [
+				{
+					'en-US':
+						'Fixed concurrent content updates becoming stuck, failing to submit, reporting incorrect phase progress, or not responding to cancellation.',
+					'zh-CN': '修复并发内容更新可能卡住、无法提交、阶段进度异常或无法取消的问题。',
+				},
+				{
+					'en-US': 'Fixed the taskbar using an instance icon instead of the launcher icon.',
+					'zh-CN': '修复任务栏错误使用实例图标而非启动器图标的问题。',
+				},
+				{
+					'en-US': 'Improved instance upgrade plan generation performance.',
+					'zh-CN': '优化实例升级方案的生成速度。',
+				},
+				{
+					'en-US':
+						'Fixed duplicate-content filtering being lost or remaining pinned after content refreshes.',
+					'zh-CN': '修复内容刷新后重复内容筛选条件丢失或持续固定的问题。',
+				},
+				{
+					'en-US':
+						'Fixed Home page pinned-server behavior and ignored stale responses from the local server list.',
+					'zh-CN': '修复主页已固定服务器的相关问题，并忽略过期的本地服务器列表响应。',
+				},
+				{
+					'en-US':
+						'Fixed issues adding additional accounts and refreshing Minecraft version lists without restarting the launcher.',
+					'zh-CN': '修复无法添加更多账户，以及无需重启启动器即可刷新 Minecraft 版本列表的问题。',
+				},
+				{
+					'en-US':
+						'Fixed navigation cases that could prevent leaving the Discover and Browse pages.',
+					'zh-CN': '修复某些情况下无法离开发现页和浏览页的问题。',
+				},
+				{
+					'en-US':
+						'Fixed Screenshot Center performance, context-menu behavior, and missing instance screenshot IDs.',
+					'zh-CN': '修复截图中心的性能、右键菜单行为以及实例截图缺失 ID 的问题。',
+				},
+				{
+					'en-US': 'Fixed the instance-library search box being squeezed by filter controls.',
+					'zh-CN': '修复实例库搜索框被筛选控件挤占的问题。',
+				},
+				{
+					'en-US':
+						'Fixed rendering issues for transparent skins, armor corners, and left-arm armor.',
+					'zh-CN': '修复透明皮肤、盔甲边角和左臂盔甲的渲染问题。',
+				},
+			],
+		},
+	},
+	{
 		id: 'launcher-1.9.7-beta.1',
 		version: '1.9.7-beta.1',
 		publishedAt: '2026-09-15',
@@ -44,8 +175,7 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 			],
 			changed: [
 				{
-					'en-US':
-						'Improved instance upgrade planning performance.',
+					'en-US': 'Improved instance upgrade planning performance.',
 					'zh-CN': '提升实例升级计划的计算速度。',
 				},
 			],
@@ -57,8 +187,7 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 				{
 					'en-US':
 						'Fixed disabled content incorrectly showing a warning that keeping its version may make the upgraded instance incompatible.',
-					'zh-CN':
-						'修复禁用当前内容后仍错误显示“保留此版本可能导致升级后的实例不兼容”告警的问题。',
+					'zh-CN': '修复禁用当前内容后仍错误显示“保留此版本可能导致升级后的实例不兼容”告警的问题。',
 				},
 			],
 		},
