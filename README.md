@@ -118,6 +118,17 @@ nix profile add 'git+https://github.com/Mystic-Stars/Axolotl'
 ```nix
 # flake.nix
 {
+  nixConfig = {
+    # 使用 Axolotl Launcher 的 cachix 缓存。对安全性有疑问可以审查：
+		# axololt-launcher.git.cachix.org 以及 github.com/AstroNot233/Axolotl-Cachix
+    extra-substituters = [
+      "https://axolotl-launcher-git.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "axolotl-launcher-git.cachix.org-1:6OBznZ1/jC7SRgugQ2PNGcy4VFyF0tDeWBMs2BPRt5Q="
+    ];
+  };
+
   inputs = {
     # nixpkgs home-manager 等其他输入...
     axolotl-launcher = {
