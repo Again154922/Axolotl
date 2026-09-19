@@ -2,6 +2,7 @@ import type { ContentItem } from '@modrinth/ui'
 
 import { isActiveInstallJobStatus } from './install-job-status.ts'
 import type { InstallJobSnapshot } from './install.ts'
+import type { PendingContentChange } from '@/providers/download-manager.ts'
 
 export function activeContentChangeJobs(
 	jobs: InstallJobSnapshot[],
@@ -31,4 +32,13 @@ export function contentChangeAffectsItem(job: InstallJobSnapshot, item: ContentI
 
 export function hasActiveContentChange(jobs: InstallJobSnapshot[], item: ContentItem): boolean {
 	return jobs.some((job) => contentChangeAffectsItem(job, item))
+}
+
+export function pendingContentChangeAffectsItem(
+	pending: PendingContentChange,
+	item: ContentItem,
+): boolean {
+	if (pending.updateAll) return item.instanceOwnershipKind === 'user_added'
+	const contentId = contentItemStableId(item)
+	return contentId != null && pending.contentIds.includes(contentId)
 }

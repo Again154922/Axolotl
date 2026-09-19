@@ -317,6 +317,16 @@
 					>
 						{{ job.rollback_error?.message ?? job.error?.message }}
 					</Admonition>
+					<div v-if="failedContentActions(job).length" class="mb-4 flex flex-col gap-2">
+						<Admonition
+							v-for="action in failedContentActions(job)"
+							:key="action.content_id"
+							type="critical"
+							:header="action.final_relative_path ?? action.content_id"
+						>
+							{{ action.error }}
+						</Admonition>
+					</div>
 					<Table
 						v-if="job.items.length"
 						:key="`${job.job_id}-details`"
@@ -836,6 +846,10 @@ function jobTypeLabel(job: InstallJobSnapshot) {
 	return job.kind === 'upgrade_unmanaged_instance'
 		? formatMessage(messages.upgrade)
 		: providerLabel(job.provider)
+}
+
+function failedContentActions(job: InstallJobSnapshot) {
+	return job.content_change?.actions?.filter((action) => action.status === 'failed') ?? []
 }
 
 function jobTypeIcon(job: InstallJobSnapshot) {

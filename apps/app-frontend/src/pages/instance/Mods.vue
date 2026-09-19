@@ -257,6 +257,7 @@ import {
 	activeContentChangeJobs as selectActiveContentChangeJobs,
 	contentItemStableId,
 	hasActiveContentChange,
+	pendingContentChangeAffectsItem,
 } from '@/helpers/content-change-jobs'
 import { lookupContentWikiIds, translateContentItemTitles } from '@/helpers/content-search'
 import { type CurseForgeFile, getCurseForgeChangelog } from '@/helpers/curseforge'
@@ -276,9 +277,6 @@ import {
 	type InstanceContentSnapshotItem,
 	list,
 	plan_content_updates,
-	queue_all_content_updates,
-	queue_content_update,
-	queue_content_version_change,
 	remove_content_entry,
 	restore_pack_member_default,
 	rollback_project,
@@ -949,23 +947,15 @@ watch(
 
 const isModpackUpdating = ref(false)
 const localBulkOperating = ref(false)
-const pendingContentChangeIds = ref(new Set<string>())
-const pendingContentUpdateAll = ref(false)
 const activeContentChangeJobs = computed(() =>
 	selectActiveContentChangeJobs(downloadManager.jobs.value, props.instance.id),
 )
-const hasActiveUpdateAll = computed(() =>
-	pendingContentUpdateAll.value ||
-	activeContentChangeJobs.value.some(
-		(job) => job.content_change?.intent.type === 'update_all_user_added',
+const pendingContentChanges = computed(() =>
+	downloadManager.pendingContentChanges.value.filter(
+		(pending) => pending.instanceId === props.instance.id,
 	),
 )
-const isBulkOperating = computed({
-	get: () => localBulkOperating.value || hasActiveUpdateAll.value,
-	set: (value) => {
-		localBulkOperating.value = value
-	},
-})
+const isBulkOperating = localBulkOperating
 const isInstanceBusy = computed(() => props.instance?.install_stage !== 'installed')
 let contentRequestGeneration = 0
 
@@ -1171,24 +1161,10 @@ function getStableContentId(item: ContentItem) {
 }
 
 function hasGlobalContentChange(item: ContentItem) {
-	const contentId = getStableContentId(item)
 	return (
-		(pendingContentUpdateAll.value && item.instanceOwnershipKind === 'user_added') ||
-		(contentId != null && pendingContentChangeIds.value.has(contentId)) ||
+		pendingContentChanges.value.some((pending) => pendingContentChangeAffectsItem(pending, item)) ||
 		hasActiveContentChange(activeContentChangeJobs.value, item)
 	)
-}
-
-function beginPendingContentChange(contentId: string) {
-	if (pendingContentUpdateAll.value || pendingContentChangeIds.value.has(contentId)) return false
-	pendingContentChangeIds.value = new Set([...pendingContentChangeIds.value, contentId])
-	return true
-}
-
-function finishPendingContentChange(contentId: string) {
-	const next = new Set(pendingContentChangeIds.value)
-	next.delete(contentId)
-	pendingContentChangeIds.value = next
 }
 
 function getContentOperationKeys(item: ContentItem) {
@@ -1200,8 +1176,7 @@ function getContentOperationKeys(item: ContentItem) {
 function hasContentOperation(item: ContentItem) {
 	const keys = getContentOperationKeys(item)
 	return (
-		keys.some((key) => activeContentOperationKeys.value.has(key)) ||
-		hasGlobalContentChange(item)
+		keys.some((key) => activeContentOperationKeys.value.has(key)) || hasGlobalContentChange(item)
 	)
 }
 
@@ -1980,42 +1955,55 @@ async function getDeleteDependencyWarning(items: ContentItem[]) {
 }
 
 async function bulkUpdateAllProjects() {
-	if (
-		pendingContentUpdateAll.value ||
-		pendingContentChangeIds.value.size > 0 ||
-		activeContentChangeJobs.value.length > 0
-	)
-		return
-	pendingContentUpdateAll.value = true
+	if (pendingContentChanges.value.length > 0 || activeContentChangeJobs.value.length > 0) return
 	try {
-		const job = await queue_all_content_updates(
-			props.instance.id,
-			formatMessage(messages.updateAddedContent),
-		)
-		downloadManager.trackJob(job)
+		await downloadManager.queueContentChange({
+			instanceId: props.instance.id,
+			intent: { type: 'update_all_user_added' },
+			displayTitle: formatMessage(messages.updateAddedContent),
+		})
 	} catch (err) {
 		handleError(err as Error)
 		throw err
-	} finally {
-		pendingContentUpdateAll.value = false
+	}
+}
+
+async function bulkUpdateProjects(items: ContentItem[]) {
+	const targets = items.flatMap((item) => {
+		const contentId = getStableContentId(item)
+		const targetReleaseId = contentUpdateId(item)
+		return contentId && targetReleaseId
+			? [{ content_id: contentId, target_release_id: targetReleaseId }]
+			: []
+	})
+	if (targets.length === 0) return
+	if (items.some((item) => hasGlobalContentChange(item))) return
+	try {
+		await downloadManager.queueContentChange({
+			instanceId: props.instance.id,
+			intent: { type: 'update_selected', targets },
+			displayTitle: formatMessage(messages.updateAddedContent),
+		})
+	} catch (err) {
+		handleError(err as Error)
+		throw err
 	}
 }
 
 async function updateProject(mod: ContentItem) {
 	if (!canUpdateProject(mod)) return
 	const contentId = getStableContentId(mod)
-	if (!contentId) return
+	const targetReleaseId = contentUpdateId(mod)
+	if (!contentId || !targetReleaseId) return
 	if (hasGlobalContentChange(mod)) return
-	if (!beginPendingContentChange(contentId)) return
 
 	try {
-		const job = await queue_content_update(
-			props.instance.id,
-			contentId,
-			mod.project?.title ?? mod.file_name,
-			mod.project?.icon_url,
-		)
-		downloadManager.trackJob(job)
+		await downloadManager.queueContentChange({
+			instanceId: props.instance.id,
+			intent: { type: 'update_one', content_id: contentId, target_release_id: targetReleaseId },
+			displayTitle: mod.project?.title ?? mod.file_name,
+			displayIcon: mod.project?.icon_url,
+		})
 
 		trackEvent('InstanceProjectUpdate', {
 			loader: props.instance.loader,
@@ -2027,8 +2015,6 @@ async function updateProject(mod: ContentItem) {
 	} catch (err) {
 		handleError(err as Error)
 		throw err
-	} finally {
-		finishPendingContentChange(contentId)
 	}
 }
 
@@ -2036,17 +2022,14 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 	const contentId = getStableContentId(mod)
 	if (!mod.file_path || !contentId || mod.instanceCapabilities?.canChangeVersion === false) return
 	if (hasGlobalContentChange(mod)) return
-	if (!beginPendingContentChange(contentId)) return
 
 	try {
-		const job = await queue_content_version_change(
-			props.instance.id,
-			contentId,
-			version.id,
-			mod.project?.title ?? mod.file_name,
-			mod.project?.icon_url,
-		)
-		downloadManager.trackJob(job)
+		await downloadManager.queueContentChange({
+			instanceId: props.instance.id,
+			intent: { type: 'switch_version', content_id: contentId, target_release_id: version.id },
+			displayTitle: mod.project?.title ?? mod.file_name,
+			displayIcon: mod.project?.icon_url,
+		})
 
 		trackEvent('InstanceProjectUpdate', {
 			loader: props.instance.loader,
@@ -2057,8 +2040,6 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 		})
 	} catch (err) {
 		handleError(err as Error)
-	} finally {
-		finishPendingContentChange(contentId)
 	}
 }
 
@@ -2088,12 +2069,7 @@ async function handleUpdate(id: string) {
 	const item =
 		projects.value.find((p) => getContentItemId(p) === id) ??
 		linkedModpackContentItems.value.find((p) => getContentItemId(p) === id)
-	// The content list can expose an update before its version metadata has finished loading.
-	// Updating uses the stable content ID and update target.
 	if (!item || !canUpdateProject(item)) return
-	// The update badge already identifies the provider's resolved target. Submit
-	// that target as a background job directly; opening the version picker here
-	// made the row action depend on asynchronously loaded version metadata.
 	await updateProject(item)
 }
 
@@ -2789,7 +2765,7 @@ provideContentManager({
 	bulkUpdateAllLabel: formatMessage(messages.updateAddedContent),
 	bulkUpdateAllDescription: formatMessage(messages.updateAddedContentDescription),
 	bulkUpdateIncludesModpack: false,
-	bulkUpdateItem: updateProject,
+	bulkUpdateItems: bulkUpdateProjects,
 	updateModpack: props.isServerInstance ? undefined : handleModpackUpdate,
 	viewDependencies: handleViewDependencies,
 	unlinkModpack: unpairInstance,

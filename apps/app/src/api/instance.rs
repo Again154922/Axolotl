@@ -98,9 +98,6 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_remove_project,
             instance_remove_content_entry,
             instance_queue_content_change,
-            instance_queue_content_update,
-            instance_queue_all_content_updates,
-            instance_queue_content_version_change,
             instance_restore_pack_member_default,
             instance_update_managed_modrinth_version,
             instance_repair_managed_modrinth,
@@ -1809,59 +1806,6 @@ pub async fn instance_queue_content_change(
     Ok(theseus::install::queue_content_change(
         instance_id.to_string(),
         intent,
-        display_title,
-        display_icon,
-    )
-    .await?)
-}
-
-#[tauri::command]
-pub async fn instance_queue_content_update(
-    instance_id: &str,
-    content_id: &str,
-    display_title: String,
-    display_icon: Option<String>,
-) -> Result<theseus::install::InstallJobSnapshot> {
-    Ok(theseus::install::queue_content_change(
-        instance_id.to_string(),
-        theseus::install::ContentChangeIntent::UpdateOne {
-            content_id: content_id.to_string(),
-            target_release_id: None,
-        },
-        display_title,
-        display_icon,
-    )
-    .await?)
-}
-
-#[tauri::command]
-pub async fn instance_queue_all_content_updates(
-    instance_id: &str,
-    display_title: String,
-) -> Result<theseus::install::InstallJobSnapshot> {
-    Ok(theseus::install::queue_content_change(
-        instance_id.to_string(),
-        theseus::install::ContentChangeIntent::UpdateAllUserAdded,
-        display_title,
-        None,
-    )
-    .await?)
-}
-
-#[tauri::command]
-pub async fn instance_queue_content_version_change(
-    instance_id: &str,
-    content_id: &str,
-    version_id: &str,
-    display_title: String,
-    display_icon: Option<String>,
-) -> Result<theseus::install::InstallJobSnapshot> {
-    Ok(theseus::install::queue_content_change(
-        instance_id.to_string(),
-        theseus::install::ContentChangeIntent::SwitchVersion {
-            content_id: content_id.to_string(),
-            target_release_id: version_id.to_string(),
-        },
         display_title,
         display_icon,
     )

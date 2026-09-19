@@ -22,6 +22,7 @@ import {
 } from '@/helpers/install'
 import { ACTIVE_INSTALL_JOB_STATUSES, isActiveInstallJobStatus } from '@/helpers/install-job-status'
 import { effectiveInstallProgress, hasDeterminateInstallProgress } from '@/helpers/install-progress'
+import { queue_content_change, type ContentChangeIntent } from '@/helpers/instance'
 import type { LoadingBar } from '@/helpers/state'
 import { progress_bars_list } from '@/helpers/state'
 
@@ -36,6 +37,7 @@ export const downloadBarTypes = new Set([
 
 export interface DownloadManager {
 	jobs: Ref<InstallJobSnapshot[]>
+	pendingContentChanges: Ref<PendingContentChange[]>
 	legacyDownloads: Ref<LoadingBar[]>
 	activeJobs: ComputedRef<InstallJobSnapshot[]>
 	historyJobs: ComputedRef<InstallJobSnapshot[]>
@@ -50,6 +52,7 @@ export interface DownloadManager {
 	remove: (jobId: string) => Promise<void>
 	clearHistory: () => Promise<void>
 	trackJob: (job: InstallJobSnapshot) => void
+	queueContentChange: (request: QueueContentChangeRequest) => Promise<InstallJobSnapshot>
 	/**
 	 * Insert a synthetic job created on the frontend (e.g. a server download
 	 * that does not go through the backend install-pipeline). The job is kept
@@ -76,8 +79,24 @@ export interface DownloadManager {
 	dispose: () => void
 }
 
+export interface PendingContentChange {
+	id: string
+	instanceId: string
+	intent: ContentChangeIntent
+	contentIds: string[]
+	updateAll: boolean
+}
+
+export interface QueueContentChangeRequest {
+	instanceId: string
+	intent: ContentChangeIntent
+	displayTitle: string
+	displayIcon?: string
+}
+
 export function createDownloadManager(handleError: (error: unknown) => void): DownloadManager {
 	const jobs = ref<InstallJobSnapshot[]>([])
+	const pendingContentChanges = ref<PendingContentChange[]>([])
 	const legacyDownloads = ref<LoadingBar[]>([])
 	let started = false
 	let disposed = false
@@ -94,6 +113,7 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 	const jobRevisions = new Map<string, number>()
 	let requestFlushTimer: ReturnType<typeof setTimeout> | null = null
 	let legacyRefreshTimer: ReturnType<typeof setTimeout> | null = null
+	let pendingContentChangeId = 0
 
 	function bumpJobRevision(jobId: string) {
 		jobRevisions.set(jobId, (jobRevisions.get(jobId) ?? 0) + 1)
@@ -118,8 +138,8 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 		setCurseForgeManualDownloads(instanceId, manualItems)
 	}
 
-	function setJob(job: InstallJobSnapshot) {
-		if (initializing) {
+	function setJob(job: InstallJobSnapshot, force = false) {
+		if (initializing && !force) {
 			pendingInitialUpdates.push({ kind: 'job', job })
 			return
 		}
@@ -153,6 +173,37 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 			for (const update of pending) updateRequest(update)
 		}
 		persistManualDownloadsFromJob(job)
+	}
+
+	async function queueContentChange({
+		instanceId,
+		intent,
+		displayTitle,
+		displayIcon,
+	}: QueueContentChangeRequest) {
+		const contentIds =
+			intent.type === 'update_selected'
+				? intent.targets.map((target) => target.content_id)
+				: intent.type === 'update_all_user_added'
+					? []
+					: [intent.content_id]
+		const pending: PendingContentChange = {
+			id: `content-change:${++pendingContentChangeId}`,
+			instanceId,
+			intent,
+			contentIds,
+			updateAll: intent.type === 'update_all_user_added',
+		}
+		pendingContentChanges.value = [...pendingContentChanges.value, pending]
+		try {
+			const job = await queue_content_change(instanceId, intent, displayTitle, displayIcon)
+			setJob(job, true)
+			return job
+		} finally {
+			pendingContentChanges.value = pendingContentChanges.value.filter(
+				(candidate) => candidate.id !== pending.id,
+			)
+		}
 	}
 
 	function updateRequest(update: DownloadRequestUpdate) {
@@ -453,7 +504,9 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 		jobs.value = jobs.value.filter((job) => isActiveInstallJobStatus(job.status))
 	}
 
-	const activeJobs = computed(() => jobs.value.filter((job) => isActiveInstallJobStatus(job.status)))
+	const activeJobs = computed(() =>
+		jobs.value.filter((job) => isActiveInstallJobStatus(job.status)),
+	)
 	const historyJobs = computed(() =>
 		jobs.value.filter((job) => !isActiveInstallJobStatus(job.status)),
 	)
@@ -486,6 +539,7 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 
 	return {
 		jobs,
+		pendingContentChanges,
 		legacyDownloads,
 		activeJobs,
 		historyJobs,
@@ -500,12 +554,14 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 		remove,
 		clearHistory,
 		trackJob: setJob,
+		queueContentChange,
 		addSyntheticJob,
 		setSyntheticJob,
 		onSyntheticCancel,
 		offSyntheticCancel,
 		dispose() {
 			disposed = true
+			pendingContentChanges.value = []
 			initializing = false
 			pendingInitialUpdates.length = 0
 			pendingRequestUpdatesByJob.clear()

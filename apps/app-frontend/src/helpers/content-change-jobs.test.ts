@@ -4,10 +4,12 @@ import test from 'node:test'
 import type { ContentItem } from '@modrinth/ui'
 
 import type { InstallJobSnapshot } from './install.ts'
+import type { PendingContentChange } from '@/providers/download-manager.ts'
 import {
 	activeContentChangeJobs,
 	contentChangeAffectsItem,
 	hasActiveContentChange,
+	pendingContentChangeAffectsItem,
 } from './content-change-jobs.ts'
 
 function job(
@@ -36,9 +38,7 @@ const packItem = {
 
 test('active content jobs are restored by kind, instance, and active status', () => {
 	const active = job('running', { type: 'update_one', content_id: 'entry-a' }, ['entry-a'])
-	const paused = job('waiting_for_user', { type: 'update_one', content_id: 'entry-a' }, [
-		'entry-a',
-	])
+	const paused = job('waiting_for_user', { type: 'update_one', content_id: 'entry-a' }, ['entry-a'])
 	const finished = job('succeeded', { type: 'update_one', content_id: 'entry-a' }, ['entry-a'])
 	const otherInstance = {
 		...active,
@@ -65,4 +65,29 @@ test('unresolved update-all marks user-added content without blocking pack conte
 	const updateAll = job('queued', { type: 'update_all_user_added' })
 	assert.equal(contentChangeAffectsItem(updateAll, userItem), true)
 	assert.equal(contentChangeAffectsItem(updateAll, packItem), false)
+})
+
+test('submission reservations synchronously cover their exact content scope', () => {
+	const selected: PendingContentChange = {
+		id: 'pending-selected',
+		instanceId: 'instance-a',
+		intent: {
+			type: 'update_selected',
+			targets: [{ content_id: 'entry-a', target_release_id: 'release-a' }],
+		},
+		contentIds: ['entry-a'],
+		updateAll: false,
+	}
+	const updateAll: PendingContentChange = {
+		id: 'pending-all',
+		instanceId: 'instance-a',
+		intent: { type: 'update_all_user_added' },
+		contentIds: [],
+		updateAll: true,
+	}
+
+	assert.equal(pendingContentChangeAffectsItem(selected, userItem), true)
+	assert.equal(pendingContentChangeAffectsItem(selected, packItem), false)
+	assert.equal(pendingContentChangeAffectsItem(updateAll, userItem), true)
+	assert.equal(pendingContentChangeAffectsItem(updateAll, packItem), false)
 })
