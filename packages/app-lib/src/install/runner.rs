@@ -304,6 +304,30 @@ pub async fn queue_content_change(
     display_title: String,
     display_icon: Option<String>,
 ) -> crate::Result<InstallJobSnapshot> {
+    let state = State::get().await?;
+    let _instance_lock = state.lock_instance_content(&instance_id).await;
+    let has_active_change =
+        store::list(false, &state).await?.into_iter().any(|job| {
+            matches!(
+                job.status,
+                InstallJobStatus::Queued
+                    | InstallJobStatus::Running
+                    | InstallJobStatus::Canceling
+                    | InstallJobStatus::WaitingForUser
+            ) && matches!(
+                &job.state.request,
+                InstallRequest::ChangeContent {
+                    instance_id: active_instance_id,
+                    ..
+                } if active_instance_id == &instance_id
+            )
+        });
+    if has_active_change {
+        return Err(crate::ErrorKind::InputError(
+            "A content change is already active for this instance".to_string(),
+        )
+        .into());
+    }
     start(InstallRequest::ChangeContent {
         instance_id,
         intent,

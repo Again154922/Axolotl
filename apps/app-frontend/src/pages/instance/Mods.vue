@@ -949,10 +949,13 @@ watch(
 
 const isModpackUpdating = ref(false)
 const localBulkOperating = ref(false)
+const pendingContentChangeIds = ref(new Set<string>())
+const pendingContentUpdateAll = ref(false)
 const activeContentChangeJobs = computed(() =>
 	selectActiveContentChangeJobs(downloadManager.jobs.value, props.instance.id),
 )
 const hasActiveUpdateAll = computed(() =>
+	pendingContentUpdateAll.value ||
 	activeContentChangeJobs.value.some(
 		(job) => job.content_change?.intent.type === 'update_all_user_added',
 	),
@@ -1168,7 +1171,24 @@ function getStableContentId(item: ContentItem) {
 }
 
 function hasGlobalContentChange(item: ContentItem) {
-	return hasActiveContentChange(activeContentChangeJobs.value, item)
+	const contentId = getStableContentId(item)
+	return (
+		(pendingContentUpdateAll.value && item.instanceOwnershipKind === 'user_added') ||
+		(contentId != null && pendingContentChangeIds.value.has(contentId)) ||
+		hasActiveContentChange(activeContentChangeJobs.value, item)
+	)
+}
+
+function beginPendingContentChange(contentId: string) {
+	if (pendingContentUpdateAll.value || pendingContentChangeIds.value.has(contentId)) return false
+	pendingContentChangeIds.value = new Set([...pendingContentChangeIds.value, contentId])
+	return true
+}
+
+function finishPendingContentChange(contentId: string) {
+	const next = new Set(pendingContentChangeIds.value)
+	next.delete(contentId)
+	pendingContentChangeIds.value = next
 }
 
 function getContentOperationKeys(item: ContentItem) {
@@ -1960,6 +1980,13 @@ async function getDeleteDependencyWarning(items: ContentItem[]) {
 }
 
 async function bulkUpdateAllProjects() {
+	if (
+		pendingContentUpdateAll.value ||
+		pendingContentChangeIds.value.size > 0 ||
+		activeContentChangeJobs.value.length > 0
+	)
+		return
+	pendingContentUpdateAll.value = true
 	try {
 		const job = await queue_all_content_updates(
 			props.instance.id,
@@ -1969,6 +1996,8 @@ async function bulkUpdateAllProjects() {
 	} catch (err) {
 		handleError(err as Error)
 		throw err
+	} finally {
+		pendingContentUpdateAll.value = false
 	}
 }
 
@@ -1977,6 +2006,7 @@ async function updateProject(mod: ContentItem) {
 	const contentId = getStableContentId(mod)
 	if (!contentId) return
 	if (hasGlobalContentChange(mod)) return
+	if (!beginPendingContentChange(contentId)) return
 
 	try {
 		const job = await queue_content_update(
@@ -1997,6 +2027,8 @@ async function updateProject(mod: ContentItem) {
 	} catch (err) {
 		handleError(err as Error)
 		throw err
+	} finally {
+		finishPendingContentChange(contentId)
 	}
 }
 
@@ -2004,6 +2036,7 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 	const contentId = getStableContentId(mod)
 	if (!mod.file_path || !contentId || mod.instanceCapabilities?.canChangeVersion === false) return
 	if (hasGlobalContentChange(mod)) return
+	if (!beginPendingContentChange(contentId)) return
 
 	try {
 		const job = await queue_content_version_change(
@@ -2024,6 +2057,8 @@ async function switchProjectVersion(mod: ContentItem, version: Labrinth.Versions
 		})
 	} catch (err) {
 		handleError(err as Error)
+	} finally {
+		finishPendingContentChange(contentId)
 	}
 }
 

@@ -538,6 +538,14 @@ const messages = defineMessages({
 		id: 'app.downloads.operation.content-change',
 		defaultMessage: 'Content update',
 	},
+	contentUpdateAll: {
+		id: 'app.downloads.operation.content-update-all',
+		defaultMessage: 'Update all content',
+	},
+	contentSwitchVersion: {
+		id: 'app.downloads.operation.content-switch-version',
+		defaultMessage: 'Switch content version',
+	},
 	viewUpgradeResult: {
 		id: 'app.downloads.view-upgrade-result',
 		defaultMessage: 'View upgrade result',
@@ -816,9 +824,16 @@ function providerIcon(value: InstallJobSnapshot['provider']) {
 }
 
 function jobTypeLabel(job: InstallJobSnapshot) {
-	return job.kind === 'change_content'
-		? formatMessage(messages.contentChange)
-		: job.kind === 'upgrade_unmanaged_instance'
+	if (job.kind === 'change_content') {
+		return formatMessage(
+			job.content_change?.intent.type === 'update_all_user_added'
+				? messages.contentUpdateAll
+				: job.content_change?.intent.type === 'switch_version'
+					? messages.contentSwitchVersion
+					: messages.contentChange,
+		)
+	}
+	return job.kind === 'upgrade_unmanaged_instance'
 		? formatMessage(messages.upgrade)
 		: providerLabel(job.provider)
 }

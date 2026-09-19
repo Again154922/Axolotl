@@ -1,6 +1,12 @@
 import { invoke } from '@tauri-apps/api/core'
 
 import { install_job_listener } from './events'
+export {
+	ACTIVE_INSTALL_JOB_STATUSES,
+	isActiveInstallJobStatus,
+} from './install-job-status.ts'
+export type { InstallJobStatus } from './install-job-status.ts'
+import type { InstallJobStatus } from './install-job-status.ts'
 import type { InstanceUpgradeResult } from './instance-upgrade'
 import type { InstanceLink, InstanceLoader, LoaderComponent } from './types'
 
@@ -47,16 +53,6 @@ export interface InstallPostInstallEdit {
 	iconPath?: string | null
 	link?: InstanceLink | null
 }
-
-export type InstallJobStatus =
-	| 'queued'
-	| 'running'
-	| 'canceling'
-	| 'waiting_for_user'
-	| 'succeeded'
-	| 'failed'
-	| 'interrupted'
-	| 'canceled'
 
 export type InstallPhaseId =
 	| 'preparing_instance'

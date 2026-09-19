@@ -17,11 +17,11 @@ import {
 	installJobInstanceId,
 	type InstallJobSnapshot,
 } from '@/helpers/install'
+import { ACTIVE_INSTALL_JOB_STATUSES, isActiveInstallJobStatus } from '@/helpers/install-job-status'
 import { effectiveInstallProgress, hasDeterminateInstallProgress } from '@/helpers/install-progress'
 import type { LoadingBar } from '@/helpers/state'
 import { progress_bars_list } from '@/helpers/state'
 
-const activeStatuses = new Set(['queued', 'running', 'canceling', 'waiting_for_user'])
 export const downloadBarTypes = new Set([
 	'java_download',
 	'pack_file_download',
@@ -322,7 +322,7 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 				revisionsAtDispatch,
 				jobRevisions,
 				syntheticIds,
-				activeStatuses,
+				ACTIVE_INSTALL_JOB_STATUSES,
 			)
 			jobs.value = refreshedJobs.map((job) => {
 				const current = jobs.value.find((candidate) => candidate.job_id === job.job_id)
@@ -436,11 +436,13 @@ export function createDownloadManager(handleError: (error: unknown) => void): Do
 
 	async function clearHistory() {
 		await download_history_clear()
-		jobs.value = jobs.value.filter((job) => activeStatuses.has(job.status))
+		jobs.value = jobs.value.filter((job) => isActiveInstallJobStatus(job.status))
 	}
 
-	const activeJobs = computed(() => jobs.value.filter((job) => activeStatuses.has(job.status)))
-	const historyJobs = computed(() => jobs.value.filter((job) => !activeStatuses.has(job.status)))
+	const activeJobs = computed(() => jobs.value.filter((job) => isActiveInstallJobStatus(job.status)))
+	const historyJobs = computed(() =>
+		jobs.value.filter((job) => !isActiveInstallJobStatus(job.status)),
+	)
 
 	const syntheticIds = new Set<string>()
 	const syntheticCancelHandlers = new Map<string, () => void | Promise<void>>()

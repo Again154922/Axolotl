@@ -650,7 +650,7 @@ pub(super) async fn run_request(
             intent,
             ..
         } => {
-            run_content_change(job_id, job_state, &instance_id, &intent)
+            run_content_change(job_id, job_state, state, &instance_id, &intent)
                 .await?;
             Ok(InstallExecutionOutcome::Completed(Some(instance_id)))
         }
@@ -725,6 +725,7 @@ pub(super) async fn run_request(
 async fn run_content_change(
     job_id: uuid::Uuid,
     job_state: &mut InstallJobState,
+    state: &State,
     instance_id: &str,
     intent: &crate::install::ContentChangeIntent,
 ) -> crate::Result<()> {
@@ -761,52 +762,66 @@ async fn run_content_change(
         )
         .await?;
 
-    let mut failed = 0_u64;
+    let mut pending = FuturesUnordered::new();
     for index in 0..actions.len() {
         if actions[index].completed {
             continue;
         }
         let action = actions[index].clone();
+        let event_path = action
+            .relative_path
+            .clone()
+            .unwrap_or_else(|| action.content_id.clone());
         reporter
             .record_events(vec![InstallJobEventKind::ContentFileQueued {
-                path: action.content_id.clone(),
+                path: event_path.clone(),
                 bytes_total: None,
                 max_attempts: 1,
             }])
             .await?;
-
-        let result = async {
-            let current =
-                crate::api::instance::projects::content_mutation_target(
+        pending.push(async move {
+            let result = async {
+                let _instance_lock =
+                    state.lock_instance_content(instance_id).await;
+                let current =
+                    crate::api::instance::projects::content_mutation_target(
+                        instance_id,
+                        &action.content_id,
+                    )
+                    .await?;
+                if current.provider_release_id.as_deref()
+                    == Some(action.target_release_id.as_str())
+                {
+                    return Ok::<(), crate::Error>(());
+                }
+                if current.provider != Some(action.provider)
+                    || action.expected_release_id.is_some()
+                        && current.provider_release_id
+                            != action.expected_release_id
+                {
+                    return Err(crate::ErrorKind::InputError(format!(
+                        "Content {} changed after the update was queued",
+                        action.content_id
+                    ))
+                    .into());
+                }
+                crate::api::instance::switch_content_entry_version(
                     instance_id,
                     &action.content_id,
+                    &action.target_release_id,
                 )
                 .await?;
-            if current.provider_release_id.as_deref()
-                == Some(action.target_release_id.as_str())
-            {
-                return Ok::<(), crate::Error>(());
+                Ok(())
             }
-            if current.provider != Some(action.provider)
-                || action.expected_release_id.is_some()
-                    && current.provider_release_id != action.expected_release_id
-            {
-                return Err(crate::ErrorKind::InputError(format!(
-                    "Content {} changed after the update was queued",
-                    action.content_id
-                ))
-                .into());
-            }
-            crate::api::instance::switch_content_entry_version(
-                instance_id,
-                &action.content_id,
-                &action.target_release_id,
-            )
-            .await?;
-            Ok(())
-        }
-        .await;
+            .await;
+            (index, action, event_path, result)
+        });
+    }
 
+    let mut failed = 0_u64;
+    let mut processed =
+        actions.iter().filter(|action| action.completed).count() as u64;
+    while let Some((index, action, event_path, result)) = pending.next().await {
         match result {
             Ok(()) => {
                 actions[index].completed = true;
@@ -818,7 +833,7 @@ async fn run_content_change(
                 reporter
                     .record_events(vec![
                         InstallJobEventKind::ContentFileCompleted {
-                            path: action.content_id,
+                            path: event_path,
                             bytes: 0,
                         },
                     ])
@@ -829,7 +844,7 @@ async fn run_content_change(
                 reporter
                     .record_events(vec![
                         InstallJobEventKind::ContentFileFailed {
-                            path: action.content_id,
+                            path: event_path,
                             reason: error.to_string(),
                             project_id: action.project_id,
                             version_id: Some(action.target_release_id),
@@ -838,11 +853,12 @@ async fn run_content_change(
                     .await?;
             }
         }
+        processed += 1;
         reporter
             .update(
                 InstallPhaseId::ApplyingContent,
                 Some(InstallProgress {
-                    current: (index + 1) as u64,
+                    current: processed,
                     total,
                     secondary: None,
                 }),

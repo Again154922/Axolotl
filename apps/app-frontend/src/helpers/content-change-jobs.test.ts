@@ -36,6 +36,9 @@ const packItem = {
 
 test('active content jobs are restored by kind, instance, and active status', () => {
 	const active = job('running', { type: 'update_one', content_id: 'entry-a' }, ['entry-a'])
+	const paused = job('waiting_for_user', { type: 'update_one', content_id: 'entry-a' }, [
+		'entry-a',
+	])
 	const finished = job('succeeded', { type: 'update_one', content_id: 'entry-a' }, ['entry-a'])
 	const otherInstance = {
 		...active,
@@ -45,9 +48,10 @@ test('active content jobs are restored by kind, instance, and active status', ()
 	} as InstallJobSnapshot
 	const install = { ...active, job_id: 'install', kind: 'install_content' } as InstallJobSnapshot
 
-	assert.deepEqual(activeContentChangeJobs([active, finished, otherInstance, install], 'instance-a'), [
-		active,
-	])
+	assert.deepEqual(
+		activeContentChangeJobs([active, paused, finished, otherInstance, install], 'instance-a'),
+		[active, paused],
+	)
 })
 
 test('resolved jobs affect only their persisted stable content IDs', () => {

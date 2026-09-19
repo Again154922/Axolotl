@@ -1,8 +1,7 @@
 import type { ContentItem } from '@modrinth/ui'
 
+import { isActiveInstallJobStatus } from './install-job-status.ts'
 import type { InstallJobSnapshot } from './install.ts'
-
-const activeStatuses = new Set(['queued', 'running', 'canceling', 'waiting_for_user'])
 
 export function activeContentChangeJobs(
 	jobs: InstallJobSnapshot[],
@@ -12,7 +11,7 @@ export function activeContentChangeJobs(
 		(job) =>
 			job.kind === 'change_content' &&
 			(job.instance_id ?? job.target.instance_id ?? null) === instanceId &&
-			activeStatuses.has(job.status),
+			isActiveInstallJobStatus(job.status),
 	)
 }
 

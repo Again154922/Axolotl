@@ -622,9 +622,21 @@ pub(crate) async fn finalize_updated_project_path(
         {
             Ok(()) => desired_path,
             Err(error) => {
-                let _ =
-                    remove_project(instance_id, installed_path, state).await;
-                return Err(error);
+                return match remove_project(
+                    instance_id,
+                    installed_path,
+                    state,
+                )
+                .await
+                {
+                    Ok(()) => Err(error),
+                    Err(cleanup_error) => Err(
+                        crate::ErrorKind::OtherError(format!(
+                            "Could not finalize the updated content path: {error}; cleanup also failed: {cleanup_error}"
+                        ))
+                        .into(),
+                    ),
+                };
             }
         }
     } else {
@@ -657,9 +669,9 @@ async fn rename_project_file(
         ))
         .into());
     }
-    io::rename_or_move(&join_content_path(&base, current_path), &target)
-        .await?;
-    rename_indexed_file(
+    let source = join_content_path(&base, current_path);
+    io::rename_or_move(&source, &target).await?;
+    if let Err(error) = rename_indexed_file(
         &scope,
         current_path,
         current_path,
@@ -667,7 +679,16 @@ async fn rename_project_file(
         !new_path.ends_with(".disabled"),
         state,
     )
-    .await?;
+    .await
+    {
+        return match io::rename_or_move(&target, &source).await {
+            Ok(()) => Err(error),
+            Err(rollback_error) => Err(crate::ErrorKind::OtherError(format!(
+                "Could not update the content index after moving {current_path} to {new_path}: {error}; restoring the file also failed: {rollback_error}"
+            ))
+            .into()),
+        };
+    }
     Ok(())
 }
 
