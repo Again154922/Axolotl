@@ -2065,10 +2065,7 @@ async function handleRollbackContent(mod: ContentItem) {
 	}
 }
 
-async function handleUpdate(id: string) {
-	const item =
-		projects.value.find((p) => getContentItemId(p) === id) ??
-		linkedModpackContentItems.value.find((p) => getContentItemId(p) === id)
+async function handleUpdate(item: ContentItem) {
 	if (!item || !canUpdateProject(item)) return
 	await updateProject(item)
 }

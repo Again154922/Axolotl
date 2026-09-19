@@ -15,55 +15,15 @@ pub(super) async fn run(
     let mut actions =
         load_or_resolve_actions(job_state, instance_id, intent, &reporter)
             .await?;
-
-    reporter
-        .update(
-            InstallPhaseId::StagingContent,
-            None,
-            InstallPhaseDetails::Empty,
-        )
-        .await?;
-    for index in 0..actions.len() {
-        if actions[index].is_complete()
-            || matches!(
-                actions[index].effective_status(),
-                crate::install::ContentChangeActionStatus::Downloaded
-            )
-        {
-            continue;
-        }
-        check_canceled(&cancellation)?;
-        actions[index]
-            .set_status(crate::install::ContentChangeActionStatus::Pending);
-        let preparation = match actions[index].provider {
-			ContentProvider::Modrinth => {
-				crate::state::instances::commands::prepare_modrinth_content_change_action(
-					instance_id,
-					&mut actions[index],
-					&state,
-				)
-				.await
-			}
-			ContentProvider::CurseForge => {
-				crate::api::curseforge::prepare_curseforge_content_change_action(
-					instance_id,
-					&mut actions[index],
-				)
-				.await
-			}
-			provider => Err(crate::ErrorKind::InputError(format!(
-				"Provider {} does not support content changes",
-				provider.as_str()
-			))
-			.into()),
-		};
-        if let Err(error) = preparation {
-            actions[index].status =
-                crate::install::ContentChangeActionStatus::Failed;
-            actions[index].error = Some(error.to_string());
-        }
-        persist_actions(job_state, &reporter, &actions).await?;
-    }
+    prepare_actions(
+        job_state,
+        instance_id,
+        &mut actions,
+        &reporter,
+        &state,
+        &cancellation,
+    )
+    .await?;
 
     download_prepared_files(
         job_state,
@@ -97,6 +57,111 @@ pub(super) async fn run(
         .into());
     }
     Ok(())
+}
+
+async fn prepare_actions(
+    job_state: &mut InstallJobState,
+    instance_id: &str,
+    actions: &mut [crate::install::ContentChangeAction],
+    reporter: &InstallProgressReporter,
+    state: &std::sync::Arc<State>,
+    cancellation: &tokio_util::sync::CancellationToken,
+) -> crate::Result<()> {
+    let pending = actions
+        .iter()
+        .filter(|action| {
+            !action.is_complete()
+                && action.effective_status()
+                    != crate::install::ContentChangeActionStatus::Downloaded
+        })
+        .count() as u64;
+    reporter
+        .update(
+            InstallPhaseId::StagingContent,
+            Some(InstallProgress {
+                current: 0,
+                total: pending.max(1),
+                secondary: None,
+            }),
+            InstallPhaseDetails::Empty,
+        )
+        .await?;
+
+    let concurrency = state.download_concurrency().max(1);
+    let mut completed = 0_u64;
+    {
+        let pending_actions = actions
+            .iter()
+            .enumerate()
+            .filter(|(_, action)| {
+                !action.is_complete()
+                    && action.effective_status()
+                        != crate::install::ContentChangeActionStatus::Downloaded
+            })
+            .map(|(index, action)| (index, action.clone()))
+            .collect::<Vec<_>>();
+        let mut preparations = stream::iter(pending_actions.into_iter().map(
+            |(index, mut action)| {
+                let cancellation = cancellation.clone();
+                let instance_id = instance_id.to_string();
+                let state = state.clone();
+                async move {
+                    check_canceled(&cancellation)?;
+                    action.set_status(
+                        crate::install::ContentChangeActionStatus::Pending,
+                    );
+                    let result = match action.provider {
+                        ContentProvider::Modrinth => {
+                            crate::state::instances::commands::prepare_modrinth_content_change_action(
+                                &instance_id,
+                                &mut action,
+                                &state,
+                            )
+                            .await
+                        }
+                        ContentProvider::CurseForge => {
+                            crate::api::curseforge::prepare_curseforge_content_change_action(
+                                &instance_id,
+                                &mut action,
+                            )
+                            .await
+                        }
+                        provider => Err(crate::ErrorKind::InputError(format!(
+                            "Provider {} does not support content changes",
+                            provider.as_str()
+                        ))
+                        .into()),
+                    };
+                    if let Err(error) = result {
+                        action.status =
+                            crate::install::ContentChangeActionStatus::Failed;
+                        action.error = Some(error.to_string());
+                    }
+                    Ok::<_, crate::Error>((index, action))
+                }
+            },
+        ))
+        .buffer_unordered(concurrency);
+
+        while let Some(result) = preparations.next().await {
+            let (index, action) = result?;
+            actions[index] = action;
+            completed += 1;
+            reporter
+                .update(
+                    InstallPhaseId::StagingContent,
+                    Some(InstallProgress {
+                        current: completed,
+                        total: pending.max(1),
+                        secondary: None,
+                    }),
+                    InstallPhaseDetails::Empty,
+                )
+                .await?;
+        }
+    }
+    check_canceled(cancellation)?;
+    persist_actions(job_state, reporter, actions).await
 }
 
 async fn load_or_resolve_actions(
@@ -190,7 +255,6 @@ async fn download_prepared_files(
             });
         }
     }
-    reporter.record_events(events).await?;
     reporter
         .update(
             InstallPhaseId::DownloadingContent,
@@ -202,6 +266,7 @@ async fn download_prepared_files(
             InstallPhaseDetails::Empty,
         )
         .await?;
+    reporter.record_events(events).await?;
 
     let worker_reporter = reporter.clone().without_phase_updates();
     let concurrency = state.download_concurrency().max(1);
