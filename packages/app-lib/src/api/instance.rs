@@ -63,6 +63,7 @@ pub use self::planet_minecraft::{
     PlanetMinecraftContentInstallRequest, PlanetMinecraftContentInstallResult,
     import_planet_minecraft_content, install_planet_minecraft_content,
 };
+pub(crate) use self::projects::emit_content_changed;
 pub use self::projects::{
     ContentToggleResult, InstallContentBatchRequest,
     InstallProjectWithDependenciesRequest, add_project_from_path,
@@ -76,9 +77,6 @@ pub use self::projects::{
     switch_project_version_with_dependencies, toggle_content_entries,
     toggle_content_entry, toggle_disable_project, update_all_projects,
     update_managed_modrinth_version, update_project,
-};
-pub(crate) use self::projects::{
-    emit_content_changed, switch_content_entry_version,
 };
 pub use self::run::{
     GcLaunchIntent, GcLaunchReport, QuickPlayType, kill, run,

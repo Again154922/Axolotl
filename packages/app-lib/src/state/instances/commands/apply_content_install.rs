@@ -12,7 +12,7 @@ use crate::state::instances::{
     },
 };
 use crate::state::{
-    CacheBehaviour, CacheValue, CachedEntry, CachedFileHash,
+    CacheBehaviour, CacheValue, CachedEntry, CachedFileHash, ContentProvider,
     ContentProviderRef, CurseForgeFileId, CurseForgeProjectId, Dependency,
     DependencyType, KnownModrinthFile, ModLoader, ModrinthProjectId,
     ModrinthVersionId, ProjectType, State, Version, cache_file_hash,
@@ -560,6 +560,125 @@ pub(crate) fn primary_version_file_name(
             ))
             .into()
         })
+}
+
+pub(crate) async fn prepare_modrinth_content_change_action(
+    instance_id: &str,
+    action: &mut crate::install::ContentChangeAction,
+    state: &State,
+) -> crate::Result<()> {
+    let version = CachedEntry::get_version(
+        &ModrinthVersionId::new(action.target_release_id.clone())?,
+        Some(CacheBehaviour::MustRevalidate),
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Unable to install version id {}. Not found.",
+            action.target_release_id
+        ))
+    })?;
+    let content_type = ProjectType::get_from_loaders(version.loaders.clone())
+        .map(ContentType::from)
+        .unwrap_or(ContentType::Mod);
+    let plan = resolve_install_plan(
+        instance_id,
+        InstanceInstallProjectRequest {
+            project_id: version.project_id.clone(),
+            version_id: Some(version.id.clone()),
+            content_type,
+            selected: ResolutionPreferences::default(),
+            excluded_project_ids: Vec::new(),
+            force_project_ids: Vec::new(),
+        },
+        state,
+    )
+    .await?;
+    let target_provider_file_name = primary_version_file_name(&version)?;
+    let current_provider_file_name = match action.expected_release_id.as_deref()
+    {
+        Some(version_id) => CachedEntry::get_version(
+            &ModrinthVersionId::new(version_id.to_string())?,
+            None,
+            &state.pool,
+            &state.api_semaphore,
+        )
+        .await?
+        .map(|version| primary_version_file_name(&version))
+        .transpose()?,
+        None => None,
+    };
+    let current_path = action.relative_path.as_deref().ok_or_else(|| {
+        crate::ErrorKind::InputError(format!(
+            "Content {} is not present on disk",
+            action.content_id
+        ))
+    })?;
+    action.final_relative_path = Some(preserved_update_relative_path(
+        current_path,
+        current_provider_file_name.as_deref(),
+        &target_provider_file_name,
+    )?);
+    action.current_provider_file_name = current_provider_file_name;
+    action.target_provider_file_name = Some(target_provider_file_name);
+    action.files.clear();
+    action.dependencies.clear();
+
+    for (index, resolved) in std::iter::once(&plan.primary)
+        .chain(plan.dependencies.iter())
+        .enumerate()
+    {
+        let prepared = prepare_version_download(
+            instance_id,
+            &resolved.version_id,
+            if index == 0 {
+                DownloadReason::Update
+            } else {
+                DownloadReason::Dependency
+            },
+            resolved.dependent_on_version_id.clone(),
+            state,
+        )
+        .await?;
+        let id = format!("modrinth:{}", resolved.version_id);
+        action.files.push(crate::install::ContentChangeFile {
+            id: id.clone(),
+            role: if index == 0 {
+                crate::install::ContentChangeFileRole::Primary
+            } else {
+                crate::install::ContentChangeFileRole::Dependency
+            },
+            provider: ContentProvider::Modrinth,
+            project_id: resolved.project_id.clone(),
+            release_id: resolved.version_id.clone(),
+            file_name: prepared.file_name.clone(),
+            target_relative_path: prepared.path.display().to_string(),
+            urls: vec![prepared.url.clone()],
+            manual_download_url: None,
+            integrity: crate::install::ContentChangeFileIntegrity {
+                size: prepared.integrity.size,
+                sha1: prepared.integrity.sha1.clone(),
+                sha512: prepared.integrity.sha512.clone(),
+                sha256: None,
+                md5: None,
+            },
+        });
+        if let Some(parent) = resolved.dependent_on_version_id.as_deref() {
+            action
+                .dependencies
+                .push(crate::install::ContentChangeDependency {
+                    parent_file_id: format!("modrinth:{parent}"),
+                    child_file_id: id,
+                    provider: ContentProvider::Modrinth,
+                    project_id: resolved.project_id.clone(),
+                    release_id: resolved.version_id.clone(),
+                });
+        }
+    }
+    action.set_status(crate::install::ContentChangeActionStatus::Prepared);
+    Ok(())
 }
 
 pub(crate) fn preserved_update_relative_path(
@@ -1208,21 +1327,21 @@ async fn download_project_version_with_reporting(
 
 /// Everything needed to download a version file, resolved before the actual
 /// network transfer.
-struct PreparedVersionDownload {
-    url: String,
-    path: PathBuf,
-    download_meta: DownloadMeta,
-    integrity: Integrity,
-    file_name: String,
-    sha1: Option<String>,
-    loaders: Vec<String>,
-    project_id: String,
-    version_id: String,
+pub(crate) struct PreparedVersionDownload {
+    pub(crate) url: String,
+    pub(crate) path: PathBuf,
+    pub(crate) download_meta: DownloadMeta,
+    pub(crate) integrity: Integrity,
+    pub(crate) file_name: String,
+    pub(crate) sha1: Option<String>,
+    pub(crate) loaders: Vec<String>,
+    pub(crate) project_id: String,
+    pub(crate) version_id: String,
 }
 
 /// Resolves the content scope and version metadata for a download and
 /// validates the target path, without touching the network.
-async fn prepare_version_download(
+pub(crate) async fn prepare_version_download(
     instance_id: &str,
     version_id: &str,
     reason: DownloadReason,

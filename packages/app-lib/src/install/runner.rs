@@ -37,6 +37,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 mod adjunct;
+mod content_change;
 mod init;
 mod lifecycle;
 mod pack;
