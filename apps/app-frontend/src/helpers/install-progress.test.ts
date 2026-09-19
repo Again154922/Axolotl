@@ -163,6 +163,33 @@ test('content download without secondary uses current file counter', () => {
 	)
 })
 
+test('content change uses aggregate live download bytes without losing its queued counter', () => {
+	const preparing = progressJob({
+		kind: 'change_content',
+		phase: 'downloading_content',
+		progress: { current: 0, total: 3 },
+	})
+	assert.deepEqual(effectiveInstallProgress(preparing), { current: 0, total: 3 })
+
+	const downloading = progressJob({
+		kind: 'change_content',
+		phase: 'downloading_content',
+		progress: { current: 0, total: 3 },
+		summary: {
+			files_completed: 0,
+			files_total: 3,
+			bytes_downloaded: 200,
+			bytes_total: 800,
+		},
+	})
+	assert.deepEqual(effectiveInstallProgress(downloading), { current: 200, total: 800 })
+	assert.deepEqual(installProgressTextSource(downloading), {
+		type: 'bytes',
+		current: 200,
+		total: 800,
+	})
+})
+
 test('Java downloading uses current byte progress', () => {
 	assert.deepEqual(
 		installProgressTextSource(

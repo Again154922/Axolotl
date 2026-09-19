@@ -2090,7 +2090,7 @@ async function handleUpdate(id: string) {
 		linkedModpackContentItems.value.find((p) => getContentItemId(p) === id)
 	// The content list can expose an update before its version metadata has finished loading.
 	// Updating uses the stable content ID and update target.
-	if (!item || !canUpdateProject(item) || !item.project?.id) return
+	if (!item || !canUpdateProject(item)) return
 	// The update badge already identifies the provider's resolved target. Submit
 	// that target as a background job directly; opening the version picker here
 	// made the row action depend on asynchronously loaded version metadata.

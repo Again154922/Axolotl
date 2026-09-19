@@ -5,8 +5,13 @@ export interface ProgressValue {
 }
 
 export interface ProgressSnapshot {
+	kind?: string
 	phase: string
 	progress?: ProgressValue | null
+	summary?: {
+		bytes_downloaded: number
+		bytes_total?: number | null
+	}
 	parallel?: {
 		phase: string
 		current: number
@@ -33,6 +38,17 @@ export function effectiveInstallProgress(
 ): ProgressValue | null | undefined {
 	if (snapshot.phase === 'downloading_content' && snapshot.progress?.secondary) {
 		return snapshot.progress.secondary
+	}
+	if (
+		snapshot.phase === 'downloading_content' &&
+		snapshot.kind === 'change_content' &&
+		snapshot.summary?.bytes_total != null &&
+		snapshot.summary.bytes_total > 0
+	) {
+		return {
+			current: snapshot.summary.bytes_downloaded,
+			total: snapshot.summary.bytes_total,
+		}
 	}
 
 	return snapshot.progress
@@ -83,7 +99,11 @@ export function installProgressTextSource(
 	if (hasDeterminateInstallProgress(progress)) {
 		if (isContentDownload) {
 			return {
-				type: snapshot.progress?.secondary ? 'bytes' : 'items',
+				type:
+					snapshot.progress?.secondary ||
+					(snapshot.kind === 'change_content' && snapshot.summary.bytes_total)
+						? 'bytes'
+						: 'items',
 				current: progress.current,
 				total: progress.total,
 			}

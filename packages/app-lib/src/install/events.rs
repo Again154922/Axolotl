@@ -33,6 +33,11 @@ pub struct InstallProgressReporter {
     /// the modpack installer to report the concurrent Minecraft core download
     /// while content installation remains the main phase.
     parallel_output: bool,
+    /// Provider-specific content installers report their own phases and
+    /// counters. Batch runners disable those updates so concurrent actions
+    /// cannot overwrite the job-level aggregate, while download events and
+    /// request progress continue to use the shared state.
+    phase_updates_enabled: bool,
 }
 
 #[derive(Debug)]
@@ -177,6 +182,7 @@ impl InstallProgressReporter {
             job_id,
             state: shared_state,
             parallel_output: false,
+            phase_updates_enabled: true,
         }
     }
 
@@ -188,12 +194,20 @@ impl InstallProgressReporter {
         self
     }
 
+    pub(crate) fn without_phase_updates(mut self) -> Self {
+        self.phase_updates_enabled = false;
+        self
+    }
+
     pub async fn update(
         &self,
         phase: InstallPhaseId,
         progress: Option<InstallProgress>,
         details: InstallPhaseDetails,
     ) -> crate::Result<()> {
+        if !self.phase_updates_enabled {
+            return Ok(());
+        }
         if self.parallel_output {
             self.update_parallel(phase, progress, details).await
         } else {
@@ -823,7 +837,9 @@ impl InstallProgressReporter {
             .iter()
             .filter(|event| is_content_settlement_event(event))
             .count();
-        state.job.set_progress(phase, progress, details);
+        if self.phase_updates_enabled {
+            state.job.set_progress(phase, progress, details);
+        }
         for event in events {
             state.job.record_event(event);
         }
@@ -1230,6 +1246,43 @@ mod tests {
         .expect("socket progress callback must not wait for the reporter lock")
         .unwrap();
         drop(guard);
+        InstallProgressReporter::reset_job(job_id);
+    }
+
+    #[cfg(not(feature = "tauri"))]
+    #[tokio::test]
+    async fn event_only_reporter_preserves_job_progress() {
+        let (app_state, job_id, reporter) =
+            stored_minecraft_progress_job(4, 12).await;
+        let action_reporter = reporter.clone().without_phase_updates();
+
+        action_reporter
+            .update_with_events(
+                InstallPhaseId::DownloadingContent,
+                None,
+                InstallPhaseDetails::Empty,
+                vec![InstallJobEventKind::ContentFileQueued {
+                    path: "mods/update.jar".to_string(),
+                    bytes_total: Some(256),
+                    max_attempts: 1,
+                }],
+            )
+            .await
+            .unwrap();
+
+        let snapshot = InstallProgressReporter::overlay_snapshot(
+            job_id,
+            store::get_required(job_id, &app_state)
+                .await
+                .unwrap()
+                .snapshot(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(snapshot.phase, InstallPhaseId::DownloadingMinecraft);
+        assert_eq!(snapshot.progress.unwrap().current, 4);
+        assert_eq!(snapshot.items.len(), 1);
+        assert_eq!(snapshot.items[0].id, "mods/update.jar");
         InstallProgressReporter::reset_job(job_id);
     }
 

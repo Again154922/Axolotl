@@ -650,7 +650,7 @@ pub(super) async fn run_request(
             intent,
             ..
         } => {
-            run_content_change(job_id, job_state, state, &instance_id, &intent)
+            run_content_change(job_id, job_state, &instance_id, &intent)
                 .await?;
             Ok(InstallExecutionOutcome::Completed(Some(instance_id)))
         }
@@ -725,7 +725,6 @@ pub(super) async fn run_request(
 async fn run_content_change(
     job_id: uuid::Uuid,
     job_state: &mut InstallJobState,
-    state: &State,
     instance_id: &str,
     intent: &crate::install::ContentChangeIntent,
 ) -> crate::Result<()> {
@@ -762,7 +761,10 @@ async fn run_content_change(
         )
         .await?;
 
-    let mut pending = FuturesUnordered::new();
+    // Actions download in independent tasks. Their provider-specific publish
+    // steps still acquire the per-instance lock, so filesystem and database
+    // mutations remain serial without holding that lock during network I/O.
+    let mut pending = tokio::task::JoinSet::new();
     for index in 0..actions.len() {
         if actions[index].completed {
             continue;
@@ -779,14 +781,13 @@ async fn run_content_change(
                 max_attempts: 1,
             }])
             .await?;
-        let action_reporter = reporter.clone();
-        pending.push(async move {
+        let action_reporter = reporter.clone().without_phase_updates();
+        let instance_id = instance_id.to_string();
+        pending.spawn(async move {
             let result = async {
-                let _instance_lock =
-                    state.lock_instance_content(instance_id).await;
                 let current =
                     crate::api::instance::projects::content_mutation_target(
-                        instance_id,
+                        &instance_id,
                         &action.content_id,
                     )
                     .await?;
@@ -807,7 +808,7 @@ async fn run_content_change(
                     .into());
                 }
                 crate::api::instance::switch_content_entry_version(
-                    instance_id,
+                    &instance_id,
                     &action.content_id,
                     &action.target_release_id,
                     Some(action_reporter),
@@ -823,7 +824,12 @@ async fn run_content_change(
     let mut failed = 0_u64;
     let mut processed =
         actions.iter().filter(|action| action.completed).count() as u64;
-    while let Some((index, action, event_path, result)) = pending.next().await {
+    while let Some(joined) = pending.join_next().await {
+        let (index, action, event_path, result) = joined.map_err(|error| {
+            crate::ErrorKind::OtherError(format!(
+                "Content change worker failed: {error}"
+            ))
+        })?;
         match result {
             Ok(()) => {
                 actions[index].completed = true;

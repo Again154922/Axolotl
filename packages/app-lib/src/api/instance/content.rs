@@ -120,9 +120,19 @@ pub async fn plan_content_updates(
     scope: ContentUpdateScope,
     target: Option<&str>,
 ) -> crate::Result<ContentUpdatePlan> {
+    plan_content_updates_with_refresh(instance_id, scope, target, true).await
+}
+
+async fn plan_content_updates_with_refresh(
+    instance_id: &str,
+    scope: ContentUpdateScope,
+    target: Option<&str>,
+    refresh_remote: bool,
+) -> crate::Result<ContentUpdatePlan> {
     let state = State::get().await?;
     let snapshot =
-        crate::state::get_content_snapshot(instance_id, true, &state).await?;
+        crate::state::get_content_snapshot(instance_id, refresh_remote, &state)
+            .await?;
     let mut actions = Vec::new();
 
     match scope {
@@ -324,12 +334,23 @@ pub(crate) async fn resolve_content_change_actions(
 
     match intent {
         ContentChangeIntent::UpdateOne { content_id } => {
-            let plan = plan_content_updates(
+            let mut plan = plan_content_updates_with_refresh(
                 instance_id,
                 ContentUpdateScope::Item,
                 Some(content_id),
+                false,
             )
             .await?;
+            if plan.actions.is_empty() {
+                CONTENT_UPDATE_PLANS.remove(&plan.id);
+                plan = plan_content_updates_with_refresh(
+                    instance_id,
+                    ContentUpdateScope::Item,
+                    Some(content_id),
+                    true,
+                )
+                .await?;
+            }
             CONTENT_UPDATE_PLANS.remove(&plan.id);
             let actions = plan
                 .actions
@@ -345,12 +366,23 @@ pub(crate) async fn resolve_content_change_actions(
             Ok(actions)
         }
         ContentChangeIntent::UpdateAllUserAdded => {
-            let plan = plan_content_updates(
+            let mut plan = plan_content_updates_with_refresh(
                 instance_id,
                 ContentUpdateScope::UserAdded,
                 None,
+                false,
             )
             .await?;
+            if plan.actions.is_empty() {
+                CONTENT_UPDATE_PLANS.remove(&plan.id);
+                plan = plan_content_updates_with_refresh(
+                    instance_id,
+                    ContentUpdateScope::UserAdded,
+                    None,
+                    true,
+                )
+                .await?;
+            }
             CONTENT_UPDATE_PLANS.remove(&plan.id);
             Ok(plan
                 .actions
