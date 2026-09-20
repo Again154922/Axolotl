@@ -36,6 +36,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_disable_backups,
             instance_start_backup,
             instance_cancel_backup,
+            instance_list_backup_operations,
             instance_list_backups,
             instance_delete_backup,
             instance_get_backup_restore_preview,
@@ -884,12 +885,24 @@ pub async fn instance_disable_backups(instance_id: &str) -> Result<()> {
 
 #[tauri::command]
 pub async fn instance_start_backup(instance_id: String) -> Result<uuid::Uuid> {
-    Ok(theseus::instance::start_backup_snapshot(instance_id))
+    Ok(theseus::instance::start_backup_snapshot(instance_id).await?)
 }
 
 #[tauri::command]
 pub async fn instance_cancel_backup(operation_id: uuid::Uuid) -> Result<bool> {
     Ok(theseus::instance::cancel_backup(operation_id))
+}
+
+#[tauri::command]
+pub async fn instance_list_backup_operations(
+    instance_id: Option<String>,
+    active_only: bool,
+) -> Result<Vec<theseus::instance::BackupOperation>> {
+    Ok(theseus::instance::list_backup_operations(
+        instance_id.as_deref(),
+        active_only,
+    )
+    .await?)
 }
 
 #[tauri::command]
@@ -915,7 +928,7 @@ pub async fn instance_get_backup_restore_preview(
 pub async fn instance_restore_backup(
     snapshot_id: &str,
     plan_token: &str,
-) -> Result<()> {
+) -> Result<uuid::Uuid> {
     Ok(theseus::instance::restore_snapshot(snapshot_id, plan_token).await?)
 }
 

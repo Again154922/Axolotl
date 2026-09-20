@@ -522,6 +522,7 @@ fn main() {
                         "instance_disable_backups",
                         "instance_start_backup",
                         "instance_cancel_backup",
+                        "instance_list_backup_operations",
                         "instance_list_backups",
                         "instance_delete_backup",
                         "instance_get_backup_restore_preview",

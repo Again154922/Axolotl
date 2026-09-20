@@ -124,6 +124,82 @@ pub struct BackupRestorePreview {
     pub plan_token: String,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupOperationType {
+    Create,
+    Restore,
+}
+
+impl BackupOperationType {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Restore => "restore",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupOperationState {
+    Queued,
+    Scanning,
+    Hashing,
+    Saving,
+    Validating,
+    Materializing,
+    Applying,
+    Completed,
+    Cancelled,
+    Failed,
+    Interrupted,
+}
+
+impl BackupOperationState {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Scanning => "scanning",
+            Self::Hashing => "hashing",
+            Self::Saving => "saving",
+            Self::Validating => "validating",
+            Self::Materializing => "materializing",
+            Self::Applying => "applying",
+            Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
+            Self::Failed => "failed",
+            Self::Interrupted => "interrupted",
+        }
+    }
+
+    const fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            Self::Completed
+                | Self::Cancelled
+                | Self::Failed
+                | Self::Interrupted
+        )
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BackupOperation {
+    pub id: Uuid,
+    pub operation_type: BackupOperationType,
+    pub instance_id: String,
+    pub snapshot_id: Option<String>,
+    pub state: BackupOperationState,
+    pub processed_bytes: u64,
+    pub total_bytes: u64,
+    pub cancellable: bool,
+    pub error: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub finished_at: Option<i64>,
+}
+
 #[derive(Clone, Debug)]
 struct PendingEntry {
     path: String,
@@ -248,6 +324,170 @@ async fn open_repository_at(
         .await?;
     BACKUP_MIGRATOR.run(&pool).await?;
     Ok(Some(pool))
+}
+
+fn parse_backup_operation_type(
+    value: &str,
+) -> crate::Result<BackupOperationType> {
+    match value {
+        "create" => Ok(BackupOperationType::Create),
+        "restore" => Ok(BackupOperationType::Restore),
+        _ => Err(crate::ErrorKind::FSError(format!(
+            "Invalid backup operation type: {value}"
+        ))
+        .into()),
+    }
+}
+
+fn parse_backup_operation_state(
+    value: &str,
+) -> crate::Result<BackupOperationState> {
+    match value {
+        "queued" => Ok(BackupOperationState::Queued),
+        "scanning" => Ok(BackupOperationState::Scanning),
+        "hashing" => Ok(BackupOperationState::Hashing),
+        "saving" => Ok(BackupOperationState::Saving),
+        "validating" => Ok(BackupOperationState::Validating),
+        "materializing" => Ok(BackupOperationState::Materializing),
+        "applying" => Ok(BackupOperationState::Applying),
+        "completed" => Ok(BackupOperationState::Completed),
+        "cancelled" => Ok(BackupOperationState::Cancelled),
+        "failed" => Ok(BackupOperationState::Failed),
+        "interrupted" => Ok(BackupOperationState::Interrupted),
+        _ => Err(crate::ErrorKind::FSError(format!(
+            "Invalid backup operation state: {value}"
+        ))
+        .into()),
+    }
+}
+
+fn backup_operation_from_row(
+    row: &sqlx::sqlite::SqliteRow,
+) -> crate::Result<BackupOperation> {
+    Ok(BackupOperation {
+        id: Uuid::parse_str(row.get::<String, _>("id").as_str())
+            .map_err(|error| crate::ErrorKind::FSError(error.to_string()))?,
+        operation_type: parse_backup_operation_type(
+            row.get::<String, _>("operation_type").as_str(),
+        )?,
+        instance_id: row.get("instance_id"),
+        snapshot_id: row.get("snapshot_id"),
+        state: parse_backup_operation_state(
+            row.get::<String, _>("state").as_str(),
+        )?,
+        processed_bytes: row.get::<i64, _>("processed_bytes").max(0) as u64,
+        total_bytes: row.get::<i64, _>("total_bytes").max(0) as u64,
+        cancellable: row.get::<i64, _>("cancellable") != 0,
+        error: row.get("error"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+        finished_at: row.get("finished_at"),
+    })
+}
+
+async fn create_persisted_operation(
+    instance_id: &str,
+    operation_type: BackupOperationType,
+    snapshot_id: Option<&str>,
+) -> crate::Result<Uuid> {
+    let state = State::get().await?;
+    let Some((_, pool)) = open_repository(&state, true).await? else {
+        return Err(crate::ErrorKind::FSError(
+            "Unable to open backup repository".to_string(),
+        )
+        .into());
+    };
+    let id = Uuid::new_v4();
+    let now = Utc::now().timestamp_millis();
+    sqlx::query(
+        "INSERT INTO backup_operations
+		 (id, operation_type, instance_id, snapshot_id, state, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, 'queued', ?, ?)",
+    )
+    .bind(id.to_string())
+    .bind(operation_type.as_str())
+    .bind(instance_id)
+    .bind(snapshot_id)
+    .bind(now)
+    .bind(now)
+    .execute(&pool)
+    .await?;
+    pool.close().await;
+    Ok(id)
+}
+
+async fn update_persisted_operation(
+    operation_id: Uuid,
+    state: BackupOperationState,
+    processed_bytes: Option<u64>,
+    total_bytes: Option<u64>,
+    cancellable: Option<bool>,
+    error: Option<&str>,
+    snapshot_id: Option<&str>,
+) {
+    if !State::initialized() {
+        return;
+    }
+    let Ok(state_handle) = State::get().await else {
+        return;
+    };
+    let Ok(Some((_, pool))) = open_repository(&state_handle, false).await
+    else {
+        return;
+    };
+    let now = Utc::now().timestamp_millis();
+    let finished_at = state.is_terminal().then_some(now);
+    let _ = sqlx::query(
+		"UPDATE backup_operations SET state = ?, processed_bytes = COALESCE(?, processed_bytes),
+		 total_bytes = COALESCE(?, total_bytes), cancellable = COALESCE(?, cancellable),
+		 error = COALESCE(?, error), snapshot_id = COALESCE(?, snapshot_id),
+		 updated_at = ?, finished_at = COALESCE(?, finished_at) WHERE id = ?",
+	)
+	.bind(state.as_str())
+	.bind(processed_bytes.map(|value| value as i64))
+	.bind(total_bytes.map(|value| value as i64))
+	.bind(cancellable.map(i64::from))
+	.bind(error)
+	.bind(snapshot_id)
+	.bind(now)
+	.bind(finished_at)
+	.bind(operation_id.to_string())
+	.execute(&pool)
+	.await;
+    pool.close().await;
+}
+
+pub async fn list_operations(
+    instance_id: Option<&str>,
+    active_only: bool,
+) -> crate::Result<Vec<BackupOperation>> {
+    let state = State::get().await?;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Ok(Vec::new());
+    };
+    let mut query = String::from(
+		"SELECT id, operation_type, instance_id, snapshot_id, state,
+		 processed_bytes, total_bytes, cancellable, error, created_at, updated_at, finished_at
+		 FROM backup_operations WHERE 1 = 1",
+	);
+    if instance_id.is_some() {
+        query.push_str(" AND instance_id = ?");
+    }
+    if active_only {
+        query.push_str(" AND state NOT IN ('completed', 'cancelled', 'failed', 'interrupted')");
+    }
+    query.push_str(" ORDER BY created_at DESC");
+    let mut request = sqlx::query(&query);
+    if let Some(instance_id) = instance_id {
+        request = request.bind(instance_id);
+    }
+    let rows = request.fetch_all(&pool).await?;
+    pool.close().await;
+    rows.iter().map(backup_operation_from_row).collect()
+}
+
+pub async fn has_active_operations() -> crate::Result<bool> {
+    Ok(!list_operations(None, true).await?.is_empty())
 }
 
 fn normalize_relative_directory(path: &str) -> crate::Result<String> {
@@ -841,6 +1081,46 @@ async fn emit_backup_progress(
     snapshot_id: Option<&str>,
     message: Option<String>,
 ) {
+    let persisted_state = match &stage {
+        InstanceBackupProgressStage::Scanning => {
+            Some(BackupOperationState::Scanning)
+        }
+        InstanceBackupProgressStage::Hashing => {
+            Some(BackupOperationState::Hashing)
+        }
+        InstanceBackupProgressStage::Saving => {
+            Some(BackupOperationState::Saving)
+        }
+        InstanceBackupProgressStage::Validating => {
+            Some(BackupOperationState::Validating)
+        }
+        InstanceBackupProgressStage::Copying
+        | InstanceBackupProgressStage::Restoring => {
+            Some(BackupOperationState::Materializing)
+        }
+        InstanceBackupProgressStage::Completed => {
+            Some(BackupOperationState::Completed)
+        }
+        InstanceBackupProgressStage::Cancelled => {
+            Some(BackupOperationState::Cancelled)
+        }
+        InstanceBackupProgressStage::Failed => {
+            Some(BackupOperationState::Failed)
+        }
+        InstanceBackupProgressStage::Deleting => None,
+    };
+    if let Some(state) = persisted_state {
+        update_persisted_operation(
+            operation_id,
+            state,
+            Some(processed_bytes),
+            Some(total_bytes),
+            None,
+            message.as_deref(),
+            snapshot_id,
+        )
+        .await;
+    }
     let _ = crate::event::emit::emit_instance_backup_progress(
         InstanceBackupProgressPayload {
             operation_id,
@@ -857,10 +1137,10 @@ async fn emit_backup_progress(
     .await;
 }
 
-fn new_backup_operation(
+fn register_backup_operation(
+    operation_id: Uuid,
     instance_id: &str,
-) -> (Uuid, CancellationToken, Arc<AtomicBool>) {
-    let operation_id = Uuid::new_v4();
+) -> (CancellationToken, Arc<AtomicBool>) {
     let cancellation = CancellationToken::new();
     let cancellable = Arc::new(AtomicBool::new(true));
     BACKUP_CANCELLATIONS.insert(
@@ -871,27 +1151,19 @@ fn new_backup_operation(
         },
     );
     tracing::debug!(%operation_id, instance_id, "Registered instance backup operation");
-    (operation_id, cancellation, cancellable)
+    (cancellation, cancellable)
 }
 
-pub fn start_snapshot(instance_id: String) -> Uuid {
-    let (operation_id, cancellation, cancellable) =
-        new_backup_operation(&instance_id);
+pub async fn start_snapshot(instance_id: String) -> crate::Result<Uuid> {
+    let operation_id = create_persisted_operation(
+        &instance_id,
+        BackupOperationType::Create,
+        None,
+    )
+    .await?;
+    let (cancellation, cancellable) =
+        register_backup_operation(operation_id, &instance_id);
     tokio::spawn(async move {
-        let _ = crate::event::emit::emit_instance_backup_progress(
-            InstanceBackupProgressPayload {
-                operation_id,
-                instance_id: Some(instance_id.clone()),
-                operation_type: InstanceBackupOperationType::Create,
-                stage: InstanceBackupProgressStage::Scanning,
-                processed_bytes: 0,
-                total_bytes: 0,
-                final_state: None,
-                snapshot_id: None,
-                message: None,
-            },
-        )
-        .await;
         let result = create_snapshot(
             &instance_id,
             operation_id,
@@ -923,6 +1195,27 @@ pub fn start_snapshot(instance_id: String) -> Uuid {
                     Some(error.to_string()),
                 ),
             };
+        let operation_state = match final_state {
+            InstanceBackupOperationFinalState::Completed => {
+                BackupOperationState::Completed
+            }
+            InstanceBackupOperationFinalState::Cancelled => {
+                BackupOperationState::Cancelled
+            }
+            InstanceBackupOperationFinalState::Failed => {
+                BackupOperationState::Failed
+            }
+        };
+        update_persisted_operation(
+            operation_id,
+            operation_state,
+            Some(total_bytes),
+            Some(total_bytes),
+            Some(false),
+            message.as_deref(),
+            snapshot_id.as_deref(),
+        )
+        .await;
         let _ = crate::event::emit::emit_instance_backup_progress(
             InstanceBackupProgressPayload {
                 operation_id,
@@ -938,7 +1231,7 @@ pub fn start_snapshot(instance_id: String) -> Uuid {
         )
         .await;
     });
-    operation_id
+    Ok(operation_id)
 }
 
 pub fn cancel_backup(operation_id: Uuid) -> bool {
@@ -1103,18 +1396,16 @@ async fn create_snapshot_inner(
         )
         .into());
     }
-    let _ = crate::event::emit::emit_instance_backup_progress(
-        InstanceBackupProgressPayload {
-            operation_id,
-            instance_id: Some(instance_id.to_string()),
-            operation_type: InstanceBackupOperationType::Create,
-            stage: InstanceBackupProgressStage::Saving,
-            processed_bytes: logical_size,
-            total_bytes: logical_size,
-            final_state: None,
-            snapshot_id: None,
-            message: None,
-        },
+    emit_backup_progress(
+        operation_id,
+        Some(instance_id),
+        InstanceBackupOperationType::Create,
+        InstanceBackupProgressStage::Saving,
+        logical_size,
+        logical_size,
+        None,
+        None,
+        None,
     )
     .await;
     let persist_result: crate::Result<()> = async {
@@ -1210,33 +1501,29 @@ async fn scan_snapshot_attempt(
     cancellation: &CancellationToken,
     created_objects: &mut HashSet<String>,
 ) -> crate::Result<(Vec<PendingEntry>, u64)> {
-    let _ = crate::event::emit::emit_instance_backup_progress(
-        InstanceBackupProgressPayload {
-            operation_id,
-            instance_id: Some(instance_id.to_string()),
-            operation_type: InstanceBackupOperationType::Create,
-            stage: InstanceBackupProgressStage::Scanning,
-            processed_bytes: 0,
-            total_bytes: 0,
-            final_state: None,
-            snapshot_id: None,
-            message: None,
-        },
+    emit_backup_progress(
+        operation_id,
+        Some(instance_id),
+        InstanceBackupOperationType::Create,
+        InstanceBackupProgressStage::Scanning,
+        0,
+        0,
+        None,
+        None,
+        None,
     )
     .await;
     let total_bytes = measure_snapshot(root, exclusions, cancellation).await?;
-    let _ = crate::event::emit::emit_instance_backup_progress(
-        InstanceBackupProgressPayload {
-            operation_id,
-            instance_id: Some(instance_id.to_string()),
-            operation_type: InstanceBackupOperationType::Create,
-            stage: InstanceBackupProgressStage::Hashing,
-            processed_bytes: 0,
-            total_bytes,
-            final_state: None,
-            snapshot_id: None,
-            message: None,
-        },
+    emit_backup_progress(
+        operation_id,
+        Some(instance_id),
+        InstanceBackupOperationType::Create,
+        InstanceBackupProgressStage::Hashing,
+        0,
+        total_bytes,
+        None,
+        None,
+        None,
     )
     .await;
     scan_snapshot(
@@ -1405,18 +1692,16 @@ async fn scan_snapshot(
             added_size = added_size.saturating_add(size);
         }
         processed_bytes = processed_bytes.saturating_add(size);
-        let _ = crate::event::emit::emit_instance_backup_progress(
-            InstanceBackupProgressPayload {
-                operation_id,
-                instance_id: Some(instance_id.to_string()),
-                operation_type: InstanceBackupOperationType::Create,
-                stage: InstanceBackupProgressStage::Hashing,
-                processed_bytes,
-                total_bytes,
-                final_state: None,
-                snapshot_id: None,
-                message: None,
-            },
+        emit_backup_progress(
+            operation_id,
+            Some(instance_id),
+            InstanceBackupOperationType::Create,
+            InstanceBackupProgressStage::Hashing,
+            processed_bytes,
+            total_bytes,
+            None,
+            None,
+            None,
         )
         .await;
         entries.push(PendingEntry {
@@ -1786,6 +2071,17 @@ pub async fn maintain_repository() -> crate::Result<()> {
     let Some((repository, pool)) = open_repository(&state, false).await? else {
         return Ok(());
     };
+    let now = Utc::now().timestamp_millis();
+    sqlx::query(
+		"UPDATE backup_operations SET state = 'interrupted', cancellable = 0,
+		 error = COALESCE(error, 'The launcher exited while the operation was running'),
+		 updated_at = ?, finished_at = ?
+		 WHERE state NOT IN ('completed', 'cancelled', 'failed', 'interrupted')",
+	)
+	.bind(now)
+	.bind(now)
+	.execute(&pool)
+	.await?;
     run_gc(&repository, &pool).await?;
 
     let pending: Vec<String> = sqlx::query_scalar(
@@ -2241,74 +2537,102 @@ pub async fn preview_restore(
 pub async fn restore_snapshot(
     snapshot_id: &str,
     plan_token: &str,
-) -> crate::Result<()> {
-    let operation_id = Uuid::new_v4();
-    emit_backup_progress(
-        operation_id,
-        None,
-        InstanceBackupOperationType::Restore,
-        InstanceBackupProgressStage::Validating,
-        0,
-        0,
-        None,
+) -> crate::Result<Uuid> {
+    let (instance_id, total_bytes) =
+        snapshot_operation_metadata(snapshot_id).await?;
+    let operation_id = create_persisted_operation(
+        &instance_id,
+        BackupOperationType::Restore,
         Some(snapshot_id),
-        None,
     )
-    .await;
-    let (metadata, result) = match snapshot_operation_metadata(snapshot_id)
-        .await
-    {
-        Ok((instance_id, total_bytes)) => {
-            emit_backup_progress(
-                operation_id,
-                Some(&instance_id),
-                InstanceBackupOperationType::Restore,
-                InstanceBackupProgressStage::Restoring,
-                0,
-                total_bytes,
-                None,
-                Some(snapshot_id),
-                None,
-            )
-            .await;
-            let result = restore_snapshot_inner(snapshot_id, plan_token).await;
-            (Some((instance_id, total_bytes)), result)
-        }
-        Err(error) => (None, Err(error)),
-    };
-    let (instance_id, total_bytes) = metadata
-        .as_ref()
-        .map(|(instance_id, total_bytes)| {
-            (Some(instance_id.as_str()), *total_bytes)
-        })
-        .unwrap_or((None, 0));
-    let (stage, final_state, processed_bytes, message) = match &result {
-        Ok(()) => (
-            InstanceBackupProgressStage::Completed,
-            InstanceBackupOperationFinalState::Completed,
+    .await?;
+    let (cancellation, cancellable) =
+        register_backup_operation(operation_id, &instance_id);
+    let snapshot_id = snapshot_id.to_string();
+    let plan_token = plan_token.to_string();
+    tokio::spawn(async move {
+        emit_backup_progress(
+            operation_id,
+            Some(&instance_id),
+            InstanceBackupOperationType::Restore,
+            InstanceBackupProgressStage::Validating,
+            0,
             total_bytes,
             None,
-        ),
-        Err(error) => (
-            InstanceBackupProgressStage::Failed,
-            InstanceBackupOperationFinalState::Failed,
-            0,
-            Some(error.to_string()),
-        ),
-    };
-    emit_backup_progress(
-        operation_id,
-        instance_id,
-        InstanceBackupOperationType::Restore,
-        stage,
-        processed_bytes,
-        total_bytes,
-        Some(final_state),
-        Some(snapshot_id),
-        message,
-    )
-    .await;
-    result
+            Some(&snapshot_id),
+            None,
+        )
+        .await;
+        if cancellation.is_cancelled() {
+            update_persisted_operation(
+                operation_id,
+                BackupOperationState::Cancelled,
+                Some(0),
+                Some(total_bytes),
+                Some(false),
+                Some("Backup restore was canceled"),
+                Some(&snapshot_id),
+            )
+            .await;
+            BACKUP_CANCELLATIONS.remove(&operation_id);
+            return;
+        }
+        let result = restore_snapshot_inner(
+            &snapshot_id,
+            &plan_token,
+            &cancellable,
+            operation_id,
+        )
+        .await;
+        let (stage, final_state, processed_bytes, message, state) = match result
+        {
+            Ok(()) => (
+                InstanceBackupProgressStage::Completed,
+                InstanceBackupOperationFinalState::Completed,
+                total_bytes,
+                None,
+                BackupOperationState::Completed,
+            ),
+            Err(error) if cancellation.is_cancelled() => (
+                InstanceBackupProgressStage::Cancelled,
+                InstanceBackupOperationFinalState::Cancelled,
+                0,
+                Some(error.to_string()),
+                BackupOperationState::Cancelled,
+            ),
+            Err(error) => (
+                InstanceBackupProgressStage::Failed,
+                InstanceBackupOperationFinalState::Failed,
+                0,
+                Some(error.to_string()),
+                BackupOperationState::Failed,
+            ),
+        };
+        update_persisted_operation(
+            operation_id,
+            state,
+            Some(processed_bytes),
+            Some(total_bytes),
+            Some(false),
+            message.as_deref(),
+            Some(&snapshot_id),
+        )
+        .await;
+        emit_backup_progress(
+            operation_id,
+            Some(&instance_id),
+            InstanceBackupOperationType::Restore,
+            stage,
+            processed_bytes,
+            total_bytes,
+            Some(final_state),
+            Some(&snapshot_id),
+            message,
+        )
+        .await;
+        BACKUP_CANCELLATIONS.remove(&operation_id);
+    });
+    Ok(operation_id)
 }
 
 async fn build_restore_plan(
@@ -2804,6 +3128,8 @@ async fn apply_restore_roots(
 async fn restore_snapshot_inner(
     snapshot_id: &str,
     expected_plan_token: &str,
+    cancellable: &AtomicBool,
+    operation_id: Uuid,
 ) -> crate::Result<()> {
     let state = State::get().await?;
     let (instance_id, _) = snapshot_operation_metadata(snapshot_id).await?;
@@ -2838,12 +3164,29 @@ async fn restore_snapshot_inner(
         pool.close().await;
         return Ok(());
     }
+    if !cancellable.swap(false, Ordering::AcqRel) {
+        pool.close().await;
+        return Err(crate::ErrorKind::OtherError(
+            "Backup restore was canceled".to_string(),
+        )
+        .into());
+    }
+    update_persisted_operation(
+        operation_id,
+        BackupOperationState::Materializing,
+        Some(0),
+        None,
+        Some(false),
+        None,
+        Some(snapshot_id),
+    )
+    .await;
 
-    let operation_id = Uuid::new_v4().to_string();
+    let restore_journal_id = Uuid::new_v4().to_string();
     let operation_root = state
         .directories
         .instances_dir()
-        .join(format!("{RESTORE_PREFIX}{operation_id}"));
+        .join(format!("{RESTORE_PREFIX}{restore_journal_id}"));
     let staged = operation_root.join("staged");
     let rollback = operation_root.join("rollback");
     io::create_dir_all(&staged).await?;
@@ -2873,6 +3216,16 @@ async fn restore_snapshot_inner(
         pool.close().await;
         return Err(error);
     }
+    update_persisted_operation(
+        operation_id,
+        BackupOperationState::Applying,
+        None,
+        None,
+        Some(false),
+        None,
+        Some(snapshot_id),
+    )
+    .await;
 
     let replace_result =
         apply_restore_roots(&root, &operation_root, &plan.roots).await;
@@ -3574,14 +3927,16 @@ mod tests {
 
     #[test]
     fn cancellation_is_rejected_after_snapshot_saving_starts() {
-        let (operation_id, cancellation, _cancellable) =
-            new_backup_operation("instance");
+        let operation_id = Uuid::new_v4();
+        let (cancellation, _cancellable) =
+            register_backup_operation(operation_id, "instance");
         assert!(cancel_backup(operation_id));
         assert!(cancellation.is_cancelled());
         BACKUP_CANCELLATIONS.remove(&operation_id);
 
-        let (operation_id, cancellation, cancellable) =
-            new_backup_operation("instance");
+        let operation_id = Uuid::new_v4();
+        let (cancellation, cancellable) =
+            register_backup_operation(operation_id, "instance");
         cancellable.store(false, Ordering::Release);
         assert!(!cancel_backup(operation_id));
         assert!(!cancellation.is_cancelled());
@@ -3651,7 +4006,15 @@ mod tests {
         assert!(tables.contains(&"snapshot_entries".to_string()));
         assert!(tables.contains(&"snapshot_exclusions".to_string()));
         assert!(tables.contains(&"backup_objects".to_string()));
+        assert!(tables.contains(&"backup_operations".to_string()));
         assert!(!tables.contains(&"backup_selections".to_string()));
+        let operation_columns: Vec<String> = sqlx::query_scalar(
+			"SELECT name FROM pragma_table_info('backup_operations') ORDER BY cid",
+		)
+		.fetch_all(&pool)
+		.await
+		.unwrap();
+        assert!(operation_columns.contains(&"cancellable".to_string()));
         let foreign_key_errors: Vec<(String, i64, String, i64)> =
             sqlx::query_as("PRAGMA foreign_key_check")
                 .fetch_all(&pool)

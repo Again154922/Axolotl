@@ -63,6 +63,33 @@ export interface BackupRestorePreview {
 }
 
 export type BackupOperationType = 'create' | 'restore' | 'delete' | 'repository_move'
+export type BackupOperationState =
+	| 'queued'
+	| 'scanning'
+	| 'hashing'
+	| 'saving'
+	| 'validating'
+	| 'materializing'
+	| 'applying'
+	| 'completed'
+	| 'cancelled'
+	| 'failed'
+	| 'interrupted'
+
+export interface BackupOperation {
+	id: string
+	operation_type: BackupOperationType
+	instance_id: string
+	snapshot_id?: string
+	state: BackupOperationState
+	processed_bytes: number
+	total_bytes: number
+	cancellable: boolean
+	error?: string
+	created_at: number
+	updated_at: number
+	finished_at?: number
+}
 
 export type BackupProgressStage =
 	| 'scanning'
@@ -170,6 +197,16 @@ export function cancelBackup(operationId: string): Promise<boolean> {
 	return invoke('plugin:instance|instance_cancel_backup', { operationId })
 }
 
+export function listBackupOperations(
+	instanceId?: string,
+	activeOnly = false,
+): Promise<BackupOperation[]> {
+	return invoke('plugin:instance|instance_list_backup_operations', {
+		instanceId,
+		activeOnly,
+	})
+}
+
 export function listBackups(instanceId: string): Promise<BackupSnapshot[]> {
 	return invoke('plugin:instance|instance_list_backups', { instanceId })
 }
@@ -182,7 +219,7 @@ export function getBackupRestorePreview(snapshotId: string): Promise<BackupResto
 	return invoke('plugin:instance|instance_get_backup_restore_preview', { snapshotId })
 }
 
-export function restoreBackup(snapshotId: string, planToken: string): Promise<void> {
+export function restoreBackup(snapshotId: string, planToken: string): Promise<string> {
 	return invoke('plugin:instance|instance_restore_backup', { snapshotId, planToken })
 }
 
