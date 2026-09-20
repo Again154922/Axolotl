@@ -489,16 +489,18 @@ watch(
 		>
 			<Admonition type="critical">{{ formatMessage(messages.deleteBody) }}</Admonition>
 			<template #actions>
-				<ButtonStyled type="outlined"
-					><button :disabled="action?.startsWith('delete:')" @click="deleteModal?.hide()">
-						{{ formatMessage(commonMessages.cancelButton) }}
-					</button></ButtonStyled
-				>
-				<ButtonStyled color="red"
-					><button :disabled="action?.startsWith('delete:')" @click="removeSnapshot">
-						<TrashIcon />{{ formatMessage(messages.delete) }}
-					</button></ButtonStyled
-				>
+				<div class="flex items-center justify-end gap-2">
+					<ButtonStyled type="outlined">
+						<button :disabled="action?.startsWith('delete:')" @click="deleteModal?.hide()">
+							{{ formatMessage(commonMessages.cancelButton) }}
+						</button>
+					</ButtonStyled>
+					<ButtonStyled color="red">
+						<button :disabled="action?.startsWith('delete:')" @click="removeSnapshot">
+							<TrashIcon />{{ formatMessage(messages.delete) }}
+						</button>
+					</ButtonStyled>
+				</div>
 			</template>
 		</NewModal>
 		<NewModal ref="restoreModal" :header="formatMessage(messages.restoreTitle)" max-width="500px">
@@ -512,16 +514,18 @@ watch(
 				}}
 			</Admonition>
 			<template #actions>
-				<ButtonStyled type="outlined"
-					><button :disabled="action?.startsWith('restore:')" @click="restoreModal?.hide()">
-						{{ formatMessage(commonMessages.cancelButton) }}
-					</button></ButtonStyled
-				>
-				<ButtonStyled
-					><button :disabled="action?.startsWith('restore:')" @click="restoreSnapshot">
-						<UndoIcon />{{ formatMessage(messages.restore) }}
-					</button></ButtonStyled
-				>
+				<div class="flex items-center justify-end gap-2">
+					<ButtonStyled type="outlined">
+						<button :disabled="action?.startsWith('restore:')" @click="restoreModal?.hide()">
+							{{ formatMessage(commonMessages.cancelButton) }}
+						</button>
+					</ButtonStyled>
+					<ButtonStyled>
+						<button :disabled="action?.startsWith('restore:')" @click="restoreSnapshot">
+							<UndoIcon />{{ formatMessage(messages.restore) }}
+						</button>
+					</ButtonStyled>
+				</div>
 			</template>
 		</NewModal>
 	</div>
