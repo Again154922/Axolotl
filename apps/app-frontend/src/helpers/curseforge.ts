@@ -372,6 +372,13 @@ export function getCurseForgeFiles(projectId: number, request: CurseForgeFilesRe
 	})
 }
 
+export function getCurseForgeFilesPage(projectId: number, request: CurseForgeFilesRequest) {
+	return invoke<CurseForgeFilesResponse>('plugin:curseforge|curseforge_get_files_page', {
+		projectId,
+		request,
+	})
+}
+
 export function getCurseForgeFile(projectId: number, fileId: number) {
 	return invoke<CurseForgeFile>('plugin:curseforge|curseforge_get_file', {
 		projectId,
