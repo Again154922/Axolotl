@@ -1804,21 +1804,22 @@ pub(crate) async fn ensure_backup_eligible_edit(
 
 pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     let state = State::get().await?;
-    let Some((repository, pool)) = open_repository(&state, false).await? else {
+    let Some((_, lookup_pool)) = open_repository(&state, false).await? else {
         return Err(crate::ErrorKind::InputError(
             "Unknown backup snapshot".to_string(),
         )
         .into());
     };
-    let (instance_id, scope_mode): (String, String) = sqlx::query_as(
-        "SELECT instance_id, scope_mode FROM backup_snapshots WHERE id = ?",
+    let instance_id: String = sqlx::query_scalar(
+        "SELECT instance_id FROM backup_snapshots WHERE id = ?",
     )
     .bind(snapshot_id)
-    .fetch_optional(&pool)
+    .fetch_optional(&lookup_pool)
     .await?
     .ok_or_else(|| {
         crate::ErrorKind::InputError("Unknown backup snapshot".to_string())
     })?;
+    lookup_pool.close().await;
     let _maintenance_guard = lock_instance_maintenance(&instance_id).await;
     let _instance_guard =
         state.lock_instance_content_exclusive(&instance_id).await;
@@ -1829,6 +1830,27 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
         .into());
     }
     let _repository_guard = REPOSITORY_LOCK.lock().await;
+    let Some((repository, pool)) = open_repository(&state, false).await? else {
+        return Err(crate::ErrorKind::InputError(
+            "Unknown backup snapshot".to_string(),
+        )
+        .into());
+    };
+    let (locked_instance_id, scope_mode): (String, String) = sqlx::query_as(
+        "SELECT instance_id, scope_mode FROM backup_snapshots WHERE id = ?",
+    )
+    .bind(snapshot_id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError("Unknown backup snapshot".to_string())
+    })?;
+    if locked_instance_id != instance_id {
+        return Err(crate::ErrorKind::FSError(
+            "Backup snapshot changed while preparing its restore".to_string(),
+        )
+        .into());
+    }
     let root = require_eligible(&instance_id, &state).await?;
     let operation_id = Uuid::new_v4().to_string();
     let operation_root = state
