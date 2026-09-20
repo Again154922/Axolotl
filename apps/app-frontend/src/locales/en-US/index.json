@@ -2519,6 +2519,9 @@
   "app.instance.confirm-delete.admonition-header": {
     "message": "This action cannot be undone"
   },
+  "app.instance.confirm-delete.backup-cascade-warning": {
+    "message": "{count, plural, one {# backup} other {# backups}} ({size} total before deduplication) will also be permanently deleted."
+  },
   "app.instance.confirm-delete.batch-admonition-body": {
     "message": "{count, plural, one {# instance} other {# instances}} will be permanently deleted, including worlds, configs, and all installed content."
   },
@@ -10802,6 +10805,132 @@
   "instance.add-server.title": {
     "message": "Add a server"
   },
+  "instance.backups.added-size": {
+    "message": "{size} newly stored"
+  },
+  "instance.backups.backup-now": {
+    "message": "Back up now"
+  },
+  "instance.backups.cancel": {
+    "message": "Cancel backup"
+  },
+  "instance.backups.choose": {
+    "message": "Choose folders to include in every future backup."
+  },
+  "instance.backups.delete": {
+    "message": "Delete backup"
+  },
+  "instance.backups.delete-body": {
+    "message": "This snapshot will be permanently deleted. Unused stored files will also be removed."
+  },
+  "instance.backups.delete-title": {
+    "message": "Delete this backup?"
+  },
+  "instance.backups.description": {
+    "message": "Create deduplicated snapshots of selected folders while the instance is closed."
+  },
+  "instance.backups.directories.add": {
+    "message": "Add folder"
+  },
+  "instance.backups.directories.clear-all": {
+    "message": "Clear selection"
+  },
+  "instance.backups.directories.existing": {
+    "message": "Instance folders"
+  },
+  "instance.backups.directories.invalid": {
+    "message": "Enter a relative folder inside this instance."
+  },
+  "instance.backups.directories.linked": {
+    "message": "Symbolic link"
+  },
+  "instance.backups.directories.manual": {
+    "message": "Additional relative folder"
+  },
+  "instance.backups.directories.manual-placeholder": {
+    "message": "For example: shaderpacks/custom"
+  },
+  "instance.backups.directories.missing": {
+    "message": "Created when needed"
+  },
+  "instance.backups.directories.remove": {
+    "message": "Remove {path}"
+  },
+  "instance.backups.directories.select-all": {
+    "message": "Select existing folders"
+  },
+  "instance.backups.disable": {
+    "message": "Disable backups"
+  },
+  "instance.backups.disable-blocked": {
+    "message": "Delete every snapshot before disabling backups."
+  },
+  "instance.backups.edit-folders": {
+    "message": "Edit folders"
+  },
+  "instance.backups.empty": {
+    "message": "No backups have been created yet."
+  },
+  "instance.backups.enable": {
+    "message": "Enable backups"
+  },
+  "instance.backups.loading": {
+    "message": "Loading backup settings..."
+  },
+  "instance.backups.restore": {
+    "message": "Restore backup"
+  },
+  "instance.backups.restore-body": {
+    "message": "The folders included in this snapshot will replace their current versions."
+  },
+  "instance.backups.restore-title": {
+    "message": "Restore this backup?"
+  },
+  "instance.backups.save-folders": {
+    "message": "Save folders"
+  },
+  "instance.backups.selected-folders": {
+    "message": "Included folders: {folders}"
+  },
+  "instance.backups.snapshot-meta": {
+    "message": "{files, plural, one {# file} other {# files}} · {size}"
+  },
+  "instance.backups.snapshots": {
+    "message": "Snapshots"
+  },
+  "instance.backups.stage.failed": {
+    "message": "Backup failed"
+  },
+  "instance.backups.stage.saving": {
+    "message": "Saving snapshot index"
+  },
+  "instance.backups.stage.scanning": {
+    "message": "Scanning and hashing files"
+  },
+  "instance.backups.title": {
+    "message": "Instance backups"
+  },
+  "instance.backups.unavailable": {
+    "message": "Backups are unavailable"
+  },
+  "instance.backups.unavailable.direct-linked": {
+    "message": "Instances linked directly to another launcher cannot be backed up."
+  },
+  "instance.backups.unavailable.external-directory": {
+    "message": "Instances that use an external game directory cannot be backed up."
+  },
+  "instance.backups.unavailable.not-installed": {
+    "message": "Finish installing this instance before enabling backups."
+  },
+  "instance.backups.unavailable.root-link": {
+    "message": "Instances whose root folder is a link cannot be backed up."
+  },
+  "instance.backups.unavailable.root-missing": {
+    "message": "The instance folder is missing."
+  },
+  "instance.backups.unavailable.symlink": {
+    "message": "Imported symbolic-link instances cannot be backed up."
+  },
   "instance.edit-server.title": {
     "message": "Edit server"
   },
@@ -10966,6 +11095,9 @@
   },
   "instance.settings.sync.unsupported": {
     "message": "Unavailable for this instance"
+  },
+  "instance.settings.tabs.backups": {
+    "message": "Backups"
   },
   "instance.settings.tabs.core-components": {
     "message": "Core components"
@@ -12550,6 +12682,33 @@
   },
   "search.filter.locked.server-loader.title": {
     "message": "Loader is provided by the server"
+  },
+  "settings.backups.repository.change": {
+    "message": "Change folder"
+  },
+  "settings.backups.repository.description": {
+    "message": "Deduplicated instance backup data and its independent index database."
+  },
+  "settings.backups.repository.location": {
+    "message": "Location"
+  },
+  "settings.backups.repository.location-description": {
+    "message": "Changing the location moves the complete repository. Choose a new or empty folder."
+  },
+  "settings.backups.repository.moving": {
+    "message": "Moving repository..."
+  },
+  "settings.backups.repository.title": {
+    "message": "Backup repository"
+  },
+  "settings.backups.repository.unavailable": {
+    "message": "Repository unavailable"
+  },
+  "settings.backups.repository.usage": {
+    "message": "Storage usage"
+  },
+  "settings.backups.repository.usage-description": {
+    "message": "{stored} stored for {logical} of backup data across {count, plural, one {# snapshot} other {# snapshots}}."
   },
   "settings.feature-flags.title": {
     "message": "Feature flags"
