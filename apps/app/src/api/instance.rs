@@ -831,7 +831,7 @@ pub async fn instance_get_backup_repository_status()
 #[tauri::command]
 pub async fn instance_move_backup_repository(
     destination: PathBuf,
-) -> Result<()> {
+) -> Result<uuid::Uuid> {
     Ok(theseus::instance::move_backup_repository(destination).await?)
 }
 

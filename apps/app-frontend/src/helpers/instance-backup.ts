@@ -149,7 +149,7 @@ export function getBackupRepositoryStatus(): Promise<BackupRepositoryStatus> {
 	return invoke('plugin:instance|instance_get_backup_repository_status')
 }
 
-export function moveBackupRepository(destination: string): Promise<void> {
+export function moveBackupRepository(destination: string): Promise<string> {
 	return invoke('plugin:instance|instance_move_backup_repository', { destination })
 }
 

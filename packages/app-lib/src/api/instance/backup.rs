@@ -46,6 +46,7 @@ const STAGING_DIR: &str = ".staging";
 const RESTORE_PREFIX: &str = ".backup-restore-";
 const RESTORE_JOURNAL: &str = "restore.json";
 const RESTORE_COMMITTED: &str = "committed";
+const REPOSITORY_OPERATION_KEY: &str = "__backup_repository__";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -132,6 +133,7 @@ pub struct BackupRestorePreview {
 pub enum BackupOperationType {
     Create,
     Restore,
+    RepositoryMove,
 }
 
 impl BackupOperationType {
@@ -139,6 +141,7 @@ impl BackupOperationType {
         match self {
             Self::Create => "create",
             Self::Restore => "restore",
+            Self::RepositoryMove => "repository_move",
         }
     }
 }
@@ -336,6 +339,7 @@ fn parse_backup_operation_type(
     match value {
         "create" => Ok(BackupOperationType::Create),
         "restore" => Ok(BackupOperationType::Restore),
+        "repository_move" => Ok(BackupOperationType::RepositoryMove),
         _ => Err(crate::ErrorKind::FSError(format!(
             "Invalid backup operation type: {value}"
         ))
@@ -3342,7 +3346,7 @@ async fn restore_snapshot_inner(
             return Err(crate::ErrorKind::OtherError(format!(
 				"Backup restore failed: {error}; rollback failed: {recovery_error}"
 			))
-			.into());
+            .into());
         }
         return Err(error);
     }
@@ -3590,52 +3594,87 @@ pub(crate) async fn move_default_repository_for_launcher_directory(
     }
 }
 
-pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
+pub async fn start_repository_move(
+    destination: PathBuf,
+) -> crate::Result<Uuid> {
     let operation_id = Uuid::new_v4();
     let total_bytes = repository_status()
         .await
         .map(|status| status.stored_size)
         .unwrap_or(0);
-    emit_backup_progress(
+    create_persisted_operation(
         operation_id,
+        REPOSITORY_OPERATION_KEY,
+        BackupOperationType::RepositoryMove,
         None,
-        InstanceBackupOperationType::RepositoryMove,
-        InstanceBackupProgressStage::Copying,
-        0,
-        total_bytes,
-        None,
+    )
+    .await?;
+    update_persisted_operation(
+        operation_id,
+        BackupOperationState::Queued,
+        Some(0),
+        Some(total_bytes),
+        Some(false),
         None,
         None,
     )
     .await;
-    let result = move_repository_inner(destination).await;
-    let (stage, final_state, processed_bytes, message) = match &result {
-        Ok(()) => (
-            InstanceBackupProgressStage::Completed,
-            InstanceBackupOperationFinalState::Completed,
+    tokio::spawn(async move {
+        emit_backup_progress(
+            operation_id,
+            None,
+            InstanceBackupOperationType::RepositoryMove,
+            InstanceBackupProgressStage::Copying,
+            0,
             total_bytes,
             None,
-        ),
-        Err(error) => (
-            InstanceBackupProgressStage::Failed,
-            InstanceBackupOperationFinalState::Failed,
-            0,
-            Some(error.to_string()),
-        ),
-    };
-    emit_backup_progress(
-        operation_id,
-        None,
-        InstanceBackupOperationType::RepositoryMove,
-        stage,
-        processed_bytes,
-        total_bytes,
-        Some(final_state),
-        None,
-        message,
-    )
-    .await;
-    result
+            None,
+            None,
+        )
+        .await;
+        let result = move_repository_inner(destination).await;
+        let (stage, final_state, processed_bytes, message, state) = match result
+        {
+            Ok(()) => (
+                InstanceBackupProgressStage::Completed,
+                InstanceBackupOperationFinalState::Completed,
+                total_bytes,
+                None,
+                BackupOperationState::Completed,
+            ),
+            Err(error) => (
+                InstanceBackupProgressStage::Failed,
+                InstanceBackupOperationFinalState::Failed,
+                0,
+                Some(error.to_string()),
+                BackupOperationState::Failed,
+            ),
+        };
+        update_persisted_operation(
+            operation_id,
+            state,
+            Some(processed_bytes),
+            Some(total_bytes),
+            Some(false),
+            message.as_deref(),
+            None,
+        )
+        .await;
+        emit_backup_progress(
+            operation_id,
+            None,
+            InstanceBackupOperationType::RepositoryMove,
+            stage,
+            processed_bytes,
+            total_bytes,
+            Some(final_state),
+            None,
+            message,
+        )
+        .await;
+        unregister_backup_operation(REPOSITORY_OPERATION_KEY, operation_id);
+    });
+    Ok(operation_id)
 }
 
 async fn move_repository_inner(destination: PathBuf) -> crate::Result<()> {
@@ -4170,9 +4209,9 @@ mod tests {
         sqlx::raw_sql(include_str!(
 			"../../../backup_migrations/20260920210000_operation_cancellation.sql"
 		))
-		.execute(&pool)
-		.await
-		.unwrap();
+        .execute(&pool)
+        .await
+        .unwrap();
 
         let row: (String, i64) = sqlx::query_as(
 			"SELECT state, cancel_requested FROM backup_operations WHERE id = 'operation'",
@@ -4187,6 +4226,62 @@ mod tests {
                 .await
                 .unwrap();
         assert!(foreign_key_errors.is_empty());
+    }
+
+    #[tokio::test]
+    async fn repository_move_migration_preserves_operations_and_extends_type() {
+        let temp = tempfile::tempdir().unwrap();
+        let options = SqliteConnectOptions::new()
+            .filename(temp.path().join(DATABASE_FILE))
+            .create_if_missing(true)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        sqlx::raw_sql(include_str!(
+            "../../../backup_migrations/20260920200000_operations.sql"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::raw_sql(include_str!(
+            "../../../backup_migrations/20260920210000_operation_cancellation.sql"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO backup_operations
+             (id, operation_type, instance_id, state, created_at, updated_at)
+             VALUES ('create-operation', 'create', 'instance', 'completed', 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::raw_sql(include_str!(
+            "../../../backup_migrations/20260920223000_repository_move_operations.sql"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        let existing: String = sqlx::query_scalar(
+            "SELECT operation_type FROM backup_operations WHERE id = 'create-operation'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(existing, "create");
+        sqlx::query(
+            "INSERT INTO backup_operations
+             (id, operation_type, instance_id, state, created_at, updated_at)
+             VALUES ('move-operation', 'repository_move', ?, 'queued', 2, 2)",
+        )
+        .bind(REPOSITORY_OPERATION_KEY)
+        .execute(&pool)
+        .await
+        .unwrap();
     }
 
     #[tokio::test]

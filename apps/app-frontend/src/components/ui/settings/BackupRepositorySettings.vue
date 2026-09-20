@@ -14,6 +14,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import {
 	type BackupRepositoryStatus,
 	getBackupRepositoryStatus,
+	listBackupOperations,
 	listenBackupProgress,
 	moveBackupRepository,
 } from '@/helpers/instance-backup'
@@ -30,6 +31,7 @@ const loading = ref(true)
 const moving = ref(false)
 const movedBytes = ref(0)
 const moveTotalBytes = ref(0)
+const movingOperationId = ref<string | null>(null)
 let unlisten: (() => void) | null = null
 
 const messages = defineMessages({
@@ -80,11 +82,9 @@ async function changeLocation() {
 	movedBytes.value = 0
 	moveTotalBytes.value = 0
 	try {
-		await moveBackupRepository(selection.path)
-		await refresh()
+		movingOperationId.value = await moveBackupRepository(selection.path)
 	} catch (error) {
 		handleError(error)
-	} finally {
 		moving.value = false
 	}
 }
@@ -92,9 +92,25 @@ async function changeLocation() {
 onMounted(async () => {
 	unlisten = await listenBackupProgress((event) => {
 		if (event.operationType !== 'repository_move') return
+		if (movingOperationId.value && event.operationId !== movingOperationId.value) return
+		movingOperationId.value = event.operationId
+		moving.value = !event.finalState
 		movedBytes.value = event.processedBytes
 		moveTotalBytes.value = event.totalBytes
+		if (event.finalState === 'failed' && event.message) {
+			handleError(new Error(event.message))
+		}
+		if (event.finalState) void refresh()
 	})
+	const activeMove = (await listBackupOperations(undefined, true)).find(
+		(operation) => operation.operation_type === 'repository_move',
+	)
+	if (activeMove) {
+		movingOperationId.value = activeMove.id
+		moving.value = true
+		movedBytes.value = activeMove.processed_bytes
+		moveTotalBytes.value = activeMove.total_bytes
+	}
 	await refresh()
 })
 
