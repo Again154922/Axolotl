@@ -144,6 +144,10 @@ const REVERTIBLE_SCHEMA = {
 	20260920130000: {
 		columns: [{ table: 'settings', column: 'backup_repository_path' }],
 	},
+	// old backup repository paths awaiting cleanup
+	20260920160000: {
+		tables: ['pending_backup_repository_cleanups'],
+	},
 }
 
 function fail(message) {

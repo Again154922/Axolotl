@@ -1440,6 +1440,7 @@ async fn run_gc(repository: &Path, pool: &SqlitePool) -> crate::Result<()> {
 pub async fn maintain_repository() -> crate::Result<()> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
+    cleanup_pending_repository_paths(&state).await?;
     recover_interrupted_restores(&state).await?;
     let Some((repository, pool)) = open_repository(&state, false).await? else {
         return Ok(());
@@ -1483,6 +1484,42 @@ pub async fn maintain_repository() -> crate::Result<()> {
     io::create_dir_all(&staging).await?;
     sweep_unindexed_objects(&repository, &pool).await?;
     pool.close().await;
+    Ok(())
+}
+
+async fn cleanup_pending_repository_paths(state: &State) -> crate::Result<()> {
+    let current = repository_path(state).await?;
+    let paths: Vec<String> = sqlx::query_scalar(
+        "SELECT path FROM pending_backup_repository_cleanups ORDER BY created_at",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+    for stored_path in paths {
+        let path = PathBuf::from(&stored_path);
+        if !path.is_absolute() || path == current {
+            tracing::warn!(
+                path = %path.display(),
+                "Ignoring invalid pending backup repository cleanup path"
+            );
+            continue;
+        }
+        if path.try_exists()? {
+            if let Err(error) = io::remove_dir_all(&path).await {
+                tracing::warn!(
+                    path = %path.display(),
+                    %error,
+                    "Failed to retry old backup repository cleanup"
+                );
+                continue;
+            }
+        }
+        sqlx::query(
+            "DELETE FROM pending_backup_repository_cleanups WHERE path = ?",
+        )
+        .bind(&stored_path)
+        .execute(&state.pool)
+        .await?;
+    }
     Ok(())
 }
 
@@ -2259,7 +2296,8 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
     if source == destination {
         return Ok(());
     }
-    if destination.try_exists()? {
+    let destination_existed = destination.try_exists()?;
+    if destination_existed {
         let mut entries = tokio::fs::read_dir(&destination).await?;
         if entries.next_entry().await?.is_some() {
             return Err(crate::ErrorKind::InputError(
@@ -2271,6 +2309,7 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
         io::create_dir_all(&destination).await?;
     }
     let source_exists = source.join(DATABASE_FILE).try_exists()?;
+    let mut same_disk_move = false;
     if source_exists {
         let destination_parent = destination.parent().ok_or_else(|| {
             crate::ErrorKind::InputError(
@@ -2278,12 +2317,45 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
             )
         })?;
         io::create_dir_all(destination_parent).await?;
-        if io::is_same_disk(&source, destination_parent).unwrap_or(false) {
+        let canonical_source = io::canonicalize(&source)?;
+        let canonical_destination_parent =
+            io::canonicalize(destination_parent)?;
+        if canonical_destination_parent.starts_with(&canonical_source) {
+            return Err(crate::ErrorKind::InputError(
+                "The backup repository cannot be moved inside itself"
+                    .to_string(),
+            )
+            .into());
+        }
+        if let Some((_, pool)) = open_repository(&state, false).await? {
+            sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+                .execute(&pool)
+                .await?;
+            pool.close().await;
+        }
+        same_disk_move =
+            io::is_same_disk(&source, destination_parent).unwrap_or(false);
+        if same_disk_move {
             let _ = tokio::fs::remove_dir(&destination).await;
             tokio::fs::rename(&source, &destination).await?;
         } else {
-            io::copy_dir(&source, &destination).await?;
-            validate_repository_at(&destination).await?;
+            let temporary = destination_parent
+                .join(format!(".axolotl-backup-move-{}", Uuid::new_v4()));
+            let copy_result: crate::Result<()> = async {
+                io::copy_dir(&source, &temporary).await?;
+                validate_repository_at(&temporary).await?;
+                tokio::fs::remove_dir(&destination).await?;
+                tokio::fs::rename(&temporary, &destination).await?;
+                Ok(())
+            }
+            .await;
+            if let Err(error) = copy_result {
+                let _ = io::remove_dir_all(&temporary).await;
+                if !destination.try_exists()? {
+                    let _ = io::create_dir_all(&destination).await;
+                }
+                return Err(error);
+            }
         }
     }
     let stored_path = if destination == default_repository_path(&state) {
@@ -2291,23 +2363,62 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
     } else {
         Some(destination.to_string_lossy().to_string())
     };
-    if let Err(error) = sqlx::query(
-        "UPDATE settings SET backup_repository_path = ? WHERE id = 0",
-    )
-    .bind(stored_path)
-    .execute(&state.pool)
-    .await
-    {
-        if source_exists
-            && io::is_same_disk(&source, &destination).unwrap_or(false)
-        {
-            let _ = tokio::fs::rename(&destination, &source).await;
+    let update_result: crate::Result<()> = async {
+        let mut tx = state.pool.begin().await?;
+        sqlx::query(
+            "UPDATE settings SET backup_repository_path = ? WHERE id = 0",
+        )
+        .bind(stored_path)
+        .execute(&mut *tx)
+        .await?;
+        if source_exists && !same_disk_move {
+            sqlx::query(
+                "INSERT INTO pending_backup_repository_cleanups (path, created_at)
+                 VALUES (?, ?)
+                 ON CONFLICT(path) DO UPDATE SET created_at = excluded.created_at",
+            )
+            .bind(source.to_string_lossy().to_string())
+            .bind(Utc::now().timestamp_millis())
+            .execute(&mut *tx)
+            .await?;
         }
-        return Err(error.into());
+        tx.commit().await?;
+        Ok(())
     }
-    if source_exists && source.try_exists()? {
-        if let Err(error) = io::remove_dir_all(&source).await {
-            tracing::warn!(path = %source.display(), %error, "Failed to remove old backup repository");
+    .await;
+    if let Err(error) = update_result {
+        if source_exists && same_disk_move {
+            let _ = tokio::fs::rename(&destination, &source).await;
+            if destination_existed {
+                let _ = io::create_dir_all(&destination).await;
+            }
+        } else if source_exists {
+            let _ = io::remove_dir_all(&destination).await;
+            if destination_existed {
+                let _ = io::create_dir_all(&destination).await;
+            }
+        }
+        return Err(error);
+    }
+    if source_exists && !same_disk_move {
+        let cleanup_succeeded = if source.try_exists()? {
+            match io::remove_dir_all(&source).await {
+                Ok(()) => true,
+                Err(error) => {
+                    tracing::warn!(path = %source.display(), %error, "Failed to remove old backup repository");
+                    false
+                }
+            }
+        } else {
+            true
+        };
+        if cleanup_succeeded {
+            sqlx::query(
+                "DELETE FROM pending_backup_repository_cleanups WHERE path = ?",
+            )
+            .bind(source.to_string_lossy().to_string())
+            .execute(&state.pool)
+            .await?;
         }
     }
     Ok(())
@@ -2328,18 +2439,39 @@ async fn validate_repository_at(root: &Path) -> crate::Result<()> {
     let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
         .fetch_one(&pool)
         .await?;
-    if integrity != "ok" {
-        return Err(crate::ErrorKind::FSError(format!(
-            "Moved backup database failed its integrity check: {integrity}"
-        ))
-        .into());
-    }
+    let foreign_key_errors: Vec<(String, i64, String, i64)> =
+        sqlx::query_as("PRAGMA foreign_key_check")
+            .fetch_all(&pool)
+            .await?;
+    let schema_name: String = sqlx::query_scalar(
+        "SELECT schema_name FROM repository_meta WHERE id = 0",
+    )
+    .fetch_one(&pool)
+    .await?;
     let objects: Vec<(String, i64)> = sqlx::query_as(
         "SELECT hash, size FROM backup_objects WHERE ref_count > 0",
     )
     .fetch_all(&pool)
     .await?;
     pool.close().await;
+    if integrity != "ok" {
+        return Err(crate::ErrorKind::FSError(format!(
+            "Moved backup database failed its integrity check: {integrity}"
+        ))
+        .into());
+    }
+    if !foreign_key_errors.is_empty() {
+        return Err(crate::ErrorKind::FSError(
+            "Moved backup database failed its foreign key check".to_string(),
+        )
+        .into());
+    }
+    if schema_name != "axolotl-instance-backups" {
+        return Err(crate::ErrorKind::FSError(
+            "Moved directory is not an Axolotl backup repository".to_string(),
+        )
+        .into());
+    }
     for (hash, size) in objects {
         verify_object(root, &hash, size.max(0) as u64).await?;
     }
@@ -2420,6 +2552,37 @@ mod tests {
                 .await
                 .unwrap();
         assert!(foreign_key_errors.is_empty());
+    }
+
+    #[tokio::test]
+    async fn repository_validation_rejects_foreign_key_violations() {
+        let temp = tempfile::tempdir().unwrap();
+        tokio::fs::create_dir_all(temp.path().join(OBJECTS_DIR))
+            .await
+            .unwrap();
+        let options = SqliteConnectOptions::new()
+            .filename(temp.path().join(DATABASE_FILE))
+            .create_if_missing(true)
+            .foreign_keys(false);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        BACKUP_MIGRATOR.run(&pool).await.unwrap();
+        sqlx::query(
+            "INSERT INTO backup_snapshots
+             (id, instance_id, instance_name, created_at, file_count,
+              symlink_count, logical_size, added_size)
+             VALUES ('snapshot', 'missing', 'Missing', 0, 0, 0, 0, 0)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+
+        let error = validate_repository_at(temp.path()).await.unwrap_err();
+        assert!(error.to_string().contains("foreign key check"));
     }
 
     #[tokio::test]
