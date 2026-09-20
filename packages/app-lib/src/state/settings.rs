@@ -196,6 +196,8 @@ pub struct Settings {
 
     pub custom_dir: Option<String>,
     pub prev_custom_dir: Option<String>,
+    #[serde(default)]
+    pub backup_repository_path: Option<String>,
     pub migrated: bool,
 
     pub developer_mode: bool,
@@ -373,6 +375,11 @@ impl Settings {
         )
         .fetch_one(exec)
         .await?;
+        let backup_repository_path: Option<String> = sqlx::query_scalar(
+            "SELECT backup_repository_path FROM settings WHERE id = 0",
+        )
+        .fetch_one(exec)
+        .await?;
 
         let log_level: String =
             sqlx::query_scalar("SELECT log_level FROM settings WHERE id = 0")
@@ -523,6 +530,7 @@ impl Settings {
             },
             custom_dir: res.custom_dir,
             prev_custom_dir: res.prev_custom_dir,
+            backup_repository_path,
             migrated: res.migrated == 1,
             feature_flags: res
                 .feature_flags
@@ -786,6 +794,13 @@ impl Settings {
             "UPDATE settings SET default_window_title = ? WHERE id = 0",
         )
         .bind(self.default_window_title.trim())
+        .execute(exec)
+        .await?;
+
+        sqlx::query(
+            "UPDATE settings SET backup_repository_path = ? WHERE id = 0",
+        )
+        .bind(self.backup_repository_path.as_deref())
         .execute(exec)
         .await?;
 

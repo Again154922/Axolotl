@@ -123,6 +123,7 @@ import {
 } from '@/helpers/events.js'
 import { install_create_modpack_instance, install_get_modpack_preview } from '@/helpers/install'
 import { type DirectLinkSyncReport, get as getInstance, run } from '@/helpers/instance'
+import { type BackupOperation, cancelBackup, listBackupOperations } from '@/helpers/instance-backup'
 import { reconcileMojangAuthSourceAtStartup } from '@/helpers/mojang-auth'
 import { cancelLogin, get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
 import { getNavShortcutEnabled } from '@/helpers/nav-shortcut-state'
@@ -401,6 +402,8 @@ const communityAnnouncementModal = ref()
 const surveyModal = ref()
 const updateAnnouncementModal = ref()
 const closeChoiceModal = ref<InstanceType<typeof NewModal>>()
+const backupExitModal = ref<InstanceType<typeof NewModal>>()
+const activeBackupOperations = ref<BackupOperation[]>([])
 const closeChoiceOpen = ref(false)
 const closeChoiceRemember = ref(false)
 const closeRequestInProgress = ref(false)
@@ -963,6 +966,31 @@ const messages = defineMessages({
 		id: 'app.close-launcher.remember',
 		defaultMessage: 'Remember my choice',
 	},
+	backupExitTitle: {
+		id: 'app.backup-exit.title',
+		defaultMessage: 'Backup operations are still running',
+	},
+	backupExitBody: {
+		id: 'app.backup-exit.body',
+		defaultMessage:
+			'{count, plural, one {# backup operation is} other {# backup operations are}} still running. Keep the launcher open or hide it to the tray to let them finish.',
+	},
+	backupExitRepositoryMoveBody: {
+		id: 'app.backup-exit.repository-move-body',
+		defaultMessage:
+			'The backup repository is being moved. This task cannot be cancelled or force-stopped; keep the launcher open or hide it to the tray until it finishes.',
+	},
+	backupExitReturn: { id: 'app.backup-exit.return', defaultMessage: 'Return to launcher' },
+	backupExitTray: { id: 'app.backup-exit.tray', defaultMessage: 'Hide to tray' },
+	backupExitCancel: {
+		id: 'app.backup-exit.cancel',
+		defaultMessage: 'Cancel tasks and exit',
+	},
+	backupExitForce: { id: 'app.backup-exit.force', defaultMessage: 'Force exit' },
+	backupExitTimeout: {
+		id: 'app.backup-exit.timeout',
+		defaultMessage: 'Timed out while waiting for backup operations to stop.',
+	},
 	betaBuild: {
 		id: 'app.build.beta',
 		defaultMessage: 'Beta',
@@ -1383,8 +1411,7 @@ async function setupApp() {
 	themeStore.setTransparentBackgroundClass()
 	await applyWindowFrame()
 	await applyWindowEffects()
-	themeStore.homeWidgetBackgroundOpacity =
-		home_widget_background_opacity ?? 100
+	themeStore.homeWidgetBackgroundOpacity = home_widget_background_opacity ?? 100
 	themeStore.setHomeWidgetBackgroundOpacity()
 	themeStore.hiddenNavItems = hidden_nav_items ?? []
 	themeStore.sidebarInstanceCount = sidebar_instance_count
@@ -1672,7 +1699,7 @@ stateInitialization
  */
 async function forceExit() {
 	try {
-		await invoke('exit_app')
+		await invoke('exit_app', { force: true })
 	} catch (error) {
 		// Closing the window still reaches the exit path, one dialog later.
 		console.error('Failed to exit the launcher; closing the window', error)
@@ -1682,13 +1709,28 @@ async function forceExit() {
 	}
 }
 
+async function showBackupExitModalIfNeeded() {
+	activeBackupOperations.value = await listBackupOperations(undefined, true)
+	if (activeBackupOperations.value.length === 0) return false
+	allowWindowClose = false
+	closeRequestInProgress.value = false
+	closeChoiceModal.value?.hide()
+	backupExitModal.value?.show()
+	return true
+}
+
+async function exitLauncher(force = false) {
+	if (!force && (await showBackupExitModalIfNeeded())) return
+	allowWindowClose = true
+	await saveWindowState(StateFlags.ALL)
+	await invoke('exit_app', { force })
+}
+
 async function closeWindowImmediately() {
 	if (closeRequestInProgress.value) return
 	closeRequestInProgress.value = true
-	allowWindowClose = true
 	try {
-		await saveWindowState(StateFlags.ALL)
-		await invoke('exit_app')
+		await exitLauncher()
 	} catch (error) {
 		allowWindowClose = false
 		closeRequestInProgress.value = false
@@ -1722,9 +1764,7 @@ async function applyCloseChoice(choice: 'close' | 'lightweight', remember: boole
 			closeBehaviorPersisted = true
 		}
 		if (choice === 'close') {
-			allowWindowClose = true
-			await saveWindowState(StateFlags.ALL)
-			await invoke('exit_app')
+			await exitLauncher()
 		} else {
 			await enterLightweightModeOnClose()
 		}
@@ -1737,6 +1777,58 @@ async function applyCloseChoice(choice: 'close' | 'lightweight', remember: boole
 		closeChoiceOpen.value = true
 		handleError(error)
 	}
+}
+
+async function cancelBackupsAndExit() {
+	if (closeRequestInProgress.value) return
+	closeRequestInProgress.value = true
+	try {
+		await Promise.all(
+			activeBackupOperations.value
+				.filter((operation) => operation.cancellable)
+				.map((operation) => cancelBackup(operation.id)),
+		)
+		for (let attempt = 0; attempt < 300; attempt++) {
+			const remaining = await listBackupOperations(undefined, true)
+			if (remaining.length === 0) {
+				await exitLauncher()
+				return
+			}
+			await new Promise((resolve) => setTimeout(resolve, 100))
+		}
+		throw new Error(formatMessage(messages.backupExitTimeout))
+	} catch (error) {
+		closeRequestInProgress.value = false
+		handleError(error)
+	}
+}
+
+async function forceBackupExit() {
+	if (closeRequestInProgress.value) return
+	closeRequestInProgress.value = true
+	try {
+		await exitLauncher(true)
+	} catch (error) {
+		allowWindowClose = false
+		closeRequestInProgress.value = false
+		handleError(error)
+	}
+}
+
+const hasActiveRepositoryMove = computed(() =>
+	activeBackupOperations.value.some((operation) => operation.operation_type === 'repository_move'),
+)
+
+function returnFromBackupExit() {
+	backupExitModal.value?.hide()
+	activeBackupOperations.value = []
+	closeRequestInProgress.value = false
+}
+
+async function hideDuringBackups() {
+	backupExitModal.value?.hide()
+	closeRequestInProgress.value = false
+	await enterLightweightModeOnClose()
 }
 
 function onCloseChoiceModalHide() {
@@ -3027,6 +3119,44 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				:label="formatMessage(messages.closeLauncherRemember)"
 			/>
 		</div>
+	</NewModal>
+	<NewModal
+		ref="backupExitModal"
+		:header="formatMessage(messages.backupExitTitle)"
+		:disable-close="closeRequestInProgress"
+		fade="danger"
+		max-width="32rem"
+	>
+		<Admonition type="warning">
+			{{ formatMessage(messages.backupExitBody, { count: activeBackupOperations.length }) }}
+		</Admonition>
+		<Admonition v-if="hasActiveRepositoryMove" type="warning" class="mt-3">
+			{{ formatMessage(messages.backupExitRepositoryMoveBody) }}
+		</Admonition>
+		<template #actions>
+			<div class="flex flex-wrap items-center justify-end gap-2">
+				<ButtonStyled type="outlined">
+					<button type="button" :disabled="closeRequestInProgress" @click="returnFromBackupExit">
+						{{ formatMessage(messages.backupExitReturn) }}
+					</button>
+				</ButtonStyled>
+				<ButtonStyled>
+					<button type="button" :disabled="closeRequestInProgress" @click="hideDuringBackups">
+						{{ formatMessage(messages.backupExitTray) }}
+					</button>
+				</ButtonStyled>
+				<ButtonStyled v-if="activeBackupOperations.every((operation) => operation.cancellable)">
+					<button type="button" :disabled="closeRequestInProgress" @click="cancelBackupsAndExit">
+						{{ formatMessage(messages.backupExitCancel) }}
+					</button>
+				</ButtonStyled>
+				<ButtonStyled v-if="!hasActiveRepositoryMove" color="red">
+					<button type="button" :disabled="closeRequestInProgress" @click="forceBackupExit">
+						{{ formatMessage(messages.backupExitForce) }}
+					</button>
+				</ButtonStyled>
+			</div>
+		</template>
 	</NewModal>
 	<ErrorModal ref="errorModal" />
 	<MinecraftAuthErrorModal ref="minecraftAuthErrorModal" />
