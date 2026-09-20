@@ -67,6 +67,53 @@
 				</div>
 			</template>
 		</Dropdown>
+		<Dropdown
+			v-if="activeBackupOperations.length > 0"
+			placement="bottom-end"
+			:triggers="['click']"
+			:hide-triggers="['click']"
+		>
+			<ButtonStyled type="transparent" circular>
+				<button
+					v-tooltip="formatMessage(messages.activeBackups)"
+					:aria-label="formatMessage(messages.activeBackups)"
+					class="relative"
+				>
+					<DatabaseBackupIcon />
+					<span
+						class="absolute right-0 top-0 min-w-4 rounded-full bg-brand px-1 text-center text-[10px] font-bold leading-4 text-white"
+					>
+						{{ Math.min(activeBackupOperations.length, 99) }}
+					</span>
+				</button>
+			</ButtonStyled>
+			<template #popper>
+				<div class="w-[22rem] max-w-[calc(100vw-2rem)] p-2">
+					<div class="mb-2 px-2 font-semibold text-contrast">
+						{{ formatMessage(messages.activeBackups) }}
+					</div>
+					<div class="flex max-h-[22rem] flex-col gap-1 overflow-auto">
+						<button
+							v-for="operation in activeBackupOperations"
+							:key="operation.id"
+							class="flex min-w-0 flex-col gap-1 rounded-lg p-2 text-left hover:bg-button-bg"
+							@click="openBackupOperation(operation)"
+						>
+							<div class="flex items-center gap-2">
+								<span class="size-2 shrink-0 rounded-full bg-brand" />
+								<span class="truncate text-sm font-medium text-contrast">
+									{{ backupOperationTitle(operation) }}
+								</span>
+							</div>
+							<div class="flex items-center justify-between gap-2 text-xs text-secondary">
+								<span class="truncate">{{ backupInstanceName(operation.instance_id) }}</span>
+								<span class="shrink-0">{{ backupOperationProgress(operation) }}</span>
+							</div>
+						</button>
+					</div>
+				</div>
+			</template>
+		</Dropdown>
 		<ButtonStyled
 			v-if="!isDownloadsPage && hasActiveDownloads && !hasVisibleActiveDownloadToasts"
 			color="brand"
@@ -185,6 +232,7 @@
 <script setup lang="ts">
 import {
 	BellIcon,
+	DatabaseBackupIcon,
 	DownloadIcon,
 	DropdownIcon,
 	OnlineIndicatorIcon,
@@ -215,6 +263,12 @@ import { useNetworkStatus } from '@/composables/useNetworkStatus'
 import { trackEvent } from '@/helpers/analytics'
 import { loading_listener, process_listener } from '@/helpers/events'
 import { get_many as getInstances } from '@/helpers/instance'
+import {
+	listBackupOperations,
+	listenBackupProgress,
+	type BackupOperation,
+	type BackupProgressEvent,
+} from '@/helpers/instance-backup'
 import { get_all as getRunningProcesses, kill as killProcess } from '@/helpers/process'
 import type { LoadingBar } from '@/helpers/state'
 import { progress_bars_list } from '@/helpers/state'
@@ -388,6 +442,35 @@ const messages = defineMessages({
 		id: 'app.action-bar.view-active-downloads',
 		defaultMessage: 'View active downloads',
 	},
+	activeBackups: {
+		id: 'app.action-bar.active-backups',
+		defaultMessage: 'Active backups',
+	},
+	backup: {
+		id: 'app.action-bar.backup',
+		defaultMessage: 'Backing up',
+	},
+	restore: {
+		id: 'app.action-bar.restore',
+		defaultMessage: 'Restoring backup',
+	},
+	backupStage: {
+		id: 'app.action-bar.backup-stage',
+		defaultMessage: '{stage}',
+	},
+	stageQueued: { id: 'app.action-bar.backup-stage.queued', defaultMessage: 'Queued' },
+	stageScanning: { id: 'app.action-bar.backup-stage.scanning', defaultMessage: 'Scanning files' },
+	stageHashing: { id: 'app.action-bar.backup-stage.hashing', defaultMessage: 'Calculating hashes' },
+	stageSaving: { id: 'app.action-bar.backup-stage.saving', defaultMessage: 'Saving backup' },
+	stageValidating: {
+		id: 'app.action-bar.backup-stage.validating',
+		defaultMessage: 'Validating backup',
+	},
+	stageMaterializing: {
+		id: 'app.action-bar.backup-stage.materializing',
+		defaultMessage: 'Applying files',
+	},
+	stageApplying: { id: 'app.action-bar.backup-stage.applying', defaultMessage: 'Applying files' },
 	exportingModpack: {
 		id: 'app.action-bar.exporting-modpack',
 		defaultMessage: 'Exporting modpack',
@@ -396,6 +479,85 @@ const messages = defineMessages({
 
 const currentProcesses = ref<RunningProcess[]>([])
 const selectedProcess = ref<RunningProcess | undefined>()
+const activeBackupOperations = ref<BackupOperation[]>([])
+const backupInstanceNames = ref<Record<string, string>>({})
+
+function backupInstanceName(instanceId: string): string {
+	return backupInstanceNames.value[instanceId] ?? instanceId
+}
+
+function backupOperationTitle(operation: BackupOperation): string {
+	return formatMessage(operation.operation_type === 'restore' ? messages.restore : messages.backup)
+}
+
+function backupOperationProgress(operation: BackupOperation): string {
+	if (!operation.total_bytes) {
+		const stageMessage =
+			{
+				queued: messages.stageQueued,
+				scanning: messages.stageScanning,
+				hashing: messages.stageHashing,
+				saving: messages.stageSaving,
+				validating: messages.stageValidating,
+				materializing: messages.stageMaterializing,
+				applying: messages.stageApplying,
+			}[operation.state] ?? messages.backupStage
+		return formatMessage(
+			stageMessage,
+			stageMessage === messages.backupStage ? { stage: operation.state } : undefined,
+		)
+	}
+	const percent = Math.round((operation.processed_bytes / operation.total_bytes) * 100)
+	return `${Math.min(100, Math.max(0, percent))}%`
+}
+
+function openBackupOperation(operation: BackupOperation) {
+	router.push(`/instance/${encodeURIComponent(operation.instance_id)}`)
+}
+
+async function refreshBackupOperations() {
+	const operations = await listBackupOperations(undefined, true).catch((error) => {
+		handleError(error)
+		return []
+	})
+	activeBackupOperations.value = operations.filter(
+		(operation) => operation.operation_type === 'create' || operation.operation_type === 'restore',
+	)
+	const instanceIds = Array.from(
+		new Set(activeBackupOperations.value.map((operation) => operation.instance_id)),
+	)
+	if (!instanceIds.length) {
+		backupInstanceNames.value = {}
+		return
+	}
+	const instances = await getInstances(instanceIds).catch((error) => {
+		handleError(error)
+		return []
+	})
+	backupInstanceNames.value = Object.fromEntries(
+		instances.map((instance) => [instance.id, instance.name]),
+	)
+}
+
+function applyBackupProgress(event: BackupProgressEvent) {
+	if (!['create', 'restore'].includes(event.operationType)) return
+	if (event.finalState || ['completed', 'cancelled', 'failed'].includes(event.stage)) {
+		void refreshBackupOperations()
+		return
+	}
+	const state: BackupOperation['state'] =
+		event.stage === 'copying' || event.stage === 'restoring' ? 'materializing' : event.stage
+	const existing = activeBackupOperations.value.find(
+		(operation) => operation.id === event.operationId,
+	)
+	if (existing) {
+		existing.state = state
+		existing.processed_bytes = event.processedBytes
+		existing.total_bytes = event.totalBytes
+	} else {
+		void refreshBackupOperations()
+	}
+}
 
 const refresh = async () => {
 	const processes = ((await getRunningProcesses().catch((error) => {
@@ -426,12 +588,14 @@ const refresh = async () => {
 }
 
 await refresh()
+await refreshBackupOperations()
 
 const { offline } = useNetworkStatus()
 
 const unlistenProcess = await process_listener(async () => {
 	await refresh()
 })
+const unlistenBackup = await listenBackupProgress(applyBackupProgress)
 
 const stop = async (process: RunningProcess) => {
 	try {
@@ -782,6 +946,7 @@ onBeforeUnmount(() => {
 	dismissed.value = false
 	unlistenProcess()
 	unlistenLoading()
+	unlistenBackup()
 	installJobNotifications.dispose()
 })
 </script>

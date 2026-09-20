@@ -11,6 +11,25 @@
   "app.action-bar.downloads": {
     "message": "下载"
   },
+  "app.action-bar.active-backups": {
+    "message": "正在进行的备份任务"
+  },
+  "app.action-bar.backup": {
+    "message": "正在备份"
+  },
+  "app.action-bar.restore": {
+    "message": "正在恢复备份"
+  },
+  "app.action-bar.backup-stage": {
+    "message": "{stage}"
+  },
+  "app.action-bar.backup-stage.queued": { "message": "排队中" },
+  "app.action-bar.backup-stage.scanning": { "message": "正在扫描文件" },
+  "app.action-bar.backup-stage.hashing": { "message": "正在计算哈希" },
+  "app.action-bar.backup-stage.saving": { "message": "正在保存备份" },
+  "app.action-bar.backup-stage.validating": { "message": "正在验证备份" },
+  "app.action-bar.backup-stage.materializing": { "message": "正在应用文件" },
+  "app.action-bar.backup-stage.applying": { "message": "正在应用文件" },
   "app.action-bar.exporting-modpack": {
     "message": "正在导出整合包"
   },

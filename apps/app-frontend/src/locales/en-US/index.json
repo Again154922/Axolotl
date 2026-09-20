@@ -11,6 +11,25 @@
   "app.action-bar.downloads": {
     "message": "Downloads"
   },
+  "app.action-bar.active-backups": {
+    "message": "Active backups"
+  },
+  "app.action-bar.backup": {
+    "message": "Backing up"
+  },
+  "app.action-bar.restore": {
+    "message": "Restoring backup"
+  },
+  "app.action-bar.backup-stage": {
+    "message": "{stage}"
+  },
+  "app.action-bar.backup-stage.queued": { "message": "Queued" },
+  "app.action-bar.backup-stage.scanning": { "message": "Scanning files" },
+  "app.action-bar.backup-stage.hashing": { "message": "Calculating hashes" },
+  "app.action-bar.backup-stage.saving": { "message": "Saving backup" },
+  "app.action-bar.backup-stage.validating": { "message": "Validating backup" },
+  "app.action-bar.backup-stage.materializing": { "message": "Applying files" },
+  "app.action-bar.backup-stage.applying": { "message": "Applying files" },
   "app.action-bar.exporting-modpack": {
     "message": "Exporting modpack"
   },
