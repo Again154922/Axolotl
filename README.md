@@ -120,7 +120,7 @@ nix profile add 'git+https://github.com/Mystic-Stars/Axolotl'
 {
   nixConfig = {
     # 使用 Axolotl Launcher 的 cachix 缓存。对安全性有疑问可以审查：
-		# axololt-launcher.git.cachix.org 以及 github.com/AstroNot233/Axolotl-Cachix
+		# axololt-launcher-git.cachix.org 以及 github.com/Axolotl-Launcher/Axolotl-Cachix
     extra-substituters = [
       "https://axolotl-launcher-git.cachix.org"
     ];
