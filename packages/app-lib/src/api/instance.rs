@@ -29,17 +29,21 @@ mod upgrade;
 pub use self::backup::{
     BackupDeleteSummary, BackupDirectoryEntry, BackupRepositoryStatus,
     BackupSnapshot, InstanceBackupConfig, InstanceBackupEligibility,
-    cancel_backup, create_snapshot, disable as disable_backups,
-    enable as enable_backups, instance_config as get_backup_config,
+    cancel_backup, delete_snapshot as delete_backup_snapshot,
+    disable as disable_backups, enable as enable_backups,
+    instance_config as get_backup_config,
     instance_delete_summary as get_backup_delete_summary,
     list_snapshots as list_backup_snapshots,
     list_top_level_directories as list_backup_directories,
-    move_repository as move_backup_repository, new_backup_operation,
+    maintain_repository as maintain_backup_repository,
+    move_repository as move_backup_repository,
     repository_status as get_backup_repository_status, restore_snapshot,
+    start_snapshot as start_backup_snapshot,
     update_selections as update_backup_selections,
 };
 pub(crate) use self::backup::{
-    delete_instance_backups, lock_instance_maintenance,
+    begin_instance_deletion, cancel_instance_deletion, delete_instance_backups,
+    ensure_backup_eligible_edit, lock_instance_maintenance,
 };
 pub(crate) use self::content::resolve_content_change_actions;
 pub use self::content::{

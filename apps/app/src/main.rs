@@ -205,6 +205,9 @@ async fn initialize_state(app: tauri::AppHandle) -> api::Result<()> {
 
     tracing::info!("Initializing app state...");
     State::init(app.config().identifier.clone()).await?;
+    if let Err(error) = theseus::instance::maintain_backup_repository().await {
+        tracing::warn!(%error, "Failed to maintain the instance backup repository");
+    }
 
     // The logger starts before the database is available, so the stored level
     // is applied here once settings can be read. Beta keeps enough detail for

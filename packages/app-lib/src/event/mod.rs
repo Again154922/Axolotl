@@ -243,6 +243,28 @@ pub enum InstanceBulkUpdateProgressStage {
     Finishing,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceBackupProgressPayload {
+    pub operation_id: Uuid,
+    pub instance_id: String,
+    pub stage: InstanceBackupProgressStage,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum InstanceBackupProgressStage {
+    Scanning,
+    Saving,
+    Completed,
+    Cancelled,
+    Failed,
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "event")]
 pub enum CommandPayload {

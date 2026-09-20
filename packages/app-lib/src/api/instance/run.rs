@@ -82,6 +82,8 @@ async fn run_with_extra_launch_args_inner(
     extra_launch_args: Option<Vec<String>>,
     gc_intent: Option<GcLaunchIntent>,
 ) -> crate::Result<(ProcessMetadata, Option<GcLaunchReport>)> {
+    let _maintenance_guard =
+        crate::api::instance::lock_instance_maintenance(instance_id).await;
     let state = State::get().await?;
     let launch_preparation_timeout =
         crate::state::instances::commands::get_instance_launch_context(

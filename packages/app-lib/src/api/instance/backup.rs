@@ -1,3 +1,6 @@
+use crate::event::{
+    InstanceBackupProgressPayload, InstanceBackupProgressStage,
+};
 use crate::state::instances::adapters::sqlite::instance_rows;
 use crate::state::{Settings, State};
 use crate::util::io;
@@ -345,7 +348,21 @@ pub async fn repository_status() -> crate::Result<BackupRepositoryStatus> {
     let state = State::get().await?;
     let path = repository_path(&state).await?;
     let path_string = path.to_string_lossy().to_string();
-    let Some((_, pool)) = open_repository(&state, false).await? else {
+    let repository = match open_repository(&state, false).await {
+        Ok(repository) => repository,
+        Err(error) => {
+            return Ok(BackupRepositoryStatus {
+                path: path_string,
+                initialized: path.join(DATABASE_FILE).try_exists()?,
+                available: false,
+                stored_size: 0,
+                logical_size: 0,
+                snapshot_count: 0,
+                error: Some(error.to_string()),
+            });
+        }
+    };
+    let Some((_, pool)) = repository else {
         return Ok(BackupRepositoryStatus {
             path: path_string,
             initialized: false,
@@ -653,6 +670,53 @@ pub fn new_backup_operation(instance_id: &str) -> (Uuid, CancellationToken) {
     (operation_id, cancellation)
 }
 
+pub fn start_snapshot(instance_id: String) -> Uuid {
+    let (operation_id, cancellation) = new_backup_operation(&instance_id);
+    tokio::spawn(async move {
+        let _ = crate::event::emit::emit_instance_backup_progress(
+            InstanceBackupProgressPayload {
+                operation_id,
+                instance_id: instance_id.clone(),
+                stage: InstanceBackupProgressStage::Scanning,
+                snapshot_id: None,
+                message: None,
+            },
+        )
+        .await;
+        let result =
+            create_snapshot(&instance_id, operation_id, cancellation.clone())
+                .await;
+        let (stage, snapshot_id, message) = match result {
+            Ok(snapshot) => (
+                InstanceBackupProgressStage::Completed,
+                Some(snapshot.id),
+                None,
+            ),
+            Err(error) if cancellation.is_cancelled() => (
+                InstanceBackupProgressStage::Cancelled,
+                None,
+                Some(error.to_string()),
+            ),
+            Err(error) => (
+                InstanceBackupProgressStage::Failed,
+                None,
+                Some(error.to_string()),
+            ),
+        };
+        let _ = crate::event::emit::emit_instance_backup_progress(
+            InstanceBackupProgressPayload {
+                operation_id,
+                instance_id,
+                stage,
+                snapshot_id,
+                message,
+            },
+        )
+        .await;
+    });
+    operation_id
+}
+
 pub fn cancel_backup(operation_id: Uuid) -> bool {
     BACKUP_CANCELLATIONS
         .get(&operation_id)
@@ -767,6 +831,16 @@ async fn create_snapshot_inner(
         .filter(|entry| entry.kind == EntryKind::Symlink)
         .count() as u64;
     let logical_size = entries.iter().map(|entry| entry.size).sum::<u64>();
+    let _ = crate::event::emit::emit_instance_backup_progress(
+        InstanceBackupProgressPayload {
+            operation_id,
+            instance_id: instance_id.to_string(),
+            stage: InstanceBackupProgressStage::Saving,
+            snapshot_id: None,
+            message: None,
+        },
+    )
+    .await;
     let persist_result: crate::Result<()> = async {
         let mut tx = pool.begin().await?;
         sqlx::query(
@@ -1225,6 +1299,98 @@ async fn run_gc(repository: &Path, pool: &SqlitePool) -> crate::Result<()> {
     Ok(())
 }
 
+pub async fn maintain_repository() -> crate::Result<()> {
+    let state = State::get().await?;
+    let _repository_guard = REPOSITORY_LOCK.lock().await;
+    let Some((repository, pool)) = open_repository(&state, false).await? else {
+        return Ok(());
+    };
+    run_gc(&repository, &pool).await?;
+
+    let pending: Vec<String> = sqlx::query_scalar(
+        "SELECT instance_id FROM pending_instance_deletions ORDER BY marked_at",
+    )
+    .fetch_all(&pool)
+    .await?;
+    for instance_id in pending {
+        if instance_rows::get_instance_by_id(&instance_id, &state.pool)
+            .await?
+            .is_none()
+        {
+            delete_snapshots_in_pool(
+                &repository,
+                &pool,
+                None,
+                Some(&instance_id),
+            )
+            .await?;
+            sqlx::query(
+                "DELETE FROM instance_backup_configs WHERE instance_id = ?",
+            )
+            .bind(&instance_id)
+            .execute(&pool)
+            .await?;
+        }
+        sqlx::query(
+            "DELETE FROM pending_instance_deletions WHERE instance_id = ?",
+        )
+        .bind(&instance_id)
+        .execute(&pool)
+        .await?;
+    }
+
+    let staging = repository.join(STAGING_DIR);
+    let _ = io::remove_dir_all(&staging).await;
+    io::create_dir_all(&staging).await?;
+    sweep_unindexed_objects(&repository, &pool).await?;
+    pool.close().await;
+    Ok(())
+}
+
+async fn sweep_unindexed_objects(
+    repository: &Path,
+    pool: &SqlitePool,
+) -> crate::Result<()> {
+    let objects = repository.join(OBJECTS_DIR);
+    let mut prefixes = tokio::fs::read_dir(&objects).await?;
+    while let Some(prefix) = prefixes.next_entry().await? {
+        if !prefix.file_type().await?.is_dir() {
+            continue;
+        }
+        let Some(prefix_name) = prefix.file_name().to_str().map(str::to_string)
+        else {
+            continue;
+        };
+        let mut files = tokio::fs::read_dir(prefix.path()).await?;
+        while let Some(file) = files.next_entry().await? {
+            if !file.file_type().await?.is_file() {
+                continue;
+            }
+            let Some(file_name) = file.file_name().to_str().map(str::to_string)
+            else {
+                continue;
+            };
+            let hash = format!("{prefix_name}{file_name}");
+            if hash.len() != 64
+                || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            {
+                continue;
+            }
+            let indexed: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM backup_objects WHERE hash = ?)",
+            )
+            .bind(&hash)
+            .fetch_one(pool)
+            .await?;
+            if !indexed {
+                tokio::fs::remove_file(file.path()).await?;
+            }
+        }
+        let _ = tokio::fs::remove_dir(prefix.path()).await;
+    }
+    Ok(())
+}
+
 pub async fn instance_delete_summary(
     instance_id: &str,
 ) -> crate::Result<BackupDeleteSummary> {
@@ -1263,7 +1429,83 @@ pub(crate) async fn delete_instance_backups(
         .bind(instance_id)
         .execute(&pool)
         .await?;
+    sqlx::query("DELETE FROM pending_instance_deletions WHERE instance_id = ?")
+        .bind(instance_id)
+        .execute(&pool)
+        .await?;
     pool.close().await;
+    Ok(())
+}
+
+pub(crate) async fn begin_instance_deletion(
+    instance_id: &str,
+) -> crate::Result<()> {
+    let state = State::get().await?;
+    let _repository_guard = REPOSITORY_LOCK.lock().await;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Ok(());
+    };
+    sqlx::query(
+        "INSERT INTO pending_instance_deletions (instance_id, marked_at)
+         VALUES (?, ?)
+         ON CONFLICT(instance_id) DO UPDATE SET marked_at = excluded.marked_at",
+    )
+    .bind(instance_id)
+    .bind(Utc::now().timestamp_millis())
+    .execute(&pool)
+    .await?;
+    pool.close().await;
+    Ok(())
+}
+
+pub(crate) async fn cancel_instance_deletion(
+    instance_id: &str,
+) -> crate::Result<()> {
+    let state = State::get().await?;
+    let _repository_guard = REPOSITORY_LOCK.lock().await;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Ok(());
+    };
+    sqlx::query("DELETE FROM pending_instance_deletions WHERE instance_id = ?")
+        .bind(instance_id)
+        .execute(&pool)
+        .await?;
+    pool.close().await;
+    Ok(())
+}
+
+pub(crate) async fn ensure_backup_eligible_edit(
+    instance_id: &str,
+    patch: &crate::state::EditInstance,
+) -> crate::Result<()> {
+    let becomes_ineligible =
+        patch.symlink_target.as_ref().is_some_and(Option::is_some)
+            || patch
+                .game_dir_override
+                .as_ref()
+                .and_then(|path| path.as_deref())
+                .is_some_and(|path| !path.trim().is_empty());
+    if !becomes_ineligible {
+        return Ok(());
+    }
+    let state = State::get().await?;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Ok(());
+    };
+    let enabled: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM instance_backup_configs WHERE instance_id = ?)",
+    )
+    .bind(instance_id)
+    .fetch_one(&pool)
+    .await?;
+    pool.close().await;
+    if enabled {
+        return Err(crate::ErrorKind::InputError(
+            "Disable backups before changing this instance to use an external directory"
+                .to_string(),
+        )
+        .into());
+    }
     Ok(())
 }
 
@@ -1736,5 +1978,94 @@ mod tests {
         );
         assert_eq!(second_added, 3, "only the new content should be stored");
         assert_eq!(second_objects.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn deleting_last_snapshot_reference_collects_the_object() {
+        let temp = tempfile::tempdir().unwrap();
+        let repository = temp.path();
+        tokio::fs::create_dir_all(repository.join(OBJECTS_DIR))
+            .await
+            .unwrap();
+        let options = SqliteConnectOptions::new()
+            .filename(repository.join(DATABASE_FILE))
+            .create_if_missing(true)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        BACKUP_MIGRATOR.run(&pool).await.unwrap();
+        sqlx::query(
+            "INSERT INTO instance_backup_configs
+             (instance_id, instance_name, created_at, modified_at)
+             VALUES ('instance', 'Instance', 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let hash = "a".repeat(64);
+        let object = object_path(repository, &hash);
+        tokio::fs::create_dir_all(object.parent().unwrap())
+            .await
+            .unwrap();
+        tokio::fs::write(&object, b"same").await.unwrap();
+        sqlx::query(
+            "INSERT INTO backup_objects (hash, size, ref_count)
+             VALUES (?, 4, 2)",
+        )
+        .bind(&hash)
+        .execute(&pool)
+        .await
+        .unwrap();
+        for snapshot in ["first", "second"] {
+            sqlx::query(
+                "INSERT INTO backup_snapshots
+                 (id, instance_id, instance_name, created_at, file_count,
+                  symlink_count, logical_size, added_size)
+                 VALUES (?, 'instance', 'Instance', 1, 1, 0, 4, 0)",
+            )
+            .bind(snapshot)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO snapshot_entries
+                 (snapshot_id, path, kind, object_hash, size)
+                 VALUES (?, 'config/file', 'file', ?, 4)",
+            )
+            .bind(snapshot)
+            .bind(&hash)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        delete_snapshots_in_pool(repository, &pool, Some("first"), None)
+            .await
+            .unwrap();
+        assert!(object.exists());
+        let ref_count: i64 = sqlx::query_scalar(
+            "SELECT ref_count FROM backup_objects WHERE hash = ?",
+        )
+        .bind(&hash)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(ref_count, 1);
+
+        delete_snapshots_in_pool(repository, &pool, Some("second"), None)
+            .await
+            .unwrap();
+        assert!(!object.exists());
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM backup_objects WHERE hash = ?)",
+        )
+        .bind(&hash)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!exists);
     }
 }
