@@ -890,7 +890,7 @@ pub async fn instance_start_backup(instance_id: String) -> Result<uuid::Uuid> {
 
 #[tauri::command]
 pub async fn instance_cancel_backup(operation_id: uuid::Uuid) -> Result<bool> {
-    Ok(theseus::instance::cancel_backup(operation_id))
+    Ok(theseus::instance::cancel_backup(operation_id).await?)
 }
 
 #[tauri::command]

@@ -220,6 +220,7 @@ function operationFromEvent(event: {
 		processed_bytes: event.processedBytes,
 		total_bytes: event.totalBytes,
 		cancellable: event.stage === 'scanning' || event.stage === 'hashing',
+		cancel_requested: false,
 		error: event.message,
 		created_at: operation.value?.id === event.operationId ? operation.value.created_at : now,
 		updated_at: now,
@@ -319,6 +320,7 @@ function start() {
 			processed_bytes: 0,
 			total_bytes: 0,
 			cancellable: true,
+			cancel_requested: false,
 			created_at: Date.now(),
 			updated_at: Date.now(),
 		}
@@ -328,7 +330,13 @@ function start() {
 function cancel() {
 	if (!operation.value || !canCancel.value) return
 	void runAction('cancel', async () => {
-		await cancelBackup(operation.value!.id)
+		if (await cancelBackup(operation.value!.id)) {
+			operation.value = {
+				...operation.value!,
+				cancellable: false,
+				cancel_requested: true,
+			}
+		}
 	})
 }
 
@@ -369,6 +377,7 @@ function restoreSnapshot() {
 			processed_bytes: 0,
 			total_bytes: selectedSnapshot.value!.logical_size,
 			cancellable: true,
+			cancel_requested: false,
 			created_at: Date.now(),
 			updated_at: Date.now(),
 		}

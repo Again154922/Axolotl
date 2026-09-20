@@ -49,8 +49,8 @@ pub use self::backup::{
 };
 pub(crate) use self::backup::{
     begin_instance_deletion, cancel_instance_deletion, delete_instance_backups,
-    ensure_backup_eligible_edit, lock_instance_maintenance,
-    move_default_repository_for_launcher_directory,
+    ensure_backup_eligible_edit, has_active_instance_operation,
+    lock_instance_maintenance, move_default_repository_for_launcher_directory,
 };
 pub(crate) use self::content::resolve_content_change_actions;
 pub use self::content::{

@@ -85,6 +85,7 @@ export interface BackupOperation {
 	processed_bytes: number
 	total_bytes: number
 	cancellable: boolean
+	cancel_requested: boolean
 	error?: string
 	created_at: number
 	updated_at: number

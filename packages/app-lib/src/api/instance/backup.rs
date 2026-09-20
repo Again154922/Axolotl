@@ -7,6 +7,7 @@ use crate::state::{Settings, State};
 use crate::util::io;
 use chrono::Utc;
 use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::migrate::Migrator;
@@ -35,6 +36,8 @@ struct BackupCancellation {
 }
 
 static BACKUP_CANCELLATIONS: LazyLock<DashMap<Uuid, BackupCancellation>> =
+    LazyLock::new(DashMap::new);
+static ACTIVE_INSTANCE_OPERATIONS: LazyLock<DashMap<String, Uuid>> =
     LazyLock::new(DashMap::new);
 
 const DATABASE_FILE: &str = "backup.db";
@@ -194,6 +197,7 @@ pub struct BackupOperation {
     pub processed_bytes: u64,
     pub total_bytes: u64,
     pub cancellable: bool,
+    pub cancel_requested: bool,
     pub error: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
@@ -378,6 +382,7 @@ fn backup_operation_from_row(
         processed_bytes: row.get::<i64, _>("processed_bytes").max(0) as u64,
         total_bytes: row.get::<i64, _>("total_bytes").max(0) as u64,
         cancellable: row.get::<i64, _>("cancellable") != 0,
+        cancel_requested: row.get::<i64, _>("cancel_requested") != 0,
         error: row.get("error"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
@@ -386,10 +391,11 @@ fn backup_operation_from_row(
 }
 
 async fn create_persisted_operation(
+    id: Uuid,
     instance_id: &str,
     operation_type: BackupOperationType,
     snapshot_id: Option<&str>,
-) -> crate::Result<Uuid> {
+) -> crate::Result<()> {
     let state = State::get().await?;
     let Some((_, pool)) = open_repository(&state, true).await? else {
         return Err(crate::ErrorKind::FSError(
@@ -397,23 +403,64 @@ async fn create_persisted_operation(
         )
         .into());
     };
-    let id = Uuid::new_v4();
+    if let Err(error) = reserve_instance_operation(instance_id, id) {
+        pool.close().await;
+        return Err(error);
+    }
     let now = Utc::now().timestamp_millis();
-    sqlx::query(
-        "INSERT INTO backup_operations
-		 (id, operation_type, instance_id, snapshot_id, state, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, 'queued', ?, ?)",
-    )
-    .bind(id.to_string())
-    .bind(operation_type.as_str())
-    .bind(instance_id)
-    .bind(snapshot_id)
-    .bind(now)
-    .bind(now)
-    .execute(&pool)
-    .await?;
+    let persist_result: crate::Result<()> = async {
+		let active_count: i64 = sqlx::query_scalar(
+			"SELECT COUNT(*) FROM backup_operations WHERE instance_id = ?
+			 AND state NOT IN ('completed', 'cancelled', 'failed', 'interrupted')",
+		)
+		.bind(instance_id)
+		.fetch_one(&pool)
+		.await?;
+		if active_count > 0 {
+			return Err(crate::ErrorKind::InputError(
+				"Another backup operation is already running for this instance".to_string(),
+			)
+			.into());
+		}
+		sqlx::query(
+			"INSERT INTO backup_operations
+			 (id, operation_type, instance_id, snapshot_id, state, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, 'queued', ?, ?)",
+		)
+		.bind(id.to_string())
+		.bind(operation_type.as_str())
+		.bind(instance_id)
+		.bind(snapshot_id)
+		.bind(now)
+		.bind(now)
+		.execute(&pool)
+		.await?;
+		Ok(())
+	}.await;
     pool.close().await;
-    Ok(id)
+    if persist_result.is_err() {
+        ACTIVE_INSTANCE_OPERATIONS.remove(instance_id);
+    }
+    persist_result
+}
+
+fn reserve_instance_operation(
+    instance_id: &str,
+    id: Uuid,
+) -> crate::Result<()> {
+    match ACTIVE_INSTANCE_OPERATIONS.entry(instance_id.to_string()) {
+        Entry::Occupied(_) => {
+            return Err(crate::ErrorKind::InputError(
+                "Another backup operation is already running for this instance"
+                    .to_string(),
+            )
+            .into());
+        }
+        Entry::Vacant(entry) => {
+            entry.insert(id);
+        }
+    }
+    Ok(())
 }
 
 async fn update_persisted_operation(
@@ -466,10 +513,11 @@ pub async fn list_operations(
         return Ok(Vec::new());
     };
     let mut query = String::from(
-		"SELECT id, operation_type, instance_id, snapshot_id, state,
-		 processed_bytes, total_bytes, cancellable, error, created_at, updated_at, finished_at
+        "SELECT id, operation_type, instance_id, snapshot_id, state,
+		 processed_bytes, total_bytes, cancellable, cancel_requested, error,
+		 created_at, updated_at, finished_at
 		 FROM backup_operations WHERE 1 = 1",
-	);
+    );
     if instance_id.is_some() {
         query.push_str(" AND instance_id = ?");
     }
@@ -1174,8 +1222,24 @@ fn register_backup_operation(
     (cancellation, cancellable)
 }
 
+fn unregister_backup_operation(instance_id: &str, operation_id: Uuid) {
+    BACKUP_CANCELLATIONS.remove(&operation_id);
+    let should_remove = ACTIVE_INSTANCE_OPERATIONS
+        .get(instance_id)
+        .is_some_and(|active| *active == operation_id);
+    if should_remove {
+        ACTIVE_INSTANCE_OPERATIONS.remove(instance_id);
+    }
+}
+
+pub(crate) fn has_active_instance_operation(instance_id: &str) -> bool {
+    ACTIVE_INSTANCE_OPERATIONS.contains_key(instance_id)
+}
+
 pub async fn start_snapshot(instance_id: String) -> crate::Result<Uuid> {
-    let operation_id = create_persisted_operation(
+    let operation_id = Uuid::new_v4();
+    create_persisted_operation(
+        operation_id,
         &instance_id,
         BackupOperationType::Create,
         None,
@@ -1239,7 +1303,7 @@ pub async fn start_snapshot(instance_id: String) -> crate::Result<Uuid> {
         let _ = crate::event::emit::emit_instance_backup_progress(
             InstanceBackupProgressPayload {
                 operation_id,
-                instance_id: Some(instance_id),
+                instance_id: Some(instance_id.clone()),
                 operation_type: InstanceBackupOperationType::Create,
                 stage,
                 processed_bytes: total_bytes,
@@ -1250,29 +1314,48 @@ pub async fn start_snapshot(instance_id: String) -> crate::Result<Uuid> {
             },
         )
         .await;
+        unregister_backup_operation(&instance_id, operation_id);
     });
     Ok(operation_id)
 }
 
-pub fn cancel_backup(operation_id: Uuid) -> bool {
-    BACKUP_CANCELLATIONS
-        .get(&operation_id)
-        .is_some_and(|operation| {
-            if operation
-                .cancellable
-                .compare_exchange(
-                    true,
-                    false,
-                    Ordering::AcqRel,
-                    Ordering::Acquire,
-                )
-                .is_err()
-            {
-                return false;
-            }
-            operation.token.cancel();
-            true
-        })
+pub async fn cancel_backup(operation_id: Uuid) -> crate::Result<bool> {
+    let Some(operation) = BACKUP_CANCELLATIONS.get(&operation_id) else {
+        return Ok(false);
+    };
+    if operation
+        .cancellable
+        .compare_exchange(true, false, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return Ok(false);
+    }
+    let token = operation.token.clone();
+    drop(operation);
+    token.cancel();
+    if State::initialized() {
+        update_cancel_requested(operation_id).await?;
+    }
+    Ok(true)
+}
+
+async fn update_cancel_requested(operation_id: Uuid) -> crate::Result<()> {
+    let state = State::get().await?;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Err(crate::ErrorKind::FSError(
+            "Unable to open backup repository".to_string(),
+        )
+        .into());
+    };
+    sqlx::query(
+		"UPDATE backup_operations SET cancel_requested = 1, updated_at = ? WHERE id = ?",
+	)
+	.bind(Utc::now().timestamp_millis())
+	.bind(operation_id.to_string())
+	.execute(&pool)
+	.await?;
+    pool.close().await;
+    Ok(())
 }
 
 pub async fn create_snapshot(
@@ -1288,7 +1371,6 @@ pub async fn create_snapshot(
         &cancellable,
     )
     .await;
-    BACKUP_CANCELLATIONS.remove(&operation_id);
     result
 }
 
@@ -2560,7 +2642,9 @@ pub async fn restore_snapshot(
 ) -> crate::Result<Uuid> {
     let (instance_id, total_bytes) =
         snapshot_operation_metadata(snapshot_id).await?;
-    let operation_id = create_persisted_operation(
+    let operation_id = Uuid::new_v4();
+    create_persisted_operation(
+        operation_id,
         &instance_id,
         BackupOperationType::Restore,
         Some(snapshot_id),
@@ -2594,7 +2678,7 @@ pub async fn restore_snapshot(
                 Some(&snapshot_id),
             )
             .await;
-            BACKUP_CANCELLATIONS.remove(&operation_id);
+            unregister_backup_operation(&instance_id, operation_id);
             return;
         }
         let result = restore_snapshot_inner(
@@ -2650,7 +2734,7 @@ pub async fn restore_snapshot(
             message,
         )
         .await;
-        BACKUP_CANCELLATIONS.remove(&operation_id);
+        unregister_backup_operation(&instance_id, operation_id);
     });
     Ok(operation_id)
 }
@@ -3945,12 +4029,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn cancellation_is_rejected_after_snapshot_saving_starts() {
+    #[tokio::test]
+    async fn cancellation_is_rejected_after_snapshot_saving_starts() {
         let operation_id = Uuid::new_v4();
         let (cancellation, _cancellable) =
             register_backup_operation(operation_id, "instance");
-        assert!(cancel_backup(operation_id));
+        assert!(cancel_backup(operation_id).await.unwrap());
         assert!(cancellation.is_cancelled());
         BACKUP_CANCELLATIONS.remove(&operation_id);
 
@@ -3958,9 +4042,22 @@ mod tests {
         let (cancellation, cancellable) =
             register_backup_operation(operation_id, "instance");
         cancellable.store(false, Ordering::Release);
-        assert!(!cancel_backup(operation_id));
+        assert!(!cancel_backup(operation_id).await.unwrap());
         assert!(!cancellation.is_cancelled());
         BACKUP_CANCELLATIONS.remove(&operation_id);
+    }
+
+    #[test]
+    fn only_one_operation_can_reserve_an_instance() {
+        let instance_id = format!("instance-{}", Uuid::new_v4());
+        let first = Uuid::new_v4();
+        assert!(reserve_instance_operation(&instance_id, first).is_ok());
+        assert!(
+            reserve_instance_operation(&instance_id, Uuid::new_v4()).is_err()
+        );
+        assert!(has_active_instance_operation(&instance_id));
+        ACTIVE_INSTANCE_OPERATIONS.remove(&instance_id);
+        assert!(!has_active_instance_operation(&instance_id));
     }
 
     #[test]
@@ -4035,6 +4132,55 @@ mod tests {
 		.await
 		.unwrap();
         assert!(operation_columns.contains(&"cancellable".to_string()));
+        assert!(operation_columns.contains(&"cancel_requested".to_string()));
+        let foreign_key_errors: Vec<(String, i64, String, i64)> =
+            sqlx::query_as("PRAGMA foreign_key_check")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert!(foreign_key_errors.is_empty());
+    }
+
+    #[tokio::test]
+    async fn operation_cancellation_migration_preserves_existing_operations() {
+        let temp = tempfile::tempdir().unwrap();
+        let options = SqliteConnectOptions::new()
+            .filename(temp.path().join(DATABASE_FILE))
+            .create_if_missing(true)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        sqlx::raw_sql(include_str!(
+            "../../../backup_migrations/20260920200000_operations.sql"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO backup_operations
+			 (id, operation_type, instance_id, state, created_at, updated_at)
+			 VALUES ('operation', 'create', 'instance', 'hashing', 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::raw_sql(include_str!(
+			"../../../backup_migrations/20260920210000_operation_cancellation.sql"
+		))
+		.execute(&pool)
+		.await
+		.unwrap();
+
+        let row: (String, i64) = sqlx::query_as(
+			"SELECT state, cancel_requested FROM backup_operations WHERE id = 'operation'",
+		)
+		.fetch_one(&pool)
+		.await
+		.unwrap();
+        assert_eq!(row, ("hashing".to_string(), 0));
         let foreign_key_errors: Vec<(String, i64, String, i64)> =
             sqlx::query_as("PRAGMA foreign_key_check")
                 .fetch_all(&pool)
