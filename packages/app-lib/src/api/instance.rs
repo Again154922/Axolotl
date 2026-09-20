@@ -28,8 +28,8 @@ mod upgrade;
 
 pub use self::backup::{
     BackupDeleteSummary, BackupExclusion, BackupExclusionKind,
-    BackupRepositoryStatus, BackupSnapshot, InstanceBackupConfig,
-    InstanceBackupEligibility, cancel_backup,
+    BackupRepositoryStatus, BackupRestorePreview, BackupSnapshot,
+    InstanceBackupConfig, InstanceBackupEligibility, cancel_backup,
     delete_snapshot as delete_backup_snapshot, disable as disable_backups,
     enable as enable_backups,
     exclusion_from_absolute_path as get_backup_exclusion_from_path,
@@ -38,6 +38,7 @@ pub use self::backup::{
     list_snapshots as list_backup_snapshots,
     maintain_repository as maintain_backup_repository,
     move_repository as move_backup_repository,
+    preview_restore as get_backup_restore_preview,
     repository_status as get_backup_repository_status, restore_snapshot,
     start_snapshot as start_backup_snapshot,
     update_exclusions as update_backup_exclusions,

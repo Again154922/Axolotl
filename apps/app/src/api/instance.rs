@@ -38,6 +38,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_cancel_backup,
             instance_list_backups,
             instance_delete_backup,
+            instance_get_backup_restore_preview,
             instance_restore_backup,
             instance_get_backup_delete_summary,
             instance_create_direct_link,
@@ -904,8 +905,18 @@ pub async fn instance_delete_backup(snapshot_id: &str) -> Result<()> {
 }
 
 #[tauri::command]
-pub async fn instance_restore_backup(snapshot_id: &str) -> Result<()> {
-    Ok(theseus::instance::restore_snapshot(snapshot_id).await?)
+pub async fn instance_get_backup_restore_preview(
+    snapshot_id: &str,
+) -> Result<theseus::instance::BackupRestorePreview> {
+    Ok(theseus::instance::get_backup_restore_preview(snapshot_id).await?)
+}
+
+#[tauri::command]
+pub async fn instance_restore_backup(
+    snapshot_id: &str,
+    plan_token: &str,
+) -> Result<()> {
+    Ok(theseus::instance::restore_snapshot(snapshot_id, plan_token).await?)
 }
 
 #[tauri::command]

@@ -1,4 +1,5 @@
 use crate::event::{
+    InstanceBackupOperationFinalState, InstanceBackupOperationType,
     InstanceBackupProgressPayload, InstanceBackupProgressStage,
 };
 use crate::state::instances::adapters::sqlite::instance_rows;
@@ -13,11 +14,12 @@ use sqlx::sqlite::{
     SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions,
 };
 use sqlx::{Row, SqlitePool};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -27,7 +29,12 @@ static BACKUP_MIGRATOR: Migrator = sqlx::migrate!("./backup_migrations");
 static REPOSITORY_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 static INSTANCE_MAINTENANCE_LOCKS: LazyLock<DashMap<String, Arc<Mutex<()>>>> =
     LazyLock::new(DashMap::new);
-static BACKUP_CANCELLATIONS: LazyLock<DashMap<Uuid, CancellationToken>> =
+struct BackupCancellation {
+    token: CancellationToken,
+    cancellable: Arc<AtomicBool>,
+}
+
+static BACKUP_CANCELLATIONS: LazyLock<DashMap<Uuid, BackupCancellation>> =
     LazyLock::new(DashMap::new);
 
 const DATABASE_FILE: &str = "backup.db";
@@ -109,6 +116,14 @@ pub struct BackupDeleteSummary {
     pub logical_size: u64,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct BackupRestorePreview {
+    pub added_files: u64,
+    pub modified_files: u64,
+    pub deleted_files: u64,
+    pub plan_token: String,
+}
+
 #[derive(Clone, Debug)]
 struct PendingEntry {
     path: String,
@@ -126,6 +141,24 @@ enum EntryKind {
     File,
     Directory,
     Symlink,
+}
+
+#[derive(Clone, Debug)]
+struct RestoreEntry {
+    path: String,
+    kind: EntryKind,
+    object_hash: Option<String>,
+    size: u64,
+    unix_mode: Option<i64>,
+    link_target: Option<String>,
+    link_is_directory: Option<bool>,
+}
+
+#[derive(Debug)]
+struct RestorePlan {
+    preview: BackupRestorePreview,
+    roots: Vec<RestoreJournalRoot>,
+    target_entries: Vec<RestoreEntry>,
 }
 
 impl EntryKind {
@@ -148,7 +181,7 @@ struct RestoreJournal {
     exclusions: Vec<BackupExclusion>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct RestoreJournalRoot {
     path: String,
     had_current: bool,
@@ -797,52 +830,108 @@ fn snapshot_from_row(row: sqlx::sqlite::SqliteRow) -> BackupSnapshot {
     }
 }
 
-pub fn new_backup_operation(instance_id: &str) -> (Uuid, CancellationToken) {
+async fn emit_backup_progress(
+    operation_id: Uuid,
+    instance_id: Option<&str>,
+    operation_type: InstanceBackupOperationType,
+    stage: InstanceBackupProgressStage,
+    processed_bytes: u64,
+    total_bytes: u64,
+    final_state: Option<InstanceBackupOperationFinalState>,
+    snapshot_id: Option<&str>,
+    message: Option<String>,
+) {
+    let _ = crate::event::emit::emit_instance_backup_progress(
+        InstanceBackupProgressPayload {
+            operation_id,
+            instance_id: instance_id.map(str::to_string),
+            operation_type,
+            stage,
+            processed_bytes,
+            total_bytes,
+            final_state,
+            snapshot_id: snapshot_id.map(str::to_string),
+            message,
+        },
+    )
+    .await;
+}
+
+fn new_backup_operation(
+    instance_id: &str,
+) -> (Uuid, CancellationToken, Arc<AtomicBool>) {
     let operation_id = Uuid::new_v4();
     let cancellation = CancellationToken::new();
-    BACKUP_CANCELLATIONS.insert(operation_id, cancellation.clone());
+    let cancellable = Arc::new(AtomicBool::new(true));
+    BACKUP_CANCELLATIONS.insert(
+        operation_id,
+        BackupCancellation {
+            token: cancellation.clone(),
+            cancellable: Arc::clone(&cancellable),
+        },
+    );
     tracing::debug!(%operation_id, instance_id, "Registered instance backup operation");
-    (operation_id, cancellation)
+    (operation_id, cancellation, cancellable)
 }
 
 pub fn start_snapshot(instance_id: String) -> Uuid {
-    let (operation_id, cancellation) = new_backup_operation(&instance_id);
+    let (operation_id, cancellation, cancellable) =
+        new_backup_operation(&instance_id);
     tokio::spawn(async move {
         let _ = crate::event::emit::emit_instance_backup_progress(
             InstanceBackupProgressPayload {
                 operation_id,
-                instance_id: instance_id.clone(),
+                instance_id: Some(instance_id.clone()),
+                operation_type: InstanceBackupOperationType::Create,
                 stage: InstanceBackupProgressStage::Scanning,
+                processed_bytes: 0,
+                total_bytes: 0,
+                final_state: None,
                 snapshot_id: None,
                 message: None,
             },
         )
         .await;
-        let result =
-            create_snapshot(&instance_id, operation_id, cancellation.clone())
-                .await;
-        let (stage, snapshot_id, message) = match result {
-            Ok(snapshot) => (
-                InstanceBackupProgressStage::Completed,
-                Some(snapshot.id),
-                None,
-            ),
-            Err(error) if cancellation.is_cancelled() => (
-                InstanceBackupProgressStage::Cancelled,
-                None,
-                Some(error.to_string()),
-            ),
-            Err(error) => (
-                InstanceBackupProgressStage::Failed,
-                None,
-                Some(error.to_string()),
-            ),
-        };
+        let result = create_snapshot(
+            &instance_id,
+            operation_id,
+            cancellation.clone(),
+            Arc::clone(&cancellable),
+        )
+        .await;
+        let (stage, final_state, snapshot_id, total_bytes, message) =
+            match result {
+                Ok(snapshot) => (
+                    InstanceBackupProgressStage::Completed,
+                    InstanceBackupOperationFinalState::Completed,
+                    Some(snapshot.id),
+                    snapshot.logical_size,
+                    None,
+                ),
+                Err(error) if cancellation.is_cancelled() => (
+                    InstanceBackupProgressStage::Cancelled,
+                    InstanceBackupOperationFinalState::Cancelled,
+                    None,
+                    0,
+                    Some(error.to_string()),
+                ),
+                Err(error) => (
+                    InstanceBackupProgressStage::Failed,
+                    InstanceBackupOperationFinalState::Failed,
+                    None,
+                    0,
+                    Some(error.to_string()),
+                ),
+            };
         let _ = crate::event::emit::emit_instance_backup_progress(
             InstanceBackupProgressPayload {
                 operation_id,
-                instance_id,
+                instance_id: Some(instance_id),
+                operation_type: InstanceBackupOperationType::Create,
                 stage,
+                processed_bytes: total_bytes,
+                total_bytes,
+                final_state: Some(final_state),
                 snapshot_id,
                 message,
             },
@@ -855,8 +944,20 @@ pub fn start_snapshot(instance_id: String) -> Uuid {
 pub fn cancel_backup(operation_id: Uuid) -> bool {
     BACKUP_CANCELLATIONS
         .get(&operation_id)
-        .is_some_and(|token| {
-            token.cancel();
+        .is_some_and(|operation| {
+            if operation
+                .cancellable
+                .compare_exchange(
+                    true,
+                    false,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                )
+                .is_err()
+            {
+                return false;
+            }
+            operation.token.cancel();
             true
         })
 }
@@ -865,9 +966,15 @@ pub async fn create_snapshot(
     instance_id: &str,
     operation_id: Uuid,
     cancellation: CancellationToken,
+    cancellable: Arc<AtomicBool>,
 ) -> crate::Result<BackupSnapshot> {
-    let result =
-        create_snapshot_inner(instance_id, operation_id, &cancellation).await;
+    let result = create_snapshot_inner(
+        instance_id,
+        operation_id,
+        &cancellation,
+        &cancellable,
+    )
+    .await;
     BACKUP_CANCELLATIONS.remove(&operation_id);
     result
 }
@@ -876,6 +983,7 @@ async fn create_snapshot_inner(
     instance_id: &str,
     operation_id: Uuid,
     cancellation: &CancellationToken,
+    cancellable: &AtomicBool,
 ) -> crate::Result<BackupSnapshot> {
     let state = State::get().await?;
     let _maintenance_guard = lock_instance_maintenance(instance_id).await;
@@ -927,11 +1035,13 @@ async fn create_snapshot_inner(
     let staging = repository.join(STAGING_DIR).join(operation_id.to_string());
     io::create_dir_all(&staging).await?;
     let mut created_objects = HashSet::new();
-    let mut scan_result = scan_snapshot(
+    let mut scan_result = scan_snapshot_attempt(
         &root,
         &repository,
         &staging,
         &exclusions,
+        operation_id,
+        instance_id,
         cancellation,
         &mut created_objects,
     )
@@ -941,11 +1051,13 @@ async fn create_snapshot_inner(
         created_objects.clear();
         let _ = io::remove_dir_all(&staging).await;
         io::create_dir_all(&staging).await?;
-        scan_result = scan_snapshot(
+        scan_result = scan_snapshot_attempt(
             &root,
             &repository,
             &staging,
             &exclusions,
+            operation_id,
+            instance_id,
             cancellation,
             &mut created_objects,
         )
@@ -982,11 +1094,24 @@ async fn create_snapshot_inner(
         .filter(|entry| entry.kind == EntryKind::Symlink)
         .count() as u64;
     let logical_size = entries.iter().map(|entry| entry.size).sum::<u64>();
+    if !cancellable.swap(false, Ordering::AcqRel) {
+        cleanup_uncommitted_objects(&repository, &pool, &created_objects).await;
+        let _ = io::remove_dir_all(&staging).await;
+        pool.close().await;
+        return Err(crate::ErrorKind::OtherError(
+            "Backup was canceled".to_string(),
+        )
+        .into());
+    }
     let _ = crate::event::emit::emit_instance_backup_progress(
         InstanceBackupProgressPayload {
             operation_id,
-            instance_id: instance_id.to_string(),
+            instance_id: Some(instance_id.to_string()),
+            operation_type: InstanceBackupOperationType::Create,
             stage: InstanceBackupProgressStage::Saving,
+            processed_bytes: logical_size,
+            total_bytes: logical_size,
+            final_state: None,
             snapshot_id: None,
             message: None,
         },
@@ -1075,17 +1200,117 @@ async fn create_snapshot_inner(
     })
 }
 
+async fn scan_snapshot_attempt(
+    root: &Path,
+    repository: &Path,
+    staging: &Path,
+    exclusions: &[BackupExclusion],
+    operation_id: Uuid,
+    instance_id: &str,
+    cancellation: &CancellationToken,
+    created_objects: &mut HashSet<String>,
+) -> crate::Result<(Vec<PendingEntry>, u64)> {
+    let _ = crate::event::emit::emit_instance_backup_progress(
+        InstanceBackupProgressPayload {
+            operation_id,
+            instance_id: Some(instance_id.to_string()),
+            operation_type: InstanceBackupOperationType::Create,
+            stage: InstanceBackupProgressStage::Scanning,
+            processed_bytes: 0,
+            total_bytes: 0,
+            final_state: None,
+            snapshot_id: None,
+            message: None,
+        },
+    )
+    .await;
+    let total_bytes = measure_snapshot(root, exclusions, cancellation).await?;
+    let _ = crate::event::emit::emit_instance_backup_progress(
+        InstanceBackupProgressPayload {
+            operation_id,
+            instance_id: Some(instance_id.to_string()),
+            operation_type: InstanceBackupOperationType::Create,
+            stage: InstanceBackupProgressStage::Hashing,
+            processed_bytes: 0,
+            total_bytes,
+            final_state: None,
+            snapshot_id: None,
+            message: None,
+        },
+    )
+    .await;
+    scan_snapshot(
+        root,
+        repository,
+        staging,
+        exclusions,
+        operation_id,
+        instance_id,
+        total_bytes,
+        cancellation,
+        created_objects,
+    )
+    .await
+}
+
+async fn measure_snapshot(
+    root: &Path,
+    exclusions: &[BackupExclusion],
+    cancellation: &CancellationToken,
+) -> crate::Result<u64> {
+    let mut total_bytes = 0u64;
+    let mut pending = vec![(root.to_path_buf(), String::new())];
+    while let Some((directory, relative_directory)) = pending.pop() {
+        let mut read_dir = tokio::fs::read_dir(&directory).await?;
+        while let Some(child) = read_dir.next_entry().await? {
+            if cancellation.is_cancelled() {
+                return Err(crate::ErrorKind::OtherError(
+                    "Backup was canceled".to_string(),
+                )
+                .into());
+            }
+            let Some(name) = child.file_name().to_str().map(str::to_string)
+            else {
+                return Err(crate::ErrorKind::UTFError(child.path()).into());
+            };
+            let relative = if relative_directory.is_empty() {
+                name
+            } else {
+                format!("{relative_directory}/{name}")
+            };
+            if is_excluded(&relative, exclusions) {
+                continue;
+            }
+            let path = child.path();
+            let metadata = tokio::fs::symlink_metadata(&path).await?;
+            if io::is_symlink_or_reparse(&metadata) {
+                continue;
+            }
+            if metadata.is_dir() {
+                pending.push((path, relative));
+            } else if metadata.is_file() {
+                total_bytes = total_bytes.saturating_add(metadata.len());
+            }
+        }
+    }
+    Ok(total_bytes)
+}
+
 async fn scan_snapshot(
     root: &Path,
     repository: &Path,
     staging: &Path,
     exclusions: &[BackupExclusion],
+    operation_id: Uuid,
+    instance_id: &str,
+    total_bytes: u64,
     cancellation: &CancellationToken,
     created_objects: &mut HashSet<String>,
 ) -> crate::Result<(Vec<PendingEntry>, u64)> {
     let mut entries = Vec::new();
     let mut scanned_directories = Vec::new();
     let mut added_size = 0u64;
+    let mut processed_bytes = 0u64;
     let mut pending = Vec::new();
     let mut root_names = Vec::new();
     let mut read_root = tokio::fs::read_dir(root).await?;
@@ -1179,6 +1404,21 @@ async fn scan_snapshot(
             created_objects.insert(hash.clone());
             added_size = added_size.saturating_add(size);
         }
+        processed_bytes = processed_bytes.saturating_add(size);
+        let _ = crate::event::emit::emit_instance_backup_progress(
+            InstanceBackupProgressPayload {
+                operation_id,
+                instance_id: Some(instance_id.to_string()),
+                operation_type: InstanceBackupOperationType::Create,
+                stage: InstanceBackupProgressStage::Hashing,
+                processed_bytes,
+                total_bytes,
+                final_state: None,
+                snapshot_id: None,
+                message: None,
+            },
+        )
+        .await;
         entries.push(PendingEntry {
             path: relative,
             kind: EntryKind::File,
@@ -1333,7 +1573,99 @@ async fn cleanup_uncommitted_objects(
     }
 }
 
+async fn snapshot_operation_metadata(
+    snapshot_id: &str,
+) -> crate::Result<(String, u64)> {
+    let state = State::get().await?;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Err(crate::ErrorKind::InputError(
+            "Unknown backup snapshot".to_string(),
+        )
+        .into());
+    };
+    let metadata: (String, i64) = sqlx::query_as(
+        "SELECT instance_id, logical_size FROM backup_snapshots WHERE id = ?",
+    )
+    .bind(snapshot_id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| {
+        crate::ErrorKind::InputError("Unknown backup snapshot".to_string())
+    })?;
+    pool.close().await;
+    Ok((metadata.0, metadata.1.max(0) as u64))
+}
+
 pub async fn delete_snapshot(snapshot_id: &str) -> crate::Result<()> {
+    let operation_id = Uuid::new_v4();
+    emit_backup_progress(
+        operation_id,
+        None,
+        InstanceBackupOperationType::Delete,
+        InstanceBackupProgressStage::Deleting,
+        0,
+        0,
+        None,
+        Some(snapshot_id),
+        None,
+    )
+    .await;
+    let (metadata, result) =
+        match snapshot_operation_metadata(snapshot_id).await {
+            Ok((instance_id, total_bytes)) => {
+                emit_backup_progress(
+                    operation_id,
+                    Some(&instance_id),
+                    InstanceBackupOperationType::Delete,
+                    InstanceBackupProgressStage::Deleting,
+                    0,
+                    total_bytes,
+                    None,
+                    Some(snapshot_id),
+                    None,
+                )
+                .await;
+                let result = delete_snapshot_inner(snapshot_id).await;
+                (Some((instance_id, total_bytes)), result)
+            }
+            Err(error) => (None, Err(error)),
+        };
+    let (instance_id, total_bytes) = metadata
+        .as_ref()
+        .map(|(instance_id, total_bytes)| {
+            (Some(instance_id.as_str()), *total_bytes)
+        })
+        .unwrap_or((None, 0));
+    let (stage, final_state, processed_bytes, message) = match &result {
+        Ok(()) => (
+            InstanceBackupProgressStage::Completed,
+            InstanceBackupOperationFinalState::Completed,
+            total_bytes,
+            None,
+        ),
+        Err(error) => (
+            InstanceBackupProgressStage::Failed,
+            InstanceBackupOperationFinalState::Failed,
+            0,
+            Some(error.to_string()),
+        ),
+    };
+    emit_backup_progress(
+        operation_id,
+        instance_id,
+        InstanceBackupOperationType::Delete,
+        stage,
+        processed_bytes,
+        total_bytes,
+        Some(final_state),
+        Some(snapshot_id),
+        message,
+    )
+    .await;
+    result
+}
+
+async fn delete_snapshot_inner(snapshot_id: &str) -> crate::Result<()> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
     let Some((repository, pool)) = open_repository(&state, false).await? else {
@@ -1630,14 +1962,14 @@ async fn recover_whole_root_restore(
                 if let Some(parent) = destination.parent() {
                     io::create_dir_all(parent).await?;
                 }
-                tokio::fs::rename(source, destination).await?;
+                rename_backup_path(&source, &destination).await?;
             }
         }
         remove_path_if_exists(root).await;
         if let Some(parent) = root.parent() {
             io::create_dir_all(parent).await?;
         }
-        tokio::fs::rename(&rollback_root, root).await?;
+        rename_backup_path(&rollback_root, root).await?;
     }
     io::remove_dir_all(operation_root).await?;
     Ok(())
@@ -1664,7 +1996,7 @@ async fn recover_restore_operation(
             if let Some(parent) = current.parent() {
                 io::create_dir_all(parent).await?;
             }
-            tokio::fs::rename(&old, &current).await?;
+            rename_backup_path(&old, &current).await?;
         } else if !journal_root.had_current {
             remove_path_if_exists(&current).await;
         }
@@ -1676,6 +2008,36 @@ async fn recover_restore_operation(
 async fn remove_path_if_exists(path: &Path) {
     let _ = io::remove_dir_all(path).await;
     let _ = tokio::fs::remove_file(path).await;
+}
+
+async fn rename_backup_path(
+    source: &Path,
+    destination: &Path,
+) -> crate::Result<()> {
+    const ATTEMPTS: u32 = 5;
+    for attempt in 0..ATTEMPTS {
+        match tokio::fs::rename(source, destination).await {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if error.kind() == std::io::ErrorKind::PermissionDenied
+                    && attempt + 1 < ATTEMPTS =>
+            {
+                tokio::time::sleep(Duration::from_millis(
+                    40 * u64::from(attempt + 1),
+                ))
+                .await;
+            }
+            Err(error) => {
+                return Err(crate::ErrorKind::FSError(format!(
+                    "Could not move {} to {}: {error}",
+                    source.display(),
+                    destination.display()
+                ))
+                .into());
+            }
+        }
+    }
+    unreachable!()
 }
 
 async fn mark_restore_committed(operation_root: &Path) -> crate::Result<()> {
@@ -1848,24 +2210,11 @@ pub(crate) async fn ensure_backup_eligible_edit(
     Ok(())
 }
 
-pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
+pub async fn preview_restore(
+    snapshot_id: &str,
+) -> crate::Result<BackupRestorePreview> {
     let state = State::get().await?;
-    let Some((_, lookup_pool)) = open_repository(&state, false).await? else {
-        return Err(crate::ErrorKind::InputError(
-            "Unknown backup snapshot".to_string(),
-        )
-        .into());
-    };
-    let instance_id: String = sqlx::query_scalar(
-        "SELECT instance_id FROM backup_snapshots WHERE id = ?",
-    )
-    .bind(snapshot_id)
-    .fetch_optional(&lookup_pool)
-    .await?
-    .ok_or_else(|| {
-        crate::ErrorKind::InputError("Unknown backup snapshot".to_string())
-    })?;
-    lookup_pool.close().await;
+    let (instance_id, _) = snapshot_operation_metadata(snapshot_id).await?;
     let _maintenance_guard = lock_instance_maintenance(&instance_id).await;
     let _instance_guard =
         state.lock_instance_content_exclusive(&instance_id).await;
@@ -1876,50 +2225,143 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
         .into());
     }
     let _repository_guard = REPOSITORY_LOCK.lock().await;
-    let Some((repository, pool)) = open_repository(&state, false).await? else {
+    let Some((_, pool)) = open_repository(&state, false).await? else {
         return Err(crate::ErrorKind::InputError(
             "Unknown backup snapshot".to_string(),
         )
         .into());
     };
-    let (locked_instance_id, scope_mode): (String, String) = sqlx::query_as(
+    let root = require_eligible(&instance_id, &state).await?;
+    let plan =
+        build_restore_plan(snapshot_id, &instance_id, &root, &pool).await?;
+    pool.close().await;
+    Ok(plan.preview)
+}
+
+pub async fn restore_snapshot(
+    snapshot_id: &str,
+    plan_token: &str,
+) -> crate::Result<()> {
+    let operation_id = Uuid::new_v4();
+    emit_backup_progress(
+        operation_id,
+        None,
+        InstanceBackupOperationType::Restore,
+        InstanceBackupProgressStage::Validating,
+        0,
+        0,
+        None,
+        Some(snapshot_id),
+        None,
+    )
+    .await;
+    let (metadata, result) = match snapshot_operation_metadata(snapshot_id)
+        .await
+    {
+        Ok((instance_id, total_bytes)) => {
+            emit_backup_progress(
+                operation_id,
+                Some(&instance_id),
+                InstanceBackupOperationType::Restore,
+                InstanceBackupProgressStage::Restoring,
+                0,
+                total_bytes,
+                None,
+                Some(snapshot_id),
+                None,
+            )
+            .await;
+            let result = restore_snapshot_inner(snapshot_id, plan_token).await;
+            (Some((instance_id, total_bytes)), result)
+        }
+        Err(error) => (None, Err(error)),
+    };
+    let (instance_id, total_bytes) = metadata
+        .as_ref()
+        .map(|(instance_id, total_bytes)| {
+            (Some(instance_id.as_str()), *total_bytes)
+        })
+        .unwrap_or((None, 0));
+    let (stage, final_state, processed_bytes, message) = match &result {
+        Ok(()) => (
+            InstanceBackupProgressStage::Completed,
+            InstanceBackupOperationFinalState::Completed,
+            total_bytes,
+            None,
+        ),
+        Err(error) => (
+            InstanceBackupProgressStage::Failed,
+            InstanceBackupOperationFinalState::Failed,
+            0,
+            Some(error.to_string()),
+        ),
+    };
+    emit_backup_progress(
+        operation_id,
+        instance_id,
+        InstanceBackupOperationType::Restore,
+        stage,
+        processed_bytes,
+        total_bytes,
+        Some(final_state),
+        Some(snapshot_id),
+        message,
+    )
+    .await;
+    result
+}
+
+async fn build_restore_plan(
+    snapshot_id: &str,
+    expected_instance_id: &str,
+    root: &Path,
+    pool: &SqlitePool,
+) -> crate::Result<RestorePlan> {
+    let (instance_id, scope_mode): (String, String) = sqlx::query_as(
         "SELECT instance_id, scope_mode FROM backup_snapshots WHERE id = ?",
     )
     .bind(snapshot_id)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await?
     .ok_or_else(|| {
         crate::ErrorKind::InputError("Unknown backup snapshot".to_string())
     })?;
-    if locked_instance_id != instance_id {
+    if instance_id != expected_instance_id {
         return Err(crate::ErrorKind::FSError(
             "Backup snapshot changed while preparing its restore".to_string(),
         )
         .into());
     }
-    let root = require_eligible(&instance_id, &state).await?;
-    let operation_id = Uuid::new_v4().to_string();
-    let operation_root = state
-        .directories
-        .instances_dir()
-        .join(format!("{RESTORE_PREFIX}{operation_id}"));
-    let staged = operation_root.join("staged");
-    let rollback = operation_root.join("rollback");
-    io::create_dir_all(&staged).await?;
-    io::create_dir_all(&rollback).await?;
-
-    let roots: Vec<(String, bool)> = sqlx::query_as(
+    let whole_root = match scope_mode.as_str() {
+        "included_roots" => false,
+        "excluded_paths" => true,
+        _ => {
+            return Err(crate::ErrorKind::FSError(format!(
+                "Unknown backup snapshot scope: {scope_mode}"
+            ))
+            .into());
+        }
+    };
+    let selected_roots: Vec<(String, bool)> = sqlx::query_as(
         "SELECT path, existed FROM snapshot_roots WHERE snapshot_id = ? ORDER BY path",
     )
     .bind(snapshot_id)
-	.fetch_all(&pool)
-	.await?;
+    .fetch_all(pool)
+    .await?;
+    for (path, _) in &selected_roots {
+        if normalize_relative_directory(path)? != *path {
+            return Err(crate::ErrorKind::FSError(
+                "Invalid root path in backup snapshot".to_string(),
+            )
+            .into());
+        }
+    }
     let exclusion_rows: Vec<(String, String)> = sqlx::query_as(
-		"SELECT path, kind FROM snapshot_exclusions WHERE snapshot_id = ? ORDER BY path",
-	)
-	.bind(snapshot_id)
-	.fetch_all(&pool)
-	.await?;
+        "SELECT path, kind FROM snapshot_exclusions WHERE snapshot_id = ? ORDER BY path",
+    )
+    .bind(snapshot_id)
+    .fetch_all(pool)
+    .await?;
     let raw_exclusions = exclusion_rows
         .into_iter()
         .map(|(path, kind)| {
@@ -1940,40 +2382,477 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
         )
         .into());
     }
-    validate_exclusion_ancestors(&root, &exclusions).await?;
-    let whole_root = match scope_mode.as_str() {
-        "included_roots" => false,
-        "excluded_paths" => true,
-        _ => {
-            return Err(crate::ErrorKind::FSError(format!(
-                "Unknown backup snapshot scope: {scope_mode}"
-            ))
-            .into());
-        }
-    };
-    let mut journal_roots = Vec::with_capacity(roots.len());
-    for (path, _) in &roots {
-        let normalized = normalize_relative_directory(path)?;
-        if normalized != *path {
+    validate_exclusion_ancestors(root, &exclusions).await?;
+
+    let rows = sqlx::query(
+        "SELECT path, kind, object_hash, size, unix_mode, link_target,
+                link_is_directory
+         FROM snapshot_entries WHERE snapshot_id = ? ORDER BY length(path), path",
+    )
+    .bind(snapshot_id)
+    .fetch_all(pool)
+    .await?;
+    let mut target = BTreeMap::new();
+    for row in rows {
+        let path: String = row.get("path");
+        if normalize_relative_directory(&path)? != path
+            || is_excluded(&path, &exclusions)
+        {
             return Err(crate::ErrorKind::FSError(
-                "Invalid root path in backup snapshot".to_string(),
+                "Invalid path in backup snapshot".to_string(),
             )
             .into());
         }
-        journal_roots.push(RestoreJournalRoot {
-            had_current: tokio::fs::symlink_metadata(join_relative(
-                &root, path,
-            ))
-            .await
-            .is_ok(),
+        let kind = match row.get::<String, _>("kind").as_str() {
+            "file" => EntryKind::File,
+            "directory" => EntryKind::Directory,
+            "symlink" => EntryKind::Symlink,
+            kind => {
+                return Err(crate::ErrorKind::FSError(format!(
+                    "Unsupported backup entry kind: {kind}"
+                ))
+                .into());
+            }
+        };
+        if kind == EntryKind::Symlink
+            && exclusions.iter().any(|exclusion| {
+                exclusion.path.starts_with(&format!("{path}/"))
+            })
+        {
+            return Err(crate::ErrorKind::FSError(
+                "Backup snapshot links through an excluded path".to_string(),
+            )
+            .into());
+        }
+        let entry = RestoreEntry {
             path: path.clone(),
-        });
+            kind,
+            object_hash: row.try_get("object_hash")?,
+            size: row.get::<i64, _>("size").max(0) as u64,
+            unix_mode: row.try_get("unix_mode")?,
+            link_target: row.try_get("link_target")?,
+            link_is_directory: row.try_get("link_is_directory")?,
+        };
+        if target.insert(path, entry).is_some() {
+            return Err(crate::ErrorKind::FSError(
+                "Backup snapshot contains duplicate paths".to_string(),
+            )
+            .into());
+        }
     }
+    let current =
+        scan_restore_entries(root, whole_root, &selected_roots, &exclusions)
+            .await?;
+    Ok(compare_restore_entries(snapshot_id, current, target))
+}
+
+async fn scan_restore_entries(
+    root: &Path,
+    whole_root: bool,
+    selected_roots: &[(String, bool)],
+    exclusions: &[BackupExclusion],
+) -> crate::Result<BTreeMap<String, RestoreEntry>> {
+    let mut pending = Vec::new();
+    if whole_root {
+        let mut children = tokio::fs::read_dir(root).await?;
+        while let Some(child) = children.next_entry().await? {
+            let name = child
+                .file_name()
+                .to_str()
+                .map(str::to_string)
+                .ok_or_else(|| crate::ErrorKind::UTFError(child.path()))?;
+            pending.push((child.path(), name));
+        }
+    } else {
+        for (path, _) in selected_roots {
+            pending.push((join_relative(root, path), path.clone()));
+        }
+    }
+
+    let mut entries = BTreeMap::new();
+    while let Some((absolute, relative)) = pending.pop() {
+        if is_excluded(&relative, exclusions) {
+            continue;
+        }
+        let metadata = match tokio::fs::symlink_metadata(&absolute).await {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
+        if io::is_symlink_or_reparse(&metadata) {
+            let target = tokio::fs::read_link(&absolute).await?;
+            let target = target
+                .to_str()
+                .ok_or_else(|| crate::ErrorKind::UTFError(absolute.clone()))?;
+            entries.insert(
+                relative.clone(),
+                RestoreEntry {
+                    path: relative,
+                    kind: EntryKind::Symlink,
+                    object_hash: None,
+                    size: 0,
+                    unix_mode: unix_mode(&metadata).map(i64::from),
+                    link_target: Some(target.to_string()),
+                    link_is_directory: Some(
+                        tokio::fs::metadata(&absolute)
+                            .await
+                            .is_ok_and(|metadata| metadata.is_dir()),
+                    ),
+                },
+            );
+            continue;
+        }
+        if metadata.is_dir() {
+            entries.insert(
+                relative.clone(),
+                RestoreEntry {
+                    path: relative.clone(),
+                    kind: EntryKind::Directory,
+                    object_hash: None,
+                    size: 0,
+                    unix_mode: unix_mode(&metadata).map(i64::from),
+                    link_target: None,
+                    link_is_directory: None,
+                },
+            );
+            let mut children = tokio::fs::read_dir(&absolute).await?;
+            while let Some(child) = children.next_entry().await? {
+                let name =
+                    child.file_name().to_str().map(str::to_string).ok_or_else(
+                        || crate::ErrorKind::UTFError(child.path()),
+                    )?;
+                pending.push((child.path(), format!("{relative}/{name}")));
+            }
+            continue;
+        }
+        if !metadata.is_file() {
+            return Err(crate::ErrorKind::FSError(format!(
+                "Unsupported instance entry: {}",
+                absolute.display()
+            ))
+            .into());
+        }
+        let (hash, size) = hash_restore_file(&absolute, &metadata).await?;
+        entries.insert(
+            relative.clone(),
+            RestoreEntry {
+                path: relative,
+                kind: EntryKind::File,
+                object_hash: Some(hash),
+                size,
+                unix_mode: unix_mode(&metadata).map(i64::from),
+                link_target: None,
+                link_is_directory: None,
+            },
+        );
+    }
+    Ok(entries)
+}
+
+async fn hash_restore_file(
+    path: &Path,
+    before: &std::fs::Metadata,
+) -> crate::Result<(String, u64)> {
+    let mut file = tokio::fs::File::open(path).await.map_err(|error| {
+        crate::ErrorKind::FSError(format!(
+            "Could not read {} while preparing the restore: {error}",
+            path.display()
+        ))
+    })?;
+    let mut hasher = Sha256::new();
+    let mut size = 0u64;
+    let mut buffer = vec![0u8; 1024 * 1024];
+    loop {
+        let read = file.read(&mut buffer).await.map_err(|error| {
+            crate::ErrorKind::FSError(format!(
+                "Could not read {} while preparing the restore: {error}",
+                path.display()
+            ))
+        })?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+        size = size.saturating_add(read as u64);
+    }
+    let after = tokio::fs::metadata(path).await?;
+    if before.len() != after.len()
+        || before.modified().ok() != after.modified().ok()
+    {
+        return Err(crate::ErrorKind::FSError(format!(
+            "File changed while preparing the restore: {}",
+            path.display()
+        ))
+        .into());
+    }
+    Ok((
+        hasher
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect(),
+        size,
+    ))
+}
+
+fn restore_entries_equal(
+    current: Option<&RestoreEntry>,
+    target: Option<&RestoreEntry>,
+) -> bool {
+    let (Some(current), Some(target)) = (current, target) else {
+        return current.is_none() && target.is_none();
+    };
+    if current.kind != target.kind {
+        return false;
+    }
+    match current.kind {
+        EntryKind::Directory => true,
+        EntryKind::File => {
+            current.object_hash == target.object_hash
+                && current.unix_mode == target.unix_mode
+        }
+        EntryKind::Symlink => {
+            current.link_target == target.link_target
+                && current.link_is_directory == target.link_is_directory
+        }
+    }
+}
+
+fn compare_restore_entries(
+    snapshot_id: &str,
+    current: BTreeMap<String, RestoreEntry>,
+    target: BTreeMap<String, RestoreEntry>,
+) -> RestorePlan {
+    let paths = current
+        .keys()
+        .chain(target.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut added_files = 0u64;
+    let mut modified_files = 0u64;
+    let mut deleted_files = 0u64;
+    let mut changed_paths = Vec::new();
+    let mut token = Sha256::new();
+    token.update(snapshot_id.as_bytes());
+    for path in paths {
+        let current_entry = current.get(&path);
+        let target_entry = target.get(&path);
+        update_restore_plan_token(&mut token, &path, current_entry);
+        update_restore_plan_token(&mut token, &path, target_entry);
+        if restore_entries_equal(current_entry, target_entry) {
+            continue;
+        }
+        changed_paths.push(path);
+        match (current_entry, target_entry) {
+            (None, Some(target)) if target.kind != EntryKind::Directory => {
+                added_files += 1;
+            }
+            (Some(current), None) if current.kind != EntryKind::Directory => {
+                deleted_files += 1;
+            }
+            (Some(current), Some(target))
+                if current.kind != EntryKind::Directory
+                    || target.kind != EntryKind::Directory =>
+            {
+                modified_files += 1;
+            }
+            _ => {}
+        }
+    }
+    changed_paths.sort_by(|left, right| {
+        left.matches('/')
+            .count()
+            .cmp(&right.matches('/').count())
+            .then_with(|| left.cmp(right))
+    });
+    let mut roots: Vec<RestoreJournalRoot> = Vec::new();
+    for path in changed_paths {
+        if roots.iter().any(|root| {
+            path == root.path || path.starts_with(&format!("{}/", root.path))
+        }) {
+            continue;
+        }
+        let had_current = current.keys().any(|current_path| {
+            current_path == &path
+                || current_path.starts_with(&format!("{path}/"))
+        });
+        roots.push(RestoreJournalRoot { path, had_current });
+    }
+    RestorePlan {
+        preview: BackupRestorePreview {
+            added_files,
+            modified_files,
+            deleted_files,
+            plan_token: token
+                .finalize()
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect(),
+        },
+        roots,
+        target_entries: target.into_values().collect(),
+    }
+}
+
+fn update_restore_plan_token(
+    token: &mut Sha256,
+    path: &str,
+    entry: Option<&RestoreEntry>,
+) {
+    token.update(path.as_bytes());
+    token.update([0]);
+    let Some(entry) = entry else {
+        token.update(b"missing\0");
+        return;
+    };
+    token.update(entry.kind.as_str().as_bytes());
+    token.update([0]);
+    token.update(entry.object_hash.as_deref().unwrap_or("").as_bytes());
+    token.update([0]);
+    token.update(entry.link_target.as_deref().unwrap_or("").as_bytes());
+    token.update([0]);
+    token.update(entry.size.to_le_bytes());
+    token.update(entry.unix_mode.unwrap_or_default().to_le_bytes());
+    token.update([u8::from(entry.link_is_directory.unwrap_or(false))]);
+}
+
+fn restore_path_is_selected(path: &str, roots: &[RestoreJournalRoot]) -> bool {
+    roots.iter().any(|root| {
+        path == root.path || path.starts_with(&format!("{}/", root.path))
+    })
+}
+
+async fn materialize_restore_plan(
+    repository: &Path,
+    staged: &Path,
+    entries: &[RestoreEntry],
+    roots: &[RestoreJournalRoot],
+) -> crate::Result<()> {
+    for entry in entries {
+        if !restore_path_is_selected(&entry.path, roots) {
+            continue;
+        }
+        let destination = join_relative(staged, &entry.path);
+        match entry.kind {
+            EntryKind::Directory => io::create_dir_all(&destination).await?,
+            EntryKind::File => {
+                let hash = entry.object_hash.as_deref().ok_or_else(|| {
+                    crate::ErrorKind::FSError(format!(
+                        "Backup file {} has no object",
+                        entry.path
+                    ))
+                })?;
+                verify_object(repository, hash, entry.size).await?;
+                if let Some(parent) = destination.parent() {
+                    io::create_dir_all(parent).await?;
+                }
+                tokio::fs::copy(object_path(repository, hash), &destination)
+                    .await?;
+                apply_unix_mode(&destination, entry.unix_mode).await?;
+            }
+            EntryKind::Symlink => {
+                if let Some(parent) = destination.parent() {
+                    io::create_dir_all(parent).await?;
+                }
+                let target = entry.link_target.as_deref().ok_or_else(|| {
+                    crate::ErrorKind::FSError(format!(
+                        "Backup link {} has no target",
+                        entry.path
+                    ))
+                })?;
+                create_recorded_symlink(
+                    PathBuf::from(target),
+                    destination,
+                    entry.link_is_directory.unwrap_or(false),
+                )
+                .await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn apply_restore_roots(
+    root: &Path,
+    operation_root: &Path,
+    roots: &[RestoreJournalRoot],
+) -> crate::Result<()> {
+    let staged = operation_root.join("staged");
+    let rollback = operation_root.join("rollback");
+    for journal_root in roots {
+        let current = join_relative(root, &journal_root.path);
+        let old = join_relative(&rollback, &journal_root.path);
+        if tokio::fs::symlink_metadata(&current).await.is_ok() {
+            if let Some(parent) = old.parent() {
+                io::create_dir_all(parent).await?;
+            }
+            rename_backup_path(&current, &old).await?;
+        }
+        let new = join_relative(&staged, &journal_root.path);
+        if tokio::fs::symlink_metadata(&new).await.is_ok() {
+            if let Some(parent) = current.parent() {
+                io::create_dir_all(parent).await?;
+            }
+            rename_backup_path(&new, &current).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn restore_snapshot_inner(
+    snapshot_id: &str,
+    expected_plan_token: &str,
+) -> crate::Result<()> {
+    let state = State::get().await?;
+    let (instance_id, _) = snapshot_operation_metadata(snapshot_id).await?;
+    let _maintenance_guard = lock_instance_maintenance(&instance_id).await;
+    let _instance_guard =
+        state.lock_instance_content_exclusive(&instance_id).await;
+    if state.process_manager.has_instance_process(&instance_id) {
+        return Err(crate::ErrorKind::InputError(
+            "Close the instance before restoring a backup".to_string(),
+        )
+        .into());
+    }
+    let _repository_guard = REPOSITORY_LOCK.lock().await;
+    let Some((repository, pool)) = open_repository(&state, false).await? else {
+        return Err(crate::ErrorKind::InputError(
+            "Unknown backup snapshot".to_string(),
+        )
+        .into());
+    };
+    let root = require_eligible(&instance_id, &state).await?;
+    let plan =
+        build_restore_plan(snapshot_id, &instance_id, &root, &pool).await?;
+    if plan.preview.plan_token != expected_plan_token {
+        pool.close().await;
+        return Err(crate::ErrorKind::InputError(
+            "The instance changed after the restore preview; review the updated operations before restoring"
+                .to_string(),
+        )
+        .into());
+    }
+    if plan.roots.is_empty() {
+        pool.close().await;
+        return Ok(());
+    }
+
+    let operation_id = Uuid::new_v4().to_string();
+    let operation_root = state
+        .directories
+        .instances_dir()
+        .join(format!("{RESTORE_PREFIX}{operation_id}"));
+    let staged = operation_root.join("staged");
+    let rollback = operation_root.join("rollback");
+    io::create_dir_all(&staged).await?;
+    io::create_dir_all(&rollback).await?;
     let journal = RestoreJournal {
         instance_id: instance_id.clone(),
-        roots: journal_roots,
-        whole_root,
-        exclusions: exclusions.clone(),
+        roots: plan.roots.clone(),
+        whole_root: false,
+        exclusions: Vec::new(),
     };
     let mut journal_file =
         tokio::fs::File::create(operation_root.join(RESTORE_JOURNAL)).await?;
@@ -1982,78 +2861,21 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
         .await?;
     journal_file.sync_all().await?;
     drop(journal_file);
-    let rows = sqlx::query(
-        "SELECT path, kind, object_hash, size, modified_at, unix_mode,
-                link_target, link_is_directory
-         FROM snapshot_entries WHERE snapshot_id = ? ORDER BY length(path), path",
+    let materialize = materialize_restore_plan(
+        &repository,
+        &staged,
+        &plan.target_entries,
+        &plan.roots,
     )
-    .bind(snapshot_id)
-    .fetch_all(&pool)
-    .await?;
-    let materialize =
-        materialize_snapshot(&repository, &staged, rows, &exclusions).await;
+    .await;
     if let Err(error) = materialize {
         let _ = io::remove_dir_all(&operation_root).await;
         pool.close().await;
         return Err(error);
     }
-    if whole_root {
-        let replace_result =
-            replace_whole_root(&root, &operation_root, &exclusions).await;
-        if let Err(error) = replace_result {
-            let recovery =
-                recover_whole_root_restore(&root, &operation_root, &exclusions)
-                    .await;
-            pool.close().await;
-            if let Err(recovery_error) = recovery {
-                return Err(crate::ErrorKind::OtherError(format!(
-					"Backup restore failed: {error}; rollback failed: {recovery_error}"
-				))
-				.into());
-            }
-            return Err(error);
-        }
-        if let Err(error) = mark_restore_committed(&operation_root).await {
-            let recovery =
-                recover_whole_root_restore(&root, &operation_root, &exclusions)
-                    .await;
-            pool.close().await;
-            if let Err(recovery_error) = recovery {
-                return Err(crate::ErrorKind::OtherError(format!(
-					"Backup restore could not be committed: {error}; rollback failed: {recovery_error}"
-				))
-				.into());
-            }
-            return Err(error);
-        }
-        io::remove_dir_all(&operation_root).await?;
-        pool.close().await;
-        return Ok(());
-    }
 
-    let replace_result: crate::Result<()> = async {
-        for (path, existed) in &roots {
-            let current = join_relative(&root, path);
-            let old = join_relative(&rollback, path);
-            if tokio::fs::symlink_metadata(&current).await.is_ok() {
-                if let Some(parent) = old.parent() {
-                    io::create_dir_all(parent).await?;
-                }
-                tokio::fs::rename(&current, &old).await?;
-            }
-            if *existed {
-                let new = join_relative(&staged, path);
-                if tokio::fs::symlink_metadata(&new).await.is_ok() {
-                    if let Some(parent) = current.parent() {
-                        io::create_dir_all(parent).await?;
-                    }
-                    tokio::fs::rename(&new, &current).await?;
-                }
-            }
-        }
-        Ok(())
-    }
-    .await;
+    let replace_result =
+        apply_restore_roots(&root, &operation_root, &plan.roots).await;
     if let Err(error) = replace_result {
         let recovery =
             recover_restore_operation(&root, &operation_root, &journal.roots)
@@ -2085,6 +2907,7 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 async fn replace_whole_root(
     root: &Path,
     operation_root: &Path,
@@ -2093,7 +2916,7 @@ async fn replace_whole_root(
     ensure_canonical_exclusions(exclusions)?;
     let staged = operation_root.join("staged");
     let rollback_root = operation_root.join("rollback").join("instance");
-    tokio::fs::rename(root, &rollback_root).await?;
+    rename_backup_path(root, &rollback_root).await?;
     for exclusion in exclusions {
         let source = join_relative(&rollback_root, &exclusion.path);
         if tokio::fs::symlink_metadata(&source).await.is_err() {
@@ -2104,88 +2927,12 @@ async fn replace_whole_root(
         if let Some(parent) = destination.parent() {
             io::create_dir_all(parent).await?;
         }
-        tokio::fs::rename(source, destination).await?;
+        rename_backup_path(&source, &destination).await?;
     }
     if let Some(parent) = root.parent() {
         io::create_dir_all(parent).await?;
     }
-    tokio::fs::rename(staged, root).await?;
-    Ok(())
-}
-
-async fn materialize_snapshot(
-    repository: &Path,
-    staged: &Path,
-    rows: Vec<sqlx::sqlite::SqliteRow>,
-    exclusions: &[BackupExclusion],
-) -> crate::Result<()> {
-    for row in rows {
-        let relative: String = row.get("path");
-        let normalized = normalize_relative_directory(&relative)?;
-        if normalized != relative {
-            return Err(crate::ErrorKind::FSError(
-                "Invalid path in backup snapshot".to_string(),
-            )
-            .into());
-        }
-        if is_excluded(&relative, exclusions) {
-            return Err(crate::ErrorKind::FSError(
-                "Backup snapshot contains an excluded path".to_string(),
-            )
-            .into());
-        }
-        let kind: String = row.get("kind");
-        if kind == "symlink"
-            && exclusions.iter().any(|exclusion| {
-                exclusion.path.starts_with(&format!("{relative}/"))
-            })
-        {
-            return Err(crate::ErrorKind::FSError(
-                "Backup snapshot links through an excluded path".to_string(),
-            )
-            .into());
-        }
-        let destination = join_relative(staged, &relative);
-        match kind.as_str() {
-            "directory" => io::create_dir_all(&destination).await?,
-            "file" => {
-                let hash: String = row.get("object_hash");
-                verify_object(
-                    repository,
-                    &hash,
-                    row.get::<i64, _>("size") as u64,
-                )
-                .await?;
-                if let Some(parent) = destination.parent() {
-                    io::create_dir_all(parent).await?;
-                }
-                tokio::fs::copy(object_path(repository, &hash), &destination)
-                    .await?;
-                apply_unix_mode(&destination, row.get("unix_mode")).await?;
-            }
-            "symlink" => {
-                if let Some(parent) = destination.parent() {
-                    io::create_dir_all(parent).await?;
-                }
-                let target: String = row.get("link_target");
-                let is_directory: bool = row
-                    .try_get::<Option<bool>, _>("link_is_directory")?
-                    .unwrap_or(false);
-                create_recorded_symlink(
-                    PathBuf::from(target),
-                    destination,
-                    is_directory,
-                )
-                .await?;
-            }
-            _ => {
-                return Err(crate::ErrorKind::FSError(format!(
-                    "Unsupported backup entry kind: {kind}"
-                ))
-                .into());
-            }
-        }
-    }
+    rename_backup_path(&staged, root).await?;
     Ok(())
 }
 
@@ -2352,7 +3099,7 @@ pub(crate) async fn move_default_repository_for_launcher_directory(
 
     if io::is_same_disk(source, destination_parent).unwrap_or(false) {
         tokio::fs::remove_dir(destination).await?;
-        tokio::fs::rename(source, destination).await?;
+        rename_backup_path(source, destination).await?;
         return Ok(None);
     }
 
@@ -2362,7 +3109,7 @@ pub(crate) async fn move_default_repository_for_launcher_directory(
         io::copy_dir(source, &temporary).await?;
         validate_repository_at(&temporary).await?;
         tokio::fs::remove_dir(destination).await?;
-        tokio::fs::rename(&temporary, destination).await?;
+        rename_backup_path(&temporary, destination).await?;
         Ok(())
     }
     .await;
@@ -2387,6 +3134,54 @@ pub(crate) async fn move_default_repository_for_launcher_directory(
 }
 
 pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
+    let operation_id = Uuid::new_v4();
+    let total_bytes = repository_status()
+        .await
+        .map(|status| status.stored_size)
+        .unwrap_or(0);
+    emit_backup_progress(
+        operation_id,
+        None,
+        InstanceBackupOperationType::RepositoryMove,
+        InstanceBackupProgressStage::Copying,
+        0,
+        total_bytes,
+        None,
+        None,
+        None,
+    )
+    .await;
+    let result = move_repository_inner(destination).await;
+    let (stage, final_state, processed_bytes, message) = match &result {
+        Ok(()) => (
+            InstanceBackupProgressStage::Completed,
+            InstanceBackupOperationFinalState::Completed,
+            total_bytes,
+            None,
+        ),
+        Err(error) => (
+            InstanceBackupProgressStage::Failed,
+            InstanceBackupOperationFinalState::Failed,
+            0,
+            Some(error.to_string()),
+        ),
+    };
+    emit_backup_progress(
+        operation_id,
+        None,
+        InstanceBackupOperationType::RepositoryMove,
+        stage,
+        processed_bytes,
+        total_bytes,
+        Some(final_state),
+        None,
+        message,
+    )
+    .await;
+    result
+}
+
+async fn move_repository_inner(destination: PathBuf) -> crate::Result<()> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
     let source = repository_path(&state).await?;
@@ -2441,7 +3236,7 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
             io::is_same_disk(&source, destination_parent).unwrap_or(false);
         if same_disk_move {
             let _ = tokio::fs::remove_dir(&destination).await;
-            tokio::fs::rename(&source, &destination).await?;
+            rename_backup_path(&source, &destination).await?;
         } else {
             let temporary = destination_parent
                 .join(format!(".axolotl-backup-move-{}", Uuid::new_v4()));
@@ -2449,7 +3244,7 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
                 io::copy_dir(&source, &temporary).await?;
                 validate_repository_at(&temporary).await?;
                 tokio::fs::remove_dir(&destination).await?;
-                tokio::fs::rename(&temporary, &destination).await?;
+                rename_backup_path(&temporary, &destination).await?;
                 Ok(())
             }
             .await;
@@ -2492,7 +3287,7 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
     .await;
     if let Err(error) = update_result {
         if source_exists && same_disk_move {
-            let _ = tokio::fs::rename(&destination, &source).await;
+            let _ = rename_backup_path(&destination, &source).await;
             if destination_existed {
                 let _ = io::create_dir_all(&destination).await;
             }
@@ -2585,6 +3380,213 @@ async fn validate_repository_at(root: &Path) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn restore_directory(path: &str) -> RestoreEntry {
+        RestoreEntry {
+            path: path.to_string(),
+            kind: EntryKind::Directory,
+            object_hash: None,
+            size: 0,
+            unix_mode: None,
+            link_target: None,
+            link_is_directory: None,
+        }
+    }
+
+    fn restore_file(path: &str, hash: &str) -> RestoreEntry {
+        RestoreEntry {
+            path: path.to_string(),
+            kind: EntryKind::File,
+            object_hash: Some(hash.to_string()),
+            size: 1,
+            unix_mode: None,
+            link_target: None,
+            link_is_directory: None,
+        }
+    }
+
+    #[test]
+    fn restore_plan_counts_file_changes_and_keeps_minimal_roots() {
+        let current = BTreeMap::from([
+            ("config".to_string(), restore_directory("config")),
+            (
+                "config/delete.txt".to_string(),
+                restore_file("config/delete.txt", "delete"),
+            ),
+            (
+                "config/modify.txt".to_string(),
+                restore_file("config/modify.txt", "old"),
+            ),
+            (
+                "config/same.txt".to_string(),
+                restore_file("config/same.txt", "same"),
+            ),
+        ]);
+        let target = BTreeMap::from([
+            ("config".to_string(), restore_directory("config")),
+            (
+                "config/add.txt".to_string(),
+                restore_file("config/add.txt", "add"),
+            ),
+            (
+                "config/modify.txt".to_string(),
+                restore_file("config/modify.txt", "new"),
+            ),
+            (
+                "config/same.txt".to_string(),
+                restore_file("config/same.txt", "same"),
+            ),
+        ]);
+
+        let plan = compare_restore_entries("snapshot", current, target);
+
+        assert_eq!(plan.preview.added_files, 1);
+        assert_eq!(plan.preview.modified_files, 1);
+        assert_eq!(plan.preview.deleted_files, 1);
+        assert_eq!(
+            plan.roots
+                .iter()
+                .map(|root| root.path.as_str())
+                .collect::<Vec<_>>(),
+            ["config/add.txt", "config/delete.txt", "config/modify.txt"]
+        );
+    }
+
+    #[test]
+    fn restore_plan_collapses_descendants_when_entry_type_changes() {
+        let current = BTreeMap::from([
+            ("cache".to_string(), restore_directory("cache")),
+            (
+                "cache/data.bin".to_string(),
+                restore_file("cache/data.bin", "old"),
+            ),
+        ]);
+        let target = BTreeMap::from([(
+            "cache".to_string(),
+            restore_file("cache", "new"),
+        )]);
+
+        let plan = compare_restore_entries("snapshot", current, target);
+
+        assert_eq!(plan.preview.modified_files, 1);
+        assert_eq!(plan.preview.deleted_files, 1);
+        assert_eq!(plan.roots.len(), 1);
+        assert_eq!(plan.roots[0].path, "cache");
+        assert!(plan.roots[0].had_current);
+    }
+
+    #[tokio::test]
+    async fn restore_scan_hashes_files_and_skips_exclusions() {
+        let temp = tempfile::tempdir().unwrap();
+        tokio::fs::create_dir_all(temp.path().join("config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(temp.path().join("caches"))
+            .await
+            .unwrap();
+        tokio::fs::write(temp.path().join("config/value.txt"), b"value")
+            .await
+            .unwrap();
+        tokio::fs::write(temp.path().join("caches/value.bin"), b"ignored")
+            .await
+            .unwrap();
+
+        let entries = scan_restore_entries(
+            temp.path(),
+            true,
+            &[],
+            &[BackupExclusion {
+                path: "caches".to_string(),
+                kind: BackupExclusionKind::Directory,
+            }],
+        )
+        .await
+        .unwrap();
+
+        assert!(entries.contains_key("config"));
+        assert!(entries.contains_key("config/value.txt"));
+        assert!(!entries.contains_key("caches"));
+        assert_eq!(
+            entries["config/value.txt"].object_hash.as_deref(),
+            Some(
+                "cd42404d52ad55ccfa9aca4adc828aa5800ad9d385a0671fbcbf724118320619"
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn incremental_restore_replaces_only_changed_paths() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("instance");
+        let operation_root = temp.path().join("operation");
+        tokio::fs::create_dir_all(root.join("config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(operation_root.join("staged/config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(operation_root.join("rollback"))
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("config/unchanged.txt"), b"same")
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("config/changed.txt"), b"current")
+            .await
+            .unwrap();
+        tokio::fs::write(
+            operation_root.join("staged/config/changed.txt"),
+            b"backup",
+        )
+        .await
+        .unwrap();
+
+        apply_restore_roots(
+            &root,
+            &operation_root,
+            &[RestoreJournalRoot {
+                path: "config/changed.txt".to_string(),
+                had_current: true,
+            }],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            tokio::fs::read(root.join("config/unchanged.txt"))
+                .await
+                .unwrap(),
+            b"same"
+        );
+        assert_eq!(
+            tokio::fs::read(root.join("config/changed.txt"))
+                .await
+                .unwrap(),
+            b"backup"
+        );
+        assert_eq!(
+            tokio::fs::read(operation_root.join("rollback/config/changed.txt"))
+                .await
+                .unwrap(),
+            b"current"
+        );
+    }
+
+    #[test]
+    fn cancellation_is_rejected_after_snapshot_saving_starts() {
+        let (operation_id, cancellation, _cancellable) =
+            new_backup_operation("instance");
+        assert!(cancel_backup(operation_id));
+        assert!(cancellation.is_cancelled());
+        BACKUP_CANCELLATIONS.remove(&operation_id);
+
+        let (operation_id, cancellation, cancellable) =
+            new_backup_operation("instance");
+        cancellable.store(false, Ordering::Release);
+        assert!(!cancel_backup(operation_id));
+        assert!(!cancellation.is_cancelled());
+        BACKUP_CANCELLATIONS.remove(&operation_id);
+    }
 
     #[test]
     fn normalizes_and_deduplicates_exclusions() {
@@ -2763,6 +3765,9 @@ mod tests {
             &repository,
             &staging,
             &exclusions,
+            Uuid::new_v4(),
+            "instance",
+            0,
             &CancellationToken::new(),
             &mut first_objects,
         )
@@ -2809,6 +3814,9 @@ mod tests {
             &repository,
             &second_staging,
             &exclusions,
+            Uuid::new_v4(),
+            "instance",
+            0,
             &CancellationToken::new(),
             &mut second_objects,
         )

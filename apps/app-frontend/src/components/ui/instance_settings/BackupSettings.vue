@@ -17,12 +17,14 @@ import { get_full_path } from '@/helpers/instance'
 import {
 	type BackupExclusion,
 	type BackupProgressStage,
+	type BackupRestorePreview,
 	type BackupSnapshot,
 	cancelBackup,
 	deleteBackup,
 	disableBackups,
 	enableBackups,
 	getBackupConfig,
+	getBackupRestorePreview,
 	type InstanceBackupConfig,
 	type InstanceBackupEligibility,
 	listBackups,
@@ -96,9 +98,14 @@ const messages = defineMessages({
 	cancelBackup: { id: 'instance.backups.cancel', defaultMessage: 'Cancel backup' },
 	stageScanning: {
 		id: 'instance.backups.stage.scanning',
-		defaultMessage: 'Scanning and hashing files',
+		defaultMessage: 'Scanning files',
 	},
+	stageHashing: { id: 'instance.backups.stage.hashing', defaultMessage: 'Hashing files' },
 	stageSaving: { id: 'instance.backups.stage.saving', defaultMessage: 'Saving snapshot index' },
+	progressBytes: {
+		id: 'instance.backups.progress-bytes',
+		defaultMessage: '{processed} of {total}',
+	},
 	stageFailed: { id: 'instance.backups.stage.failed', defaultMessage: 'Backup failed' },
 	snapshots: { id: 'instance.backups.snapshots', defaultMessage: 'Snapshots' },
 	empty: { id: 'instance.backups.empty', defaultMessage: 'No backups have been created yet.' },
@@ -118,7 +125,7 @@ const messages = defineMessages({
 	restoreBody: {
 		id: 'instance.backups.restore-body',
 		defaultMessage:
-			'The backed-up instance contents will be replaced. Files and folders excluded by this snapshot will be preserved.',
+			'Upcoming operations: add {added, plural, one {# file} other {# files}}, modify {modified, plural, one {# file} other {# files}}, and delete {deleted, plural, one {# file} other {# files}}. Continue?',
 	},
 	deleteTitle: { id: 'instance.backups.delete-title', defaultMessage: 'Delete this backup?' },
 	deleteBody: {
@@ -138,14 +145,19 @@ const action = ref<string | null>(null)
 const operationId = ref<string | null>(null)
 const operationStage = ref<BackupProgressStage | null>(null)
 const operationMessage = ref<string | null>(null)
+const operationProcessedBytes = ref(0)
+const operationTotalBytes = ref(0)
 const selectedSnapshot = ref<BackupSnapshot | null>(null)
+const restorePreview = ref<BackupRestorePreview | null>(null)
 const deleteModal = ref<InstanceType<typeof NewModal>>()
 const restoreModal = ref<InstanceType<typeof NewModal>>()
 let unlisten: (() => void) | null = null
 
 const eligible = computed(() => config.value?.eligibility === 'eligible')
 const isRunning = computed(() => operationId.value !== null)
-const canCancel = computed(() => operationStage.value === 'scanning')
+const canCancel = computed(() =>
+	operationStage.value === 'scanning' || operationStage.value === 'hashing',
+)
 
 const eligibilityMessages: Record<
 	Exclude<InstanceBackupEligibility, 'eligible'>,
@@ -218,6 +230,8 @@ function start() {
 	void runAction('start', async () => {
 		operationStage.value = 'scanning'
 		operationMessage.value = null
+		operationProcessedBytes.value = 0
+		operationTotalBytes.value = 0
 		operationId.value = await startBackup(instance.value.id)
 	})
 }
@@ -235,8 +249,12 @@ function confirmDelete(snapshot: BackupSnapshot) {
 }
 
 function confirmRestore(snapshot: BackupSnapshot) {
-	selectedSnapshot.value = snapshot
-	restoreModal.value?.show()
+	void runAction(`preview:${snapshot.id}`, async () => {
+		const preview = await getBackupRestorePreview(snapshot.id)
+		selectedSnapshot.value = snapshot
+		restorePreview.value = preview
+		restoreModal.value?.show()
+	})
 }
 
 function removeSnapshot() {
@@ -250,11 +268,12 @@ function removeSnapshot() {
 }
 
 function restoreSnapshot() {
-	if (!selectedSnapshot.value) return
+	if (!selectedSnapshot.value || !restorePreview.value) return
 	void runAction(`restore:${selectedSnapshot.value.id}`, async () => {
-		await restoreBackup(selectedSnapshot.value!.id)
+		await restoreBackup(selectedSnapshot.value!.id, restorePreview.value!.plan_token)
 		restoreModal.value?.hide()
 		selectedSnapshot.value = null
+		restorePreview.value = null
 	})
 }
 
@@ -267,10 +286,12 @@ function disable() {
 
 onMounted(async () => {
 	unlisten = await listenBackupProgress((event) => {
-		if (event.instanceId !== instance.value.id) return
+		if (event.operationType !== 'create' || event.instanceId !== instance.value.id) return
 		operationId.value = event.operationId
 		operationStage.value = event.stage
 		operationMessage.value = event.message ?? null
+		operationProcessedBytes.value = event.processedBytes
+		operationTotalBytes.value = event.totalBytes
 		if (['completed', 'cancelled', 'failed'].includes(event.stage)) {
 			operationId.value = null
 			void refresh()
@@ -363,9 +384,21 @@ watch(
 					<p v-if="isRunning" class="m-0 text-sm font-medium text-contrast">
 						{{
 							formatMessage(
-								operationStage === 'saving' ? messages.stageSaving : messages.stageScanning,
+								operationStage === 'saving'
+									? messages.stageSaving
+									: operationStage === 'hashing'
+										? messages.stageHashing
+										: messages.stageScanning,
 							)
 						}}
+						<span v-if="operationTotalBytes > 0" class="ml-2 text-secondary">
+							{{
+								formatMessage(messages.progressBytes, {
+									processed: formatBytes(operationProcessedBytes),
+									total: formatBytes(operationTotalBytes),
+								})
+							}}
+						</span>
 					</p>
 					<p v-else-if="operationStage === 'failed'" class="m-0 text-sm text-red">
 						{{ formatMessage(messages.stageFailed)
@@ -469,7 +502,15 @@ watch(
 			</template>
 		</NewModal>
 		<NewModal ref="restoreModal" :header="formatMessage(messages.restoreTitle)" max-width="500px">
-			<Admonition type="warning">{{ formatMessage(messages.restoreBody) }}</Admonition>
+			<Admonition v-if="restorePreview" type="warning">
+				{{
+					formatMessage(messages.restoreBody, {
+						added: restorePreview.added_files,
+						modified: restorePreview.modified_files,
+						deleted: restorePreview.deleted_files,
+					})
+				}}
+			</Admonition>
 			<template #actions>
 				<ButtonStyled type="outlined"
 					><button :disabled="action?.startsWith('restore:')" @click="restoreModal?.hide()">

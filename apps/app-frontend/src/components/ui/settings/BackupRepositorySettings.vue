@@ -9,11 +9,12 @@ import {
 	useFormatBytes,
 	useVIntl,
 } from '@modrinth/ui'
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 import {
 	type BackupRepositoryStatus,
 	getBackupRepositoryStatus,
+	listenBackupProgress,
 	moveBackupRepository,
 } from '@/helpers/instance-backup'
 
@@ -27,6 +28,9 @@ const { handleError } = injectNotificationManager()
 const status = ref<BackupRepositoryStatus | null>(null)
 const loading = ref(true)
 const moving = ref(false)
+const movedBytes = ref(0)
+const moveTotalBytes = ref(0)
+let unlisten: (() => void) | null = null
 
 const messages = defineMessages({
 	title: { id: 'settings.backups.repository.title', defaultMessage: 'Backup repository' },
@@ -42,6 +46,10 @@ const messages = defineMessages({
 	},
 	change: { id: 'settings.backups.repository.change', defaultMessage: 'Change folder' },
 	moving: { id: 'settings.backups.repository.moving', defaultMessage: 'Moving repository...' },
+	movingProgress: {
+		id: 'settings.backups.repository.moving-progress',
+		defaultMessage: 'Moving repository: {processed} of {total}',
+	},
 	usage: { id: 'settings.backups.repository.usage', defaultMessage: 'Storage usage' },
 	usageDescription: {
 		id: 'settings.backups.repository.usage-description',
@@ -69,6 +77,8 @@ async function changeLocation() {
 	const selection = await filePicker.pickFolder?.()
 	if (!selection) return
 	moving.value = true
+	movedBytes.value = 0
+	moveTotalBytes.value = 0
 	try {
 		await moveBackupRepository(selection.path)
 		await refresh()
@@ -79,7 +89,16 @@ async function changeLocation() {
 	}
 }
 
-onMounted(refresh)
+onMounted(async () => {
+	unlisten = await listenBackupProgress((event) => {
+		if (event.operationType !== 'repository_move') return
+		movedBytes.value = event.processedBytes
+		moveTotalBytes.value = event.totalBytes
+	})
+	await refresh()
+})
+
+onUnmounted(() => unlisten?.())
 </script>
 
 <template>
@@ -97,7 +116,19 @@ onMounted(refresh)
 				<ButtonStyled type="outlined">
 					<button type="button" :disabled="loading || moving" @click="changeLocation">
 						<FolderIcon />
-						{{ formatMessage(moving ? messages.moving : messages.change) }}
+						{{
+							formatMessage(
+								moving && moveTotalBytes > 0
+									? messages.movingProgress
+									: moving
+										? messages.moving
+										: messages.change,
+								{
+									processed: formatBytes(movedBytes),
+									total: formatBytes(moveTotalBytes),
+								},
+							)
+						}}
 					</button>
 				</ButtonStyled>
 			</template>

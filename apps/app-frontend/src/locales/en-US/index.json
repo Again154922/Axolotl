@@ -10862,11 +10862,14 @@
   "instance.backups.loading": {
     "message": "Loading backup settings..."
   },
+  "instance.backups.progress-bytes": {
+    "message": "{processed} of {total}"
+  },
   "instance.backups.restore": {
     "message": "Restore backup"
   },
   "instance.backups.restore-body": {
-    "message": "The backed-up instance contents will be replaced. Files and folders excluded by this snapshot will be preserved."
+    "message": "Upcoming operations: add {added, plural, one {# file} other {# files}}, modify {modified, plural, one {# file} other {# files}}, and delete {deleted, plural, one {# file} other {# files}}. Continue?"
   },
   "instance.backups.restore-title": {
     "message": "Restore this backup?"
@@ -10883,11 +10886,14 @@
   "instance.backups.stage.failed": {
     "message": "Backup failed"
   },
+  "instance.backups.stage.hashing": {
+    "message": "Hashing files"
+  },
   "instance.backups.stage.saving": {
     "message": "Saving snapshot index"
   },
   "instance.backups.stage.scanning": {
-    "message": "Scanning and hashing files"
+    "message": "Scanning files"
   },
   "instance.backups.title": {
     "message": "Instance backups"
@@ -12679,6 +12685,9 @@
   },
   "settings.backups.repository.moving": {
     "message": "Moving repository..."
+  },
+  "settings.backups.repository.moving-progress": {
+    "message": "Moving repository: {processed} of {total}"
   },
   "settings.backups.repository.title": {
     "message": "Backup repository"

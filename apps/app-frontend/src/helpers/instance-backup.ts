@@ -55,12 +55,37 @@ export interface BackupDeleteSummary {
 	logical_size: number
 }
 
-export type BackupProgressStage = 'scanning' | 'saving' | 'completed' | 'cancelled' | 'failed'
+export interface BackupRestorePreview {
+	added_files: number
+	modified_files: number
+	deleted_files: number
+	plan_token: string
+}
+
+export type BackupOperationType = 'create' | 'restore' | 'delete' | 'repository_move'
+
+export type BackupProgressStage =
+	| 'scanning'
+	| 'hashing'
+	| 'saving'
+	| 'validating'
+	| 'copying'
+	| 'restoring'
+	| 'deleting'
+	| 'completed'
+	| 'cancelled'
+	| 'failed'
+
+export type BackupOperationFinalState = 'completed' | 'cancelled' | 'failed'
 
 export interface BackupProgressEvent {
 	operationId: string
-	instanceId: string
+	instanceId?: string
+	operationType: BackupOperationType
 	stage: BackupProgressStage
+	processedBytes: number
+	totalBytes: number
+	finalState?: BackupOperationFinalState
 	snapshotId?: string
 	message?: string
 }
@@ -153,8 +178,12 @@ export function deleteBackup(snapshotId: string): Promise<void> {
 	return invoke('plugin:instance|instance_delete_backup', { snapshotId })
 }
 
-export function restoreBackup(snapshotId: string): Promise<void> {
-	return invoke('plugin:instance|instance_restore_backup', { snapshotId })
+export function getBackupRestorePreview(snapshotId: string): Promise<BackupRestorePreview> {
+	return invoke('plugin:instance|instance_get_backup_restore_preview', { snapshotId })
+}
+
+export function restoreBackup(snapshotId: string, planToken: string): Promise<void> {
+	return invoke('plugin:instance|instance_restore_backup', { snapshotId, planToken })
 }
 
 export function getBackupDeleteSummary(instanceId: string): Promise<BackupDeleteSummary> {

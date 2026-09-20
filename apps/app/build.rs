@@ -524,6 +524,7 @@ fn main() {
                         "instance_cancel_backup",
                         "instance_list_backups",
                         "instance_delete_backup",
+                        "instance_get_backup_restore_preview",
                         "instance_restore_backup",
                         "instance_get_backup_delete_summary",
                         "instance_create_direct_link",

@@ -10877,11 +10877,14 @@
   "instance.backups.loading": {
     "message": "正在加载备份设置……"
   },
+  "instance.backups.progress-bytes": {
+    "message": "已处理 {processed}，共 {total}"
+  },
   "instance.backups.restore": {
     "message": "恢复备份"
   },
   "instance.backups.restore-body": {
-    "message": "已备份的实例内容将被替换；此快照排除的文件和文件夹会保留。"
+    "message": "即将进行的操作：新增 {added} 个文件，修改 {modified} 个文件，删除 {deleted} 个文件。是否继续？"
   },
   "instance.backups.restore-title": {
     "message": "恢复此备份？"
@@ -10898,11 +10901,14 @@
   "instance.backups.stage.failed": {
     "message": "备份失败"
   },
+  "instance.backups.stage.hashing": {
+    "message": "正在计算文件哈希"
+  },
   "instance.backups.stage.saving": {
     "message": "正在保存快照索引"
   },
   "instance.backups.stage.scanning": {
-    "message": "正在扫描文件并计算哈希"
+    "message": "正在扫描文件"
   },
   "instance.backups.title": {
     "message": "实例备份"
@@ -12694,6 +12700,9 @@
   },
   "settings.backups.repository.moving": {
     "message": "正在移动仓库……"
+  },
+  "settings.backups.repository.moving-progress": {
+    "message": "正在移动备份仓库：已处理 {processed}，共 {total}"
   },
   "settings.backups.repository.title": {
     "message": "备份文件仓库"
