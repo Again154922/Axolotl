@@ -10959,6 +10959,9 @@
   "instance.backups.stage.materializing": {
     "message": "正在准备变更文件"
   },
+  "instance.backups.stage.preview": {
+    "message": "正在分析恢复变更"
+  },
   "instance.backups.stage.applying": {
     "message": "正在应用变更文件"
   },

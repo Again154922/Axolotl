@@ -134,6 +134,7 @@ pub enum BackupOperationType {
     Create,
     Restore,
     RepositoryMove,
+    RestorePreview,
 }
 
 impl BackupOperationType {
@@ -142,6 +143,7 @@ impl BackupOperationType {
             Self::Create => "create",
             Self::Restore => "restore",
             Self::RepositoryMove => "repository_move",
+            Self::RestorePreview => "restore_preview",
         }
     }
 }
@@ -205,6 +207,7 @@ pub struct BackupOperation {
     pub created_at: i64,
     pub updated_at: i64,
     pub finished_at: Option<i64>,
+    pub restore_preview: Option<BackupRestorePreview>,
 }
 
 #[derive(Clone, Debug)]
@@ -340,6 +343,7 @@ fn parse_backup_operation_type(
         "create" => Ok(BackupOperationType::Create),
         "restore" => Ok(BackupOperationType::Restore),
         "repository_move" => Ok(BackupOperationType::RepositoryMove),
+        "restore_preview" => Ok(BackupOperationType::RestorePreview),
         _ => Err(crate::ErrorKind::FSError(format!(
             "Invalid backup operation type: {value}"
         ))
@@ -391,6 +395,22 @@ fn backup_operation_from_row(
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
         finished_at: row.get("finished_at"),
+        restore_preview: row
+            .try_get::<Option<i64>, _>("preview_added_files")?
+            .map(|added_files| BackupRestorePreview {
+                added_files: added_files.max(0) as u64,
+                modified_files: row
+                    .get::<Option<i64>, _>("preview_modified_files")
+                    .unwrap_or(0)
+                    .max(0) as u64,
+                deleted_files: row
+                    .get::<Option<i64>, _>("preview_deleted_files")
+                    .unwrap_or(0)
+                    .max(0) as u64,
+                plan_token: row
+                    .get::<Option<String>, _>("preview_plan_token")
+                    .unwrap_or_default(),
+            }),
     })
 }
 
@@ -508,6 +528,34 @@ async fn update_persisted_operation(
     pool.close().await;
 }
 
+async fn store_restore_preview(
+    operation_id: Uuid,
+    preview: &BackupRestorePreview,
+) {
+    if !State::initialized() {
+        return;
+    }
+    let Ok(state) = State::get().await else {
+        return;
+    };
+    let Ok(Some((_, pool))) = open_repository(&state, false).await else {
+        return;
+    };
+    let _ = sqlx::query(
+        "UPDATE backup_operations SET preview_added_files = ?,
+         preview_modified_files = ?, preview_deleted_files = ?,
+         preview_plan_token = ? WHERE id = ?",
+    )
+    .bind(preview.added_files as i64)
+    .bind(preview.modified_files as i64)
+    .bind(preview.deleted_files as i64)
+    .bind(&preview.plan_token)
+    .bind(operation_id.to_string())
+    .execute(&pool)
+    .await;
+    pool.close().await;
+}
+
 pub async fn list_operations(
     instance_id: Option<&str>,
     active_only: bool,
@@ -519,7 +567,8 @@ pub async fn list_operations(
     let mut query = String::from(
         "SELECT id, operation_type, instance_id, snapshot_id, state,
 		 processed_bytes, total_bytes, cancellable, cancel_requested, error,
-		 created_at, updated_at, finished_at
+		 created_at, updated_at, finished_at, preview_added_files,
+		 preview_modified_files, preview_deleted_files, preview_plan_token
 		 FROM backup_operations WHERE 1 = 1",
     );
     if instance_id.is_some() {
@@ -2612,8 +2661,93 @@ pub(crate) async fn ensure_backup_eligible_edit(
     Ok(())
 }
 
-pub async fn preview_restore(
+pub async fn start_restore_preview(snapshot_id: &str) -> crate::Result<Uuid> {
+    let (instance_id, total_bytes) =
+        snapshot_operation_metadata(snapshot_id).await?;
+    let operation_id = Uuid::new_v4();
+    create_persisted_operation(
+        operation_id,
+        &instance_id,
+        BackupOperationType::RestorePreview,
+        Some(snapshot_id),
+    )
+    .await?;
+    let (cancellation, cancellable) =
+        register_backup_operation(operation_id, &instance_id);
+    let snapshot_id = snapshot_id.to_string();
+    tokio::spawn(async move {
+        let progress = RestorePreviewProgress {
+            operation_id,
+            instance_id: instance_id.clone(),
+            total_bytes,
+            cancellation: cancellation.clone(),
+        };
+        let result = preview_restore_inner(&snapshot_id, Some(&progress)).await;
+        let (stage, final_state, processed_bytes, message, state) =
+            match &result {
+                Ok(preview) => {
+                    store_restore_preview(operation_id, preview).await;
+                    (
+                        InstanceBackupProgressStage::Completed,
+                        InstanceBackupOperationFinalState::Completed,
+                        total_bytes,
+                        None,
+                        BackupOperationState::Completed,
+                    )
+                }
+                Err(error) if cancellation.is_cancelled() => (
+                    InstanceBackupProgressStage::Cancelled,
+                    InstanceBackupOperationFinalState::Cancelled,
+                    0,
+                    Some(error.to_string()),
+                    BackupOperationState::Cancelled,
+                ),
+                Err(error) => (
+                    InstanceBackupProgressStage::Failed,
+                    InstanceBackupOperationFinalState::Failed,
+                    0,
+                    Some(error.to_string()),
+                    BackupOperationState::Failed,
+                ),
+            };
+        cancellable.store(false, Ordering::Release);
+        update_persisted_operation(
+            operation_id,
+            state,
+            Some(processed_bytes),
+            Some(total_bytes),
+            Some(false),
+            message.as_deref(),
+            Some(&snapshot_id),
+        )
+        .await;
+        emit_backup_progress(
+            operation_id,
+            Some(&instance_id),
+            InstanceBackupOperationType::RestorePreview,
+            stage,
+            processed_bytes,
+            total_bytes,
+            Some(final_state),
+            Some(&snapshot_id),
+            message,
+        )
+        .await;
+        unregister_backup_operation(&instance_id, operation_id);
+    });
+    Ok(operation_id)
+}
+
+struct RestorePreviewProgress {
+    operation_id: Uuid,
+    instance_id: String,
+    total_bytes: u64,
+    cancellation: CancellationToken,
+}
+
+async fn preview_restore_inner(
     snapshot_id: &str,
+    progress: Option<&RestorePreviewProgress>,
 ) -> crate::Result<BackupRestorePreview> {
     let state = State::get().await?;
     let (instance_id, _) = snapshot_operation_metadata(snapshot_id).await?;
@@ -2635,7 +2769,8 @@ pub async fn preview_restore(
     };
     let root = require_eligible(&instance_id, &state).await?;
     let plan =
-        build_restore_plan(snapshot_id, &instance_id, &root, &pool).await?;
+        build_restore_plan(snapshot_id, &instance_id, &root, &pool, progress)
+            .await?;
     pool.close().await;
     Ok(plan.preview)
 }
@@ -2748,6 +2883,7 @@ async fn build_restore_plan(
     expected_instance_id: &str,
     root: &Path,
     pool: &SqlitePool,
+    progress: Option<&RestorePreviewProgress>,
 ) -> crate::Result<RestorePlan> {
     let (instance_id, scope_mode): (String, String) = sqlx::query_as(
         "SELECT instance_id, scope_mode FROM backup_snapshots WHERE id = ?",
@@ -2872,9 +3008,14 @@ async fn build_restore_plan(
             .into());
         }
     }
-    let current =
-        scan_restore_entries(root, whole_root, &selected_roots, &exclusions)
-            .await?;
+    let current = scan_restore_entries(
+        root,
+        whole_root,
+        &selected_roots,
+        &exclusions,
+        progress,
+    )
+    .await?;
     Ok(compare_restore_entries(snapshot_id, current, target))
 }
 
@@ -2883,6 +3024,7 @@ async fn scan_restore_entries(
     whole_root: bool,
     selected_roots: &[(String, bool)],
     exclusions: &[BackupExclusion],
+    progress: Option<&RestorePreviewProgress>,
 ) -> crate::Result<BTreeMap<String, RestoreEntry>> {
     let mut pending = Vec::new();
     if whole_root {
@@ -2902,7 +3044,15 @@ async fn scan_restore_entries(
     }
 
     let mut entries = BTreeMap::new();
+    let mut processed_bytes = 0u64;
     while let Some((absolute, relative)) = pending.pop() {
+        if progress.is_some_and(|progress| progress.cancellation.is_cancelled())
+        {
+            return Err(crate::ErrorKind::OtherError(
+                "Restore preview was canceled".to_string(),
+            )
+            .into());
+        }
         if is_excluded(&relative, exclusions) {
             continue;
         }
@@ -2966,7 +3116,27 @@ async fn scan_restore_entries(
             ))
             .into());
         }
-        let (hash, size) = hash_restore_file(&absolute, &metadata).await?;
+        if let Some(progress) = progress {
+            emit_backup_progress(
+                progress.operation_id,
+                Some(&progress.instance_id),
+                InstanceBackupOperationType::RestorePreview,
+                InstanceBackupProgressStage::Hashing,
+                processed_bytes,
+                progress.total_bytes,
+                None,
+                None,
+                None,
+            )
+            .await;
+        }
+        let (hash, size) = hash_restore_file(
+            &absolute,
+            &metadata,
+            progress.map(|progress| &progress.cancellation),
+        )
+        .await?;
+        processed_bytes = processed_bytes.saturating_add(size);
         entries.insert(
             relative.clone(),
             RestoreEntry {
@@ -2986,6 +3156,7 @@ async fn scan_restore_entries(
 async fn hash_restore_file(
     path: &Path,
     before: &std::fs::Metadata,
+    cancellation: Option<&CancellationToken>,
 ) -> crate::Result<(String, u64)> {
     let mut file = tokio::fs::File::open(path).await.map_err(|error| {
         crate::ErrorKind::FSError(format!(
@@ -2997,6 +3168,12 @@ async fn hash_restore_file(
     let mut size = 0u64;
     let mut buffer = vec![0u8; 1024 * 1024];
     loop {
+        if cancellation.is_some_and(CancellationToken::is_cancelled) {
+            return Err(crate::ErrorKind::OtherError(
+                "Restore preview was canceled".to_string(),
+            )
+            .into());
+        }
         let read = file.read(&mut buffer).await.map_err(|error| {
             crate::ErrorKind::FSError(format!(
                 "Could not read {} while preparing the restore: {error}",
@@ -3259,7 +3436,8 @@ async fn restore_snapshot_inner(
     };
     let root = require_eligible(&instance_id, &state).await?;
     let plan =
-        build_restore_plan(snapshot_id, &instance_id, &root, &pool).await?;
+        build_restore_plan(snapshot_id, &instance_id, &root, &pool, None)
+            .await?;
     if plan.preview.plan_token != expected_plan_token {
         pool.close().await;
         return Err(crate::ErrorKind::InputError(
@@ -3995,6 +4173,7 @@ mod tests {
                 path: "caches".to_string(),
                 kind: BackupExclusionKind::Directory,
             }],
+            None,
         )
         .await
         .unwrap();
@@ -4282,6 +4461,75 @@ mod tests {
         .execute(&pool)
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn restore_preview_migration_preserves_operations_and_result_columns()
+    {
+        let temp = tempfile::tempdir().unwrap();
+        let options = SqliteConnectOptions::new()
+            .filename(temp.path().join(DATABASE_FILE))
+            .create_if_missing(true)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        for migration in [
+            include_str!(
+                "../../../backup_migrations/20260920200000_operations.sql"
+            ),
+            include_str!(
+                "../../../backup_migrations/20260920210000_operation_cancellation.sql"
+            ),
+            include_str!(
+                "../../../backup_migrations/20260920223000_repository_move_operations.sql"
+            ),
+        ] {
+            sqlx::raw_sql(migration).execute(&pool).await.unwrap();
+        }
+        sqlx::query(
+            "INSERT INTO backup_operations
+             (id, operation_type, instance_id, state, created_at, updated_at)
+             VALUES ('existing', 'restore', 'instance', 'completed', 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::raw_sql(include_str!(
+            "../../../backup_migrations/20260920230000_restore_preview_operations.sql"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        let existing: String = sqlx::query_scalar(
+            "SELECT operation_type FROM backup_operations WHERE id = 'existing'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(existing, "restore");
+        sqlx::query(
+            "INSERT INTO backup_operations
+             (id, operation_type, instance_id, state, created_at, updated_at,
+              preview_added_files, preview_modified_files, preview_deleted_files,
+              preview_plan_token)
+             VALUES ('preview', 'restore_preview', 'instance', 'completed', 2, 2,
+                     1, 2, 3, 'token')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let result: (i64, i64, i64, String) = sqlx::query_as(
+            "SELECT preview_added_files, preview_modified_files,
+                    preview_deleted_files, preview_plan_token
+             FROM backup_operations WHERE id = 'preview'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(result, (1, 2, 3, "token".to_string()));
     }
 
     #[tokio::test]

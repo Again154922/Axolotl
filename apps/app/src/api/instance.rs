@@ -920,7 +920,7 @@ pub async fn instance_delete_backup(snapshot_id: &str) -> Result<()> {
 #[tauri::command]
 pub async fn instance_get_backup_restore_preview(
     snapshot_id: &str,
-) -> Result<theseus::instance::BackupRestorePreview> {
+) -> Result<uuid::Uuid> {
     Ok(theseus::instance::get_backup_restore_preview(snapshot_id).await?)
 }
 

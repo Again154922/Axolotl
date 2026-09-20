@@ -268,6 +268,7 @@ pub enum InstanceBackupOperationType {
     Restore,
     Delete,
     RepositoryMove,
+    RestorePreview,
 }
 
 #[derive(Serialize, Clone, Copy)]

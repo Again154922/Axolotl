@@ -62,7 +62,8 @@ export interface BackupRestorePreview {
 	plan_token: string
 }
 
-export type BackupOperationType = 'create' | 'restore' | 'delete' | 'repository_move'
+export type BackupOperationType =
+	'create' | 'restore' | 'restore_preview' | 'delete' | 'repository_move'
 export type BackupOperationState =
 	| 'queued'
 	| 'scanning'
@@ -90,6 +91,7 @@ export interface BackupOperation {
 	created_at: number
 	updated_at: number
 	finished_at?: number
+	restore_preview?: BackupRestorePreview
 }
 
 export type BackupProgressStage =
@@ -216,7 +218,7 @@ export function deleteBackup(snapshotId: string): Promise<void> {
 	return invoke('plugin:instance|instance_delete_backup', { snapshotId })
 }
 
-export function getBackupRestorePreview(snapshotId: string): Promise<BackupRestorePreview> {
+export function startBackupRestorePreview(snapshotId: string): Promise<string> {
 	return invoke('plugin:instance|instance_get_backup_restore_preview', { snapshotId })
 }
 

@@ -26,13 +26,13 @@ import {
 	disableBackups,
 	enableBackups,
 	getBackupConfig,
-	getBackupRestorePreview,
 	type InstanceBackupConfig,
 	type InstanceBackupEligibility,
 	listBackups,
 	listBackupOperations,
 	listenBackupProgress,
 	restoreBackup,
+	startBackupRestorePreview,
 	startBackup,
 	updateBackupExclusions,
 } from '@/helpers/instance-backup'
@@ -118,6 +118,10 @@ const messages = defineMessages({
 		id: 'instance.backups.stage.applying',
 		defaultMessage: 'Applying changed files',
 	},
+	stagePreview: {
+		id: 'instance.backups.stage.preview',
+		defaultMessage: 'Analyzing restore changes',
+	},
 	progressBytes: {
 		id: 'instance.backups.progress-bytes',
 		defaultMessage: '{processed} of {total}',
@@ -176,6 +180,9 @@ const isRunning = computed(
 )
 const canCancel = computed(() => operation.value?.cancellable === true)
 const operationLabel = computed(() => {
+	if (operation.value?.operation_type === 'restore_preview') {
+		return formatMessage(messages.stagePreview)
+	}
 	switch (operation.value?.state) {
 		case 'queued':
 			return formatMessage(messages.stageQueued)
@@ -235,6 +242,10 @@ async function refreshOperation() {
 		latest && (isRunningState(latest.state) || ['failed', 'interrupted'].includes(latest.state))
 			? latest
 			: null
+	if (operation.value?.operation_type === 'restore_preview' && operation.value.snapshot_id) {
+		selectedSnapshot.value =
+			snapshots.value.find((snapshot) => snapshot.id === operation.value?.snapshot_id) ?? null
+	}
 }
 
 function isRunningState(state: BackupOperationState) {
@@ -347,10 +358,21 @@ function confirmDelete(snapshot: BackupSnapshot) {
 
 function confirmRestore(snapshot: BackupSnapshot) {
 	void runAction(`preview:${snapshot.id}`, async () => {
-		const preview = await getBackupRestorePreview(snapshot.id)
 		selectedSnapshot.value = snapshot
-		restorePreview.value = preview
-		restoreModal.value?.show()
+		const id = await startBackupRestorePreview(snapshot.id)
+		operation.value = {
+			id,
+			operation_type: 'restore_preview',
+			instance_id: instance.value.id,
+			snapshot_id: snapshot.id,
+			state: 'queued',
+			processed_bytes: 0,
+			total_bytes: snapshot.logical_size,
+			cancellable: true,
+			cancel_requested: false,
+			created_at: Date.now(),
+			updated_at: Date.now(),
+		}
 	})
 }
 
@@ -395,13 +417,26 @@ function disable() {
 }
 
 onMounted(async () => {
-	unlisten = await listenBackupProgress((event) => {
+	unlisten = await listenBackupProgress(async (event) => {
 		if (
-			!['create', 'restore'].includes(event.operationType) ||
+			!['create', 'restore', 'restore_preview'].includes(event.operationType) ||
 			event.instanceId !== instance.value.id
 		)
 			return
 		operation.value = operationFromEvent(event)
+		if (event.operationType === 'restore_preview' && event.stage === 'completed') {
+			const completed = (await listBackupOperations(instance.value.id)).find(
+				(candidate) => candidate.id === event.operationId,
+			)
+			const snapshot = snapshots.value.find((candidate) => candidate.id === event.snapshotId)
+			if (completed?.restore_preview && snapshot) {
+				selectedSnapshot.value = snapshot
+				restorePreview.value = completed.restore_preview
+				operation.value = null
+				restoreModal.value?.show()
+				return
+			}
+		}
 		if (['completed', 'cancelled', 'failed'].includes(event.stage)) {
 			void refresh()
 		}

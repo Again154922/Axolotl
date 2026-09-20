@@ -10944,6 +10944,9 @@
   "instance.backups.stage.materializing": {
     "message": "Preparing changed files"
   },
+  "instance.backups.stage.preview": {
+    "message": "Analyzing restore changes"
+  },
   "instance.backups.stage.applying": {
     "message": "Applying changed files"
   },
