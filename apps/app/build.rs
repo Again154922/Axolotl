@@ -828,6 +828,14 @@ fn main() {
                     ),
             )
             .plugin(
+                "fonts",
+                InlinedPlugin::new()
+                    .commands(&["fonts_get_system_fonts"])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
                 "drop",
                 InlinedPlugin::new()
                     .commands(&[

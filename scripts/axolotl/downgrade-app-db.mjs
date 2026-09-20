@@ -147,6 +147,12 @@ const REVERTIBLE_SCHEMA = {
 	// old backup repository paths awaiting cleanup
 	20260920160000: {
 		tables: ['pending_backup_repository_cleanups'],
+	// settings.ui_font / mono_font
+	20260919120000: {
+		columns: [
+			{ table: 'settings', column: 'ui_font' },
+			{ table: 'settings', column: 'mono_font' },
+		],
 	},
 }
 
