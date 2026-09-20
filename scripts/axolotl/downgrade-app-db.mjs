@@ -140,6 +140,10 @@ const REVERTIBLE_SCHEMA = {
 	20260917150000: {
 		columns: [{ table: 'settings', column: 'custom_background_component_opacity' }],
 	},
+	// settings.backup_repository_path
+	20260920130000: {
+		columns: [{ table: 'settings', column: 'backup_repository_path' }],
+	},
 }
 
 function fail(message) {

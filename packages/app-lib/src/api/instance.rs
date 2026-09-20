@@ -1,5 +1,6 @@
 //! Theseus instance management interface
 
+mod backup;
 mod content;
 mod core_components;
 mod export_mrpack;
@@ -25,6 +26,21 @@ mod synced_packs_axolotl;
 pub(crate) mod synced_servers;
 mod upgrade;
 
+pub use self::backup::{
+    BackupDeleteSummary, BackupDirectoryEntry, BackupRepositoryStatus,
+    BackupSnapshot, InstanceBackupConfig, InstanceBackupEligibility,
+    cancel_backup, create_snapshot, disable as disable_backups,
+    enable as enable_backups, instance_config as get_backup_config,
+    instance_delete_summary as get_backup_delete_summary,
+    list_snapshots as list_backup_snapshots,
+    list_top_level_directories as list_backup_directories,
+    move_repository as move_backup_repository, new_backup_operation,
+    repository_status as get_backup_repository_status, restore_snapshot,
+    update_selections as update_backup_selections,
+};
+pub(crate) use self::backup::{
+    delete_instance_backups, lock_instance_maintenance,
+};
 pub(crate) use self::content::resolve_content_change_actions;
 pub use self::content::{
     apply_content_update_plan, get_content_items, get_content_items_by_paths,
