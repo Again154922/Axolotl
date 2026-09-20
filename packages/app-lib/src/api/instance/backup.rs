@@ -588,6 +588,9 @@ pub async fn list_operations(
 }
 
 pub async fn has_active_operations() -> crate::Result<bool> {
+    if !ACTIVE_INSTANCE_OPERATIONS.is_empty() {
+        return Ok(true);
+    }
     Ok(!list_operations(None, true).await?.is_empty())
 }
 

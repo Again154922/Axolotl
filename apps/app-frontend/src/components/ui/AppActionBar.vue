@@ -516,6 +516,7 @@ const selectedProcess = ref<RunningProcess | undefined>()
 const activeBackupOperations = ref<BackupOperation[]>([])
 const backupInstanceNames = ref<Record<string, string>>({})
 const notifiedBackupOperations = new Set<string>()
+const eventActiveBackupOperations = new Set<string>()
 let backupRefreshGeneration = 0
 
 function backupOperationMessage(operationType: BackupOperation['operation_type']) {
@@ -589,9 +590,15 @@ async function refreshBackupOperations() {
 		return []
 	})
 	if (generation !== backupRefreshGeneration) return
-	activeBackupOperations.value = operations.filter((operation) =>
+	const listedOperations = operations.filter((operation) =>
 		['create', 'restore', 'restore_preview', 'repository_move'].includes(operation.operation_type),
 	)
+	const eventOperations = activeBackupOperations.value.filter(
+		(operation) =>
+			eventActiveBackupOperations.has(operation.id) &&
+			!listedOperations.some((listed) => listed.id === operation.id),
+	)
+	activeBackupOperations.value = [...listedOperations, ...eventOperations]
 	const instanceIds = Array.from(
 		new Set(
 			activeBackupOperations.value
@@ -646,12 +653,17 @@ function applyBackupProgress(event: BackupProgressEvent) {
 	if (!['create', 'restore', 'restore_preview', 'repository_move'].includes(event.operationType))
 		return
 	if (event.finalState || ['completed', 'cancelled', 'failed'].includes(event.stage)) {
+		eventActiveBackupOperations.delete(event.operationId)
+		activeBackupOperations.value = activeBackupOperations.value.filter(
+			(operation) => operation.id !== event.operationId,
+		)
 		void notifyBackupResult(event)
 		void refreshBackupOperations()
 		return
 	}
 	const state: BackupOperation['state'] =
 		event.stage === 'copying' || event.stage === 'restoring' ? 'materializing' : event.stage
+	eventActiveBackupOperations.add(event.operationId)
 	const existing = activeBackupOperations.value.find(
 		(operation) => operation.id === event.operationId,
 	)
@@ -660,7 +672,19 @@ function applyBackupProgress(event: BackupProgressEvent) {
 		existing.processed_bytes = event.processedBytes
 		existing.total_bytes = event.totalBytes
 	} else {
-		void refreshBackupOperations()
+		activeBackupOperations.value.push({
+			id: event.operationId,
+			operation_type: event.operationType,
+			instance_id: event.instanceId ?? '__backup_repository__',
+			snapshot_id: event.snapshotId,
+			state,
+			processed_bytes: event.processedBytes,
+			total_bytes: event.totalBytes,
+			cancellable: ['scanning', 'hashing'].includes(event.stage),
+			cancel_requested: false,
+			created_at: Date.now(),
+			updated_at: Date.now(),
+		})
 	}
 }
 
