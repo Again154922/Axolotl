@@ -547,13 +547,33 @@ async fn toggle_decorations(b: bool, window: tauri::Window) -> api::Result<()> {
 }
 
 #[tauri::command]
-fn restart_app(app: tauri::AppHandle) {
-    app.restart();
+async fn restart_app(app: tauri::AppHandle) -> api::Result<()> {
+    if theseus::State::initialized()
+        && theseus::instance::has_active_backup_operations().await?
+    {
+        return Err(theseus::Error::from(theseus::ErrorKind::InputError(
+            "Backup operations are still running".to_string(),
+        ))
+        .into());
+    }
+    app.restart()
 }
 
 #[tauri::command]
-fn exit_app(app: tauri::AppHandle) {
+async fn exit_app(app: tauri::AppHandle, force: bool) -> api::Result<()> {
+    if theseus::State::initialized()
+        && theseus::instance::has_active_backup_operations().await?
+    {
+        if !force {
+            return Err(theseus::Error::from(theseus::ErrorKind::InputError(
+                "Backup operations are still running".to_string(),
+            ))
+            .into());
+        }
+        theseus::instance::interrupt_active_backup_operations().await?;
+    }
     app.exit(0);
+    Ok(())
 }
 
 #[tauri::command]

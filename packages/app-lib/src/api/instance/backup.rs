@@ -490,6 +490,26 @@ pub async fn has_active_operations() -> crate::Result<bool> {
     Ok(!list_operations(None, true).await?.is_empty())
 }
 
+pub async fn interrupt_active_operations() -> crate::Result<u64> {
+    let state = State::get().await?;
+    let Some((_, pool)) = open_repository(&state, false).await? else {
+        return Ok(0);
+    };
+    let now = Utc::now().timestamp_millis();
+    let result = sqlx::query(
+        "UPDATE backup_operations SET state = 'interrupted', cancellable = 0,
+		 error = COALESCE(error, 'The launcher exited while the operation was running'),
+		 updated_at = ?, finished_at = ?
+		 WHERE state NOT IN ('completed', 'cancelled', 'failed', 'interrupted')",
+    )
+    .bind(now)
+    .bind(now)
+    .execute(&pool)
+    .await?;
+    pool.close().await;
+    Ok(result.rows_affected())
+}
+
 fn normalize_relative_directory(path: &str) -> crate::Result<String> {
     let normalized = path.trim().replace('\\', "/");
     if normalized.is_empty() || normalized == "." {
@@ -2073,15 +2093,15 @@ pub async fn maintain_repository() -> crate::Result<()> {
     };
     let now = Utc::now().timestamp_millis();
     sqlx::query(
-		"UPDATE backup_operations SET state = 'interrupted', cancellable = 0,
+        "UPDATE backup_operations SET state = 'interrupted', cancellable = 0,
 		 error = COALESCE(error, 'The launcher exited while the operation was running'),
 		 updated_at = ?, finished_at = ?
 		 WHERE state NOT IN ('completed', 'cancelled', 'failed', 'interrupted')",
-	)
-	.bind(now)
-	.bind(now)
-	.execute(&pool)
-	.await?;
+    )
+    .bind(now)
+    .bind(now)
+    .execute(&pool)
+    .await?;
     run_gc(&repository, &pool).await?;
 
     let pending: Vec<String> = sqlx::query_scalar(

@@ -37,6 +37,7 @@ pub use self::backup::{
     has_active_operations as has_active_backup_operations,
     instance_config as get_backup_config,
     instance_delete_summary as get_backup_delete_summary,
+    interrupt_active_operations as interrupt_active_backup_operations,
     list_operations as list_backup_operations,
     list_snapshots as list_backup_snapshots,
     maintain_repository as maintain_backup_repository,

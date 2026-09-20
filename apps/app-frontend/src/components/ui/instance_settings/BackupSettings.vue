@@ -16,6 +16,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { get_full_path } from '@/helpers/instance'
 import {
 	type BackupExclusion,
+	type BackupOperation,
+	type BackupOperationState,
 	type BackupProgressStage,
 	type BackupRestorePreview,
 	type BackupSnapshot,
@@ -28,6 +30,7 @@ import {
 	type InstanceBackupConfig,
 	type InstanceBackupEligibility,
 	listBackups,
+	listBackupOperations,
 	listenBackupProgress,
 	restoreBackup,
 	startBackup,
@@ -102,11 +105,28 @@ const messages = defineMessages({
 	},
 	stageHashing: { id: 'instance.backups.stage.hashing', defaultMessage: 'Hashing files' },
 	stageSaving: { id: 'instance.backups.stage.saving', defaultMessage: 'Saving snapshot index' },
+	stageQueued: { id: 'instance.backups.stage.queued', defaultMessage: 'Waiting to start' },
+	stageValidating: {
+		id: 'instance.backups.stage.validating',
+		defaultMessage: 'Validating restore',
+	},
+	stageMaterializing: {
+		id: 'instance.backups.stage.materializing',
+		defaultMessage: 'Preparing changed files',
+	},
+	stageApplying: {
+		id: 'instance.backups.stage.applying',
+		defaultMessage: 'Applying changed files',
+	},
 	progressBytes: {
 		id: 'instance.backups.progress-bytes',
 		defaultMessage: '{processed} of {total}',
 	},
 	stageFailed: { id: 'instance.backups.stage.failed', defaultMessage: 'Backup failed' },
+	stageInterrupted: {
+		id: 'instance.backups.stage.interrupted',
+		defaultMessage: 'Backup operation was interrupted',
+	},
 	snapshots: { id: 'instance.backups.snapshots', defaultMessage: 'Snapshots' },
 	empty: { id: 'instance.backups.empty', defaultMessage: 'No backups have been created yet.' },
 	snapshotMeta: {
@@ -142,11 +162,7 @@ const loading = ref(true)
 const editingExclusions = ref(false)
 const excludedPaths = ref<BackupExclusion[]>([])
 const action = ref<string | null>(null)
-const operationId = ref<string | null>(null)
-const operationStage = ref<BackupProgressStage | null>(null)
-const operationMessage = ref<string | null>(null)
-const operationProcessedBytes = ref(0)
-const operationTotalBytes = ref(0)
+const operation = ref<BackupOperation | null>(null)
 const selectedSnapshot = ref<BackupSnapshot | null>(null)
 const restorePreview = ref<BackupRestorePreview | null>(null)
 const deleteModal = ref<InstanceType<typeof NewModal>>()
@@ -154,10 +170,75 @@ const restoreModal = ref<InstanceType<typeof NewModal>>()
 let unlisten: (() => void) | null = null
 
 const eligible = computed(() => config.value?.eligibility === 'eligible')
-const isRunning = computed(() => operationId.value !== null)
-const canCancel = computed(() =>
-	operationStage.value === 'scanning' || operationStage.value === 'hashing',
+const terminalStates: BackupOperationState[] = ['completed', 'cancelled', 'failed', 'interrupted']
+const isRunning = computed(
+	() => operation.value !== null && !terminalStates.includes(operation.value.state),
 )
+const canCancel = computed(() => operation.value?.cancellable === true)
+const operationLabel = computed(() => {
+	switch (operation.value?.state) {
+		case 'queued':
+			return formatMessage(messages.stageQueued)
+		case 'hashing':
+			return formatMessage(messages.stageHashing)
+		case 'saving':
+			return formatMessage(messages.stageSaving)
+		case 'validating':
+			return formatMessage(messages.stageValidating)
+		case 'materializing':
+			return formatMessage(messages.stageMaterializing)
+		case 'applying':
+			return formatMessage(messages.stageApplying)
+		default:
+			return formatMessage(messages.stageScanning)
+	}
+})
+
+function operationFromEvent(event: {
+	operationId: string
+	operationType: BackupOperation['operation_type']
+	instanceId?: string
+	stage: BackupProgressStage
+	processedBytes: number
+	totalBytes: number
+	snapshotId?: string
+	message?: string
+}): BackupOperation {
+	const now = Date.now()
+	const state: BackupOperationState =
+		event.stage === 'restoring' || event.stage === 'copying'
+			? 'materializing'
+			: event.stage === 'deleting'
+				? 'queued'
+				: event.stage
+	return {
+		id: event.operationId,
+		operation_type: event.operationType,
+		instance_id: event.instanceId ?? instance.value.id,
+		snapshot_id: event.snapshotId,
+		state,
+		processed_bytes: event.processedBytes,
+		total_bytes: event.totalBytes,
+		cancellable: event.stage === 'scanning' || event.stage === 'hashing',
+		error: event.message,
+		created_at: operation.value?.id === event.operationId ? operation.value.created_at : now,
+		updated_at: now,
+		finished_at: ['completed', 'cancelled', 'failed'].includes(event.stage) ? now : undefined,
+	}
+}
+
+async function refreshOperation() {
+	const operations = await listBackupOperations(instance.value.id)
+	const latest = operations[0] ?? null
+	operation.value =
+		latest && (isRunningState(latest.state) || ['failed', 'interrupted'].includes(latest.state))
+			? latest
+			: null
+}
+
+function isRunningState(state: BackupOperationState) {
+	return !terminalStates.includes(state)
+}
 
 const eligibilityMessages: Record<
 	Exclude<InstanceBackupEligibility, 'eligible'>,
@@ -189,6 +270,7 @@ async function refresh() {
 		])
 		instanceRoot.value = nextRoot
 		snapshots.value = nextSnapshots
+		await refreshOperation()
 	} catch (error) {
 		handleError(error)
 	} finally {
@@ -228,18 +310,25 @@ function saveExclusions() {
 
 function start() {
 	void runAction('start', async () => {
-		operationStage.value = 'scanning'
-		operationMessage.value = null
-		operationProcessedBytes.value = 0
-		operationTotalBytes.value = 0
-		operationId.value = await startBackup(instance.value.id)
+		const id = await startBackup(instance.value.id)
+		operation.value = {
+			id,
+			operation_type: 'create',
+			instance_id: instance.value.id,
+			state: 'queued',
+			processed_bytes: 0,
+			total_bytes: 0,
+			cancellable: true,
+			created_at: Date.now(),
+			updated_at: Date.now(),
+		}
 	})
 }
 
 function cancel() {
-	if (!operationId.value || !canCancel.value) return
+	if (!operation.value || !canCancel.value) return
 	void runAction('cancel', async () => {
-		await cancelBackup(operationId.value!)
+		await cancelBackup(operation.value!.id)
 	})
 }
 
@@ -270,7 +359,19 @@ function removeSnapshot() {
 function restoreSnapshot() {
 	if (!selectedSnapshot.value || !restorePreview.value) return
 	void runAction(`restore:${selectedSnapshot.value.id}`, async () => {
-		await restoreBackup(selectedSnapshot.value!.id, restorePreview.value!.plan_token)
+		const id = await restoreBackup(selectedSnapshot.value!.id, restorePreview.value!.plan_token)
+		operation.value = {
+			id,
+			operation_type: 'restore',
+			instance_id: instance.value.id,
+			snapshot_id: selectedSnapshot.value!.id,
+			state: 'queued',
+			processed_bytes: 0,
+			total_bytes: selectedSnapshot.value!.logical_size,
+			cancellable: true,
+			created_at: Date.now(),
+			updated_at: Date.now(),
+		}
 		restoreModal.value?.hide()
 		selectedSnapshot.value = null
 		restorePreview.value = null
@@ -286,14 +387,13 @@ function disable() {
 
 onMounted(async () => {
 	unlisten = await listenBackupProgress((event) => {
-		if (event.operationType !== 'create' || event.instanceId !== instance.value.id) return
-		operationId.value = event.operationId
-		operationStage.value = event.stage
-		operationMessage.value = event.message ?? null
-		operationProcessedBytes.value = event.processedBytes
-		operationTotalBytes.value = event.totalBytes
+		if (
+			!['create', 'restore'].includes(event.operationType) ||
+			event.instanceId !== instance.value.id
+		)
+			return
+		operation.value = operationFromEvent(event)
 		if (['completed', 'cancelled', 'failed'].includes(event.stage)) {
-			operationId.value = null
 			void refresh()
 		}
 	})
@@ -382,27 +482,27 @@ watch(
 						</ButtonStyled>
 					</div>
 					<p v-if="isRunning" class="m-0 text-sm font-medium text-contrast">
-						{{
-							formatMessage(
-								operationStage === 'saving'
-									? messages.stageSaving
-									: operationStage === 'hashing'
-										? messages.stageHashing
-										: messages.stageScanning,
-							)
-						}}
-						<span v-if="operationTotalBytes > 0" class="ml-2 text-secondary">
+						{{ operationLabel }}
+						<span v-if="(operation?.total_bytes ?? 0) > 0" class="ml-2 text-secondary">
 							{{
 								formatMessage(messages.progressBytes, {
-									processed: formatBytes(operationProcessedBytes),
-									total: formatBytes(operationTotalBytes),
+									processed: formatBytes(operation?.processed_bytes ?? 0),
+									total: formatBytes(operation?.total_bytes ?? 0),
 								})
 							}}
 						</span>
 					</p>
-					<p v-else-if="operationStage === 'failed'" class="m-0 text-sm text-red">
-						{{ formatMessage(messages.stageFailed)
-						}}<span v-if="operationMessage">: {{ operationMessage }}</span>
+					<p
+						v-else-if="operation?.state === 'failed' || operation?.state === 'interrupted'"
+						class="m-0 text-sm text-red"
+					>
+						{{
+							formatMessage(
+								operation.state === 'interrupted'
+									? messages.stageInterrupted
+									: messages.stageFailed,
+							)
+						}}<span v-if="operation.error">: {{ operation.error }}</span>
 					</p>
 				</div>
 
