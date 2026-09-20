@@ -51,7 +51,7 @@
     "message": "{operation}失败"
   },
   "app.action-bar.backup-stage": {
-    "message": "{stage}"
+    "message": "处理中：{stage}"
   },
   "app.action-bar.backup-stage.queued": { "message": "排队中" },
   "app.action-bar.backup-stage.scanning": { "message": "正在扫描文件" },
