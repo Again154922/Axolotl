@@ -830,6 +830,27 @@
   "app.close-launcher.tray": {
     "message": "隐藏至托盘"
   },
+  "app.backup-exit.title": {
+    "message": "备份任务仍在运行"
+  },
+  "app.backup-exit.body": {
+    "message": "仍有 {count} 个备份任务在运行。请保持启动器打开，或将其隐藏到托盘以等待任务完成。"
+  },
+  "app.backup-exit.return": {
+    "message": "返回启动器"
+  },
+  "app.backup-exit.tray": {
+    "message": "隐藏到托盘"
+  },
+  "app.backup-exit.cancel": {
+    "message": "取消任务并退出"
+  },
+  "app.backup-exit.force": {
+    "message": "强制退出"
+  },
+  "app.backup-exit.timeout": {
+    "message": "等待备份任务停止超时。"
+  },
   "app.community-announcement.feedback-middle": {
     "message": "，或在 "
   },
@@ -10901,11 +10922,26 @@
   "instance.backups.stage.failed": {
     "message": "备份失败"
   },
+  "instance.backups.stage.interrupted": {
+    "message": "备份任务已中断"
+  },
   "instance.backups.stage.hashing": {
     "message": "正在计算文件哈希"
   },
+  "instance.backups.stage.queued": {
+    "message": "等待开始"
+  },
   "instance.backups.stage.saving": {
     "message": "正在保存快照索引"
+  },
+  "instance.backups.stage.validating": {
+    "message": "正在验证恢复任务"
+  },
+  "instance.backups.stage.materializing": {
+    "message": "正在准备变更文件"
+  },
+  "instance.backups.stage.applying": {
+    "message": "正在应用变更文件"
   },
   "instance.backups.stage.scanning": {
     "message": "正在扫描文件"

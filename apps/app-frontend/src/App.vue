@@ -982,6 +982,10 @@ const messages = defineMessages({
 		defaultMessage: 'Cancel tasks and exit',
 	},
 	backupExitForce: { id: 'app.backup-exit.force', defaultMessage: 'Force exit' },
+	backupExitTimeout: {
+		id: 'app.backup-exit.timeout',
+		defaultMessage: 'Timed out while waiting for backup operations to stop.',
+	},
 	betaBuild: {
 		id: 'app.build.beta',
 		defaultMessage: 'Beta',
@@ -1781,7 +1785,7 @@ async function cancelBackupsAndExit() {
 			}
 			await new Promise((resolve) => setTimeout(resolve, 100))
 		}
-		throw new Error('Timed out while waiting for backup operations to stop')
+		throw new Error(formatMessage(messages.backupExitTimeout))
 	} catch (error) {
 		closeRequestInProgress.value = false
 		handleError(error)

@@ -830,6 +830,27 @@
   "app.close-launcher.tray": {
     "message": "Hide to tray"
   },
+  "app.backup-exit.title": {
+    "message": "Backup operations are still running"
+  },
+  "app.backup-exit.body": {
+    "message": "{count, plural, one {# backup operation is} other {# backup operations are}} still running. Keep the launcher open or hide it to the tray to let them finish."
+  },
+  "app.backup-exit.return": {
+    "message": "Return to launcher"
+  },
+  "app.backup-exit.tray": {
+    "message": "Hide to tray"
+  },
+  "app.backup-exit.cancel": {
+    "message": "Cancel tasks and exit"
+  },
+  "app.backup-exit.force": {
+    "message": "Force exit"
+  },
+  "app.backup-exit.timeout": {
+    "message": "Timed out while waiting for backup operations to stop."
+  },
   "app.community-announcement.feedback-middle": {
     "message": ", or share them with us through "
   },
@@ -10886,11 +10907,26 @@
   "instance.backups.stage.failed": {
     "message": "Backup failed"
   },
+  "instance.backups.stage.interrupted": {
+    "message": "Backup operation was interrupted"
+  },
   "instance.backups.stage.hashing": {
     "message": "Hashing files"
   },
+  "instance.backups.stage.queued": {
+    "message": "Waiting to start"
+  },
   "instance.backups.stage.saving": {
     "message": "Saving snapshot index"
+  },
+  "instance.backups.stage.validating": {
+    "message": "Validating restore"
+  },
+  "instance.backups.stage.materializing": {
+    "message": "Preparing changed files"
+  },
+  "instance.backups.stage.applying": {
+    "message": "Applying changed files"
   },
   "instance.backups.stage.scanning": {
     "message": "Scanning files"
