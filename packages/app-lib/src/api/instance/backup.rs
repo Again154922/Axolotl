@@ -187,6 +187,15 @@ async fn open_repository(
     create: bool,
 ) -> crate::Result<Option<(PathBuf, SqlitePool)>> {
     let root = repository_path(state).await?;
+    Ok(open_repository_at(&root, create)
+        .await?
+        .map(|pool| (root, pool)))
+}
+
+async fn open_repository_at(
+    root: &Path,
+    create: bool,
+) -> crate::Result<Option<SqlitePool>> {
     let database = root.join(DATABASE_FILE);
     if !database.try_exists()? && !create {
         return Ok(None);
@@ -205,7 +214,7 @@ async fn open_repository(
         .connect_with(options)
         .await?;
     BACKUP_MIGRATOR.run(&pool).await?;
-    Ok(Some((root, pool)))
+    Ok(Some(pool))
 }
 
 fn normalize_relative_directory(path: &str) -> crate::Result<String> {
@@ -2282,6 +2291,101 @@ async fn apply_unix_mode(
     Ok(())
 }
 
+pub(crate) async fn move_default_repository_for_launcher_directory(
+    source: &Path,
+    destination: &Path,
+) -> crate::Result<Option<PathBuf>> {
+    if source == destination {
+        return Ok(None);
+    }
+    let source_exists = source.join(DATABASE_FILE).try_exists()?;
+    let destination_exists = destination.join(DATABASE_FILE).try_exists()?;
+    if destination_exists {
+        validate_repository_at(destination).await?;
+        if source_exists && source.try_exists()? {
+            return match io::remove_dir_all(source).await {
+                Ok(()) => Ok(None),
+                Err(error) => {
+                    tracing::warn!(
+                        path = %source.display(),
+                        %error,
+                        "Failed to remove the old default backup repository"
+                    );
+                    Ok(Some(source.to_path_buf()))
+                }
+            };
+        }
+        return Ok(None);
+    }
+    if !source_exists {
+        return Ok(None);
+    }
+    if destination.try_exists()? {
+        let mut entries = tokio::fs::read_dir(destination).await?;
+        if entries.next_entry().await?.is_some() {
+            return Err(crate::ErrorKind::DirectoryMoveError(format!(
+                "The default backup repository destination is not empty: {}",
+                destination.display()
+            ))
+            .into());
+        }
+    } else {
+        io::create_dir_all(destination).await?;
+    }
+    let destination_parent = destination.parent().ok_or_else(|| {
+        crate::ErrorKind::DirectoryMoveError(format!(
+            "The default backup repository destination has no parent: {}",
+            destination.display()
+        ))
+    })?;
+    io::create_dir_all(destination_parent).await?;
+    let pool = open_repository_at(source, false).await?.ok_or_else(|| {
+        crate::ErrorKind::FSError(
+            "The default backup repository disappeared during migration"
+                .to_string(),
+        )
+    })?;
+    sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+        .execute(&pool)
+        .await?;
+    pool.close().await;
+
+    if io::is_same_disk(source, destination_parent).unwrap_or(false) {
+        tokio::fs::remove_dir(destination).await?;
+        tokio::fs::rename(source, destination).await?;
+        return Ok(None);
+    }
+
+    let temporary = destination_parent
+        .join(format!(".axolotl-backup-move-{}", Uuid::new_v4()));
+    let copy_result: crate::Result<()> = async {
+        io::copy_dir(source, &temporary).await?;
+        validate_repository_at(&temporary).await?;
+        tokio::fs::remove_dir(destination).await?;
+        tokio::fs::rename(&temporary, destination).await?;
+        Ok(())
+    }
+    .await;
+    if let Err(error) = copy_result {
+        let _ = io::remove_dir_all(&temporary).await;
+        if !destination.try_exists()? {
+            let _ = io::create_dir_all(destination).await;
+        }
+        return Err(error);
+    }
+    match io::remove_dir_all(source).await {
+        Ok(()) => Ok(None),
+        Err(error) => {
+            tracing::warn!(
+                path = %source.display(),
+                %error,
+                "Failed to remove the old default backup repository"
+            );
+            Ok(Some(source.to_path_buf()))
+        }
+    }
+}
+
 pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
@@ -2583,6 +2687,34 @@ mod tests {
 
         let error = validate_repository_at(temp.path()).await.unwrap_err();
         assert!(error.to_string().contains("foreign key check"));
+    }
+
+    #[tokio::test]
+    async fn default_repository_follows_launcher_directory_move_idempotently() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("old/Backups/instances");
+        let destination = temp.path().join("new/Backups/instances");
+        let pool = open_repository_at(&source, true).await.unwrap().unwrap();
+        pool.close().await;
+
+        let pending = move_default_repository_for_launcher_directory(
+            &source,
+            &destination,
+        )
+        .await
+        .unwrap();
+        assert!(pending.is_none());
+        assert!(!source.exists());
+        validate_repository_at(&destination).await.unwrap();
+
+        let repeated = move_default_repository_for_launcher_directory(
+            &source,
+            &destination,
+        )
+        .await
+        .unwrap();
+        assert!(repeated.is_none());
+        validate_repository_at(&destination).await.unwrap();
     }
 
     #[tokio::test]
