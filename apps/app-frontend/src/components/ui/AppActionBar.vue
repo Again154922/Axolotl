@@ -276,7 +276,7 @@ import type { GameInstance } from '@/helpers/types'
 import { downloadBarTypes, injectDownloadManager } from '@/providers/download-manager'
 
 const notificationManager = injectNotificationManager()
-const { handleError } = notificationManager
+const { addNotification, handleError } = notificationManager
 const popupNotificationManager = injectPopupNotificationManager()
 const downloadManager = injectDownloadManager()
 const { formatMessage } = useVIntl()
@@ -454,6 +454,40 @@ const messages = defineMessages({
 		id: 'app.action-bar.restore',
 		defaultMessage: 'Restoring backup',
 	},
+	restorePreview: {
+		id: 'app.action-bar.restore-preview',
+		defaultMessage: 'Analyzing restore',
+	},
+	repositoryMove: {
+		id: 'app.action-bar.repository-move',
+		defaultMessage: 'Moving backup repository',
+	},
+	repository: {
+		id: 'app.action-bar.repository',
+		defaultMessage: 'Backup repository',
+	},
+	backupTask: { id: 'app.action-bar.backup-task.backup', defaultMessage: 'Backup' },
+	restoreTask: { id: 'app.action-bar.backup-task.restore', defaultMessage: 'Backup restore' },
+	restorePreviewTask: {
+		id: 'app.action-bar.backup-task.restore-preview',
+		defaultMessage: 'Restore analysis',
+	},
+	repositoryMoveTask: {
+		id: 'app.action-bar.backup-task.repository-move',
+		defaultMessage: 'Backup repository move',
+	},
+	taskCompleted: {
+		id: 'app.action-bar.backup-task.completed',
+		defaultMessage: '{operation} completed',
+	},
+	taskCancelled: {
+		id: 'app.action-bar.backup-task.cancelled',
+		defaultMessage: '{operation} cancelled',
+	},
+	taskFailed: {
+		id: 'app.action-bar.backup-task.failed',
+		defaultMessage: '{operation} failed',
+	},
 	backupStage: {
 		id: 'app.action-bar.backup-stage',
 		defaultMessage: '{stage}',
@@ -481,13 +515,42 @@ const currentProcesses = ref<RunningProcess[]>([])
 const selectedProcess = ref<RunningProcess | undefined>()
 const activeBackupOperations = ref<BackupOperation[]>([])
 const backupInstanceNames = ref<Record<string, string>>({})
+const notifiedBackupOperations = new Set<string>()
+let backupRefreshGeneration = 0
+
+function backupOperationMessage(operationType: BackupOperation['operation_type']) {
+	switch (operationType) {
+		case 'restore':
+			return messages.restore
+		case 'restore_preview':
+			return messages.restorePreview
+		case 'repository_move':
+			return messages.repositoryMove
+		default:
+			return messages.backup
+	}
+}
+
+function backupResultOperationMessage(operationType: BackupOperation['operation_type']) {
+	switch (operationType) {
+		case 'restore':
+			return messages.restoreTask
+		case 'restore_preview':
+			return messages.restorePreviewTask
+		case 'repository_move':
+			return messages.repositoryMoveTask
+		default:
+			return messages.backupTask
+	}
+}
 
 function backupInstanceName(instanceId: string): string {
+	if (instanceId === '__backup_repository__') return formatMessage(messages.repository)
 	return backupInstanceNames.value[instanceId] ?? instanceId
 }
 
 function backupOperationTitle(operation: BackupOperation): string {
-	return formatMessage(operation.operation_type === 'restore' ? messages.restore : messages.backup)
+	return formatMessage(backupOperationMessage(operation.operation_type))
 }
 
 function backupOperationProgress(operation: BackupOperation): string {
@@ -512,19 +575,29 @@ function backupOperationProgress(operation: BackupOperation): string {
 }
 
 function openBackupOperation(operation: BackupOperation) {
+	if (operation.operation_type === 'repository_move') {
+		router.push('/settings#storage-backups')
+		return
+	}
 	router.push(`/instance/${encodeURIComponent(operation.instance_id)}`)
 }
 
 async function refreshBackupOperations() {
+	const generation = ++backupRefreshGeneration
 	const operations = await listBackupOperations(undefined, true).catch((error) => {
 		handleError(error)
 		return []
 	})
-	activeBackupOperations.value = operations.filter(
-		(operation) => operation.operation_type === 'create' || operation.operation_type === 'restore',
+	if (generation !== backupRefreshGeneration) return
+	activeBackupOperations.value = operations.filter((operation) =>
+		['create', 'restore', 'restore_preview', 'repository_move'].includes(operation.operation_type),
 	)
 	const instanceIds = Array.from(
-		new Set(activeBackupOperations.value.map((operation) => operation.instance_id)),
+		new Set(
+			activeBackupOperations.value
+				.filter((operation) => operation.operation_type !== 'repository_move')
+				.map((operation) => operation.instance_id),
+		),
 	)
 	if (!instanceIds.length) {
 		backupInstanceNames.value = {}
@@ -534,14 +607,46 @@ async function refreshBackupOperations() {
 		handleError(error)
 		return []
 	})
+	if (generation !== backupRefreshGeneration) return
 	backupInstanceNames.value = Object.fromEntries(
 		instances.map((instance) => [instance.id, instance.name]),
 	)
 }
 
+async function notifyBackupResult(event: BackupProgressEvent) {
+	if (!event.finalState || notifiedBackupOperations.has(event.operationId)) return
+	notifiedBackupOperations.add(event.operationId)
+	let instanceName = event.instanceId ? backupInstanceNames.value[event.instanceId] : undefined
+	if (event.instanceId && !instanceName) {
+		const instances = await getInstances([event.instanceId]).catch(() => [])
+		instanceName = instances[0]?.name
+	}
+	const operation = formatMessage(backupResultOperationMessage(event.operationType))
+	const resultMessage =
+		event.finalState === 'completed'
+			? messages.taskCompleted
+			: event.finalState === 'cancelled'
+				? messages.taskCancelled
+				: messages.taskFailed
+	addNotification({
+		title: formatMessage(resultMessage, { operation }),
+		text: [instanceName, event.finalState === 'failed' ? event.message : undefined]
+			.filter(Boolean)
+			.join(': '),
+		type:
+			event.finalState === 'completed'
+				? 'success'
+				: event.finalState === 'cancelled'
+					? 'info'
+					: 'error',
+	})
+}
+
 function applyBackupProgress(event: BackupProgressEvent) {
-	if (!['create', 'restore'].includes(event.operationType)) return
+	if (!['create', 'restore', 'restore_preview', 'repository_move'].includes(event.operationType))
+		return
 	if (event.finalState || ['completed', 'cancelled', 'failed'].includes(event.stage)) {
+		void notifyBackupResult(event)
 		void refreshBackupOperations()
 		return
 	}
@@ -587,6 +692,7 @@ const refresh = async () => {
 	}
 }
 
+const unlistenBackup = await listenBackupProgress(applyBackupProgress)
 await refresh()
 await refreshBackupOperations()
 
@@ -595,7 +701,6 @@ const { offline } = useNetworkStatus()
 const unlistenProcess = await process_listener(async () => {
 	await refresh()
 })
-const unlistenBackup = await listenBackupProgress(applyBackupProgress)
 
 const stop = async (process: RunningProcess) => {
 	try {

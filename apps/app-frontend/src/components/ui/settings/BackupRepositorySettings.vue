@@ -97,9 +97,6 @@ onMounted(async () => {
 		moving.value = !event.finalState
 		movedBytes.value = event.processedBytes
 		moveTotalBytes.value = event.totalBytes
-		if (event.finalState === 'failed' && event.message) {
-			handleError(new Error(event.message))
-		}
 		if (event.finalState) void refresh()
 	})
 	const activeMove = (await listBackupOperations(undefined, true)).find(

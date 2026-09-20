@@ -20,6 +20,36 @@
   "app.action-bar.restore": {
     "message": "正在恢复备份"
   },
+  "app.action-bar.restore-preview": {
+    "message": "正在分析恢复变更"
+  },
+  "app.action-bar.repository-move": {
+    "message": "正在移动备份仓库"
+  },
+  "app.action-bar.repository": {
+    "message": "备份仓库"
+  },
+  "app.action-bar.backup-task.completed": {
+    "message": "{operation}已完成"
+  },
+  "app.action-bar.backup-task.backup": {
+    "message": "备份"
+  },
+  "app.action-bar.backup-task.restore": {
+    "message": "备份恢复"
+  },
+  "app.action-bar.backup-task.restore-preview": {
+    "message": "恢复分析"
+  },
+  "app.action-bar.backup-task.repository-move": {
+    "message": "备份仓库移动"
+  },
+  "app.action-bar.backup-task.cancelled": {
+    "message": "{operation}已取消"
+  },
+  "app.action-bar.backup-task.failed": {
+    "message": "{operation}失败"
+  },
   "app.action-bar.backup-stage": {
     "message": "{stage}"
   },
