@@ -27,10 +27,12 @@ pub(crate) mod synced_servers;
 mod upgrade;
 
 pub use self::backup::{
-    BackupDeleteSummary, BackupDirectoryEntry, BackupRepositoryStatus,
-    BackupSnapshot, InstanceBackupConfig, InstanceBackupEligibility,
-    cancel_backup, delete_snapshot as delete_backup_snapshot,
-    disable as disable_backups, enable as enable_backups,
+    BackupDeleteSummary, BackupDirectoryEntry, BackupExclusion,
+    BackupExclusionKind, BackupRepositoryStatus, BackupSnapshot,
+    InstanceBackupConfig, InstanceBackupEligibility, cancel_backup,
+    delete_snapshot as delete_backup_snapshot, disable as disable_backups,
+    enable as enable_backups,
+    exclusion_from_absolute_path as get_backup_exclusion_from_path,
     instance_config as get_backup_config,
     instance_delete_summary as get_backup_delete_summary,
     list_snapshots as list_backup_snapshots,
@@ -39,7 +41,7 @@ pub use self::backup::{
     move_repository as move_backup_repository,
     repository_status as get_backup_repository_status, restore_snapshot,
     start_snapshot as start_backup_snapshot,
-    update_selections as update_backup_selections,
+    update_exclusions as update_backup_exclusions,
 };
 pub(crate) use self::backup::{
     begin_instance_deletion, cancel_instance_deletion, delete_instance_backups,

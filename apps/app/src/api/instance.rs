@@ -31,8 +31,9 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_move_backup_repository,
             instance_get_backup_config,
             instance_list_backup_directories,
+            instance_normalize_backup_exclusion,
             instance_enable_backups,
-            instance_update_backup_selections,
+            instance_update_backup_exclusions,
             instance_disable_backups,
             instance_start_backup,
             instance_cancel_backup,
@@ -850,24 +851,37 @@ pub async fn instance_list_backup_directories(
 #[tauri::command]
 pub async fn instance_enable_backups(
     instance_id: &str,
-    selected_directories: Vec<String>,
+    excluded_paths: Vec<theseus::instance::BackupExclusion>,
 ) -> Result<theseus::instance::InstanceBackupConfig> {
-    Ok(
-        theseus::instance::enable_backups(instance_id, selected_directories)
-            .await?,
-    )
+    Ok(theseus::instance::enable_backups(instance_id, excluded_paths).await?)
 }
 
 #[tauri::command]
-pub async fn instance_update_backup_selections(
+pub async fn instance_normalize_backup_exclusion(
     instance_id: &str,
-    selected_directories: Vec<String>,
-) -> Result<theseus::instance::InstanceBackupConfig> {
-    Ok(theseus::instance::update_backup_selections(
+    selected_path: PathBuf,
+    kind: theseus::instance::BackupExclusionKind,
+) -> Result<theseus::instance::BackupExclusion> {
+    Ok(theseus::instance::get_backup_exclusion_from_path(
         instance_id,
-        selected_directories,
+        selected_path,
+        kind,
     )
     .await?)
+}
+
+#[tauri::command]
+pub async fn instance_update_backup_exclusions(
+    instance_id: &str,
+    excluded_paths: Vec<theseus::instance::BackupExclusion>,
+) -> Result<theseus::instance::InstanceBackupConfig> {
+    Ok(
+        theseus::instance::update_backup_exclusions(
+            instance_id,
+            excluded_paths,
+        )
+        .await?,
+    )
 }
 
 #[tauri::command]

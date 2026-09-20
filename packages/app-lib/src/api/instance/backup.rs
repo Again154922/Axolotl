@@ -35,6 +35,7 @@ const OBJECTS_DIR: &str = "objects";
 const STAGING_DIR: &str = ".staging";
 const RESTORE_PREFIX: &str = ".backup-restore-";
 const RESTORE_JOURNAL: &str = "restore.json";
+const RESTORE_COMMITTED: &str = "committed";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -73,8 +74,30 @@ pub struct InstanceBackupConfig {
     pub instance_id: String,
     pub enabled: bool,
     pub eligibility: InstanceBackupEligibility,
-    pub selected_directories: Vec<String>,
+    pub excluded_paths: Vec<BackupExclusion>,
     pub snapshot_count: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupExclusionKind {
+    File,
+    Directory,
+}
+
+impl BackupExclusionKind {
+    const fn as_str(&self) -> &'static str {
+        match self {
+            Self::File => "file",
+            Self::Directory => "directory",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+pub struct BackupExclusion {
+    pub path: String,
+    pub kind: BackupExclusionKind,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -124,16 +147,14 @@ impl EntryKind {
     }
 }
 
-#[derive(Clone, Debug)]
-struct SnapshotRoot {
-    path: String,
-    existed: bool,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 struct RestoreJournal {
     instance_id: String,
     roots: Vec<RestoreJournalRoot>,
+    #[serde(default)]
+    whole_root: bool,
+    #[serde(default)]
+    exclusions: Vec<BackupExclusion>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -234,30 +255,62 @@ fn normalize_relative_directory(path: &str) -> crate::Result<String> {
     Ok(parts.join("/"))
 }
 
-fn canonicalize_selections(paths: Vec<String>) -> crate::Result<Vec<String>> {
-    let mut normalized = paths
+fn canonicalize_exclusions(
+    exclusions: Vec<BackupExclusion>,
+) -> crate::Result<Vec<BackupExclusion>> {
+    let mut normalized = exclusions
         .into_iter()
-        .map(|path| normalize_relative_directory(&path))
+        .map(|exclusion| {
+            Ok(BackupExclusion {
+                path: normalize_relative_directory(&exclusion.path)?,
+                kind: exclusion.kind,
+            })
+        })
         .collect::<crate::Result<Vec<_>>>()?;
-    normalized.sort_by_key(|path| (path.matches('/').count(), path.clone()));
-    normalized.dedup();
-    let mut result: Vec<String> = Vec::new();
-    for path in normalized {
-        if result
-            .iter()
-            .any(|parent| path.starts_with(&format!("{parent}/")))
+    normalized.sort_by(|left, right| {
+        left.path
+            .matches('/')
+            .count()
+            .cmp(&right.path.matches('/').count())
+            .then_with(|| left.path.cmp(&right.path))
+    });
+    let mut result: Vec<BackupExclusion> = Vec::new();
+    for exclusion in normalized {
+        if let Some(existing) = result
+            .iter_mut()
+            .find(|existing| existing.path == exclusion.path)
         {
+            if exclusion.kind == BackupExclusionKind::Directory {
+                existing.kind = BackupExclusionKind::Directory;
+            }
             continue;
         }
-        result.push(path);
+        if result.iter().any(|parent| {
+            parent.kind == BackupExclusionKind::Directory
+                && exclusion.path.starts_with(&format!("{}/", parent.path))
+        }) {
+            continue;
+        }
+        result.push(exclusion);
     }
-    if result.is_empty() {
-        return Err(crate::ErrorKind::InputError(
-            "Select at least one directory to back up".to_string(),
+    Ok(result)
+}
+
+fn ensure_canonical_exclusions(
+    exclusions: &[BackupExclusion],
+) -> crate::Result<()> {
+    let canonical = canonicalize_exclusions(exclusions.to_vec())?;
+    if canonical.len() != exclusions.len()
+        || exclusions
+            .iter()
+            .any(|exclusion| !canonical.contains(exclusion))
+    {
+        return Err(crate::ErrorKind::FSError(
+            "Invalid backup exclusion paths".to_string(),
         )
         .into());
     }
-    Ok(result)
+    Ok(())
 }
 
 async fn instance_and_root(
@@ -321,26 +374,49 @@ async fn require_eligible(
     Ok(instance_and_root(instance_id, state).await?.1)
 }
 
-async fn validate_selection_paths(
+async fn validate_exclusion_paths(
     root: &Path,
-    paths: Vec<String>,
-) -> crate::Result<Vec<String>> {
-    let paths = canonicalize_selections(paths)?;
-    for path in &paths {
-        let absolute = join_relative(root, path);
+    exclusions: Vec<BackupExclusion>,
+) -> crate::Result<Vec<BackupExclusion>> {
+    let exclusions = canonicalize_exclusions(exclusions)?;
+    validate_exclusion_ancestors(root, &exclusions).await?;
+    for exclusion in &exclusions {
+        let absolute = join_relative(root, &exclusion.path);
         match tokio::fs::symlink_metadata(&absolute).await {
             Ok(metadata) if io::is_symlink_or_reparse(&metadata) => {
-                let target_metadata = tokio::fs::metadata(&absolute).await;
-                if target_metadata.is_ok_and(|metadata| !metadata.is_dir()) {
-                    return Err(crate::ErrorKind::InputError(format!(
-                        "Backup selection is not a directory link: {path}"
-                    ))
-                    .into());
+                if let Ok(target) = tokio::fs::metadata(&absolute).await {
+                    let kind_matches = match exclusion.kind {
+                        BackupExclusionKind::File => target.is_file(),
+                        BackupExclusionKind::Directory => target.is_dir(),
+                    };
+                    if !kind_matches {
+                        return Err(crate::ErrorKind::InputError(format!(
+                            "Backup exclusion type does not match: {}",
+                            exclusion.path
+                        ))
+                        .into());
+                    }
                 }
             }
-            Ok(metadata) if !metadata.is_dir() => {
+            Ok(metadata)
+                if exclusion.kind == BackupExclusionKind::Directory
+                    && !metadata.is_dir()
+                    && !io::is_symlink_or_reparse(&metadata) =>
+            {
                 return Err(crate::ErrorKind::InputError(format!(
-                    "Backup selection is not a directory: {path}"
+                    "Backup exclusion is not a directory: {}",
+                    exclusion.path
+                ))
+                .into());
+            }
+            Ok(metadata)
+                if exclusion.kind == BackupExclusionKind::File
+                    && metadata.is_dir()
+                    && !io::is_symlink_or_reparse(&metadata) =>
+            {
+                return Err(crate::ErrorKind::InputError(format!(
+                    "Backup exclusion is not a file: {}",
+                    exclusion.path
                 ))
                 .into());
             }
@@ -349,7 +425,91 @@ async fn validate_selection_paths(
             Err(error) => return Err(error.into()),
         }
     }
-    Ok(paths)
+    Ok(exclusions)
+}
+
+pub async fn exclusion_from_absolute_path(
+    instance_id: &str,
+    selected_path: PathBuf,
+    kind: BackupExclusionKind,
+) -> crate::Result<BackupExclusion> {
+    if !selected_path.is_absolute() {
+        return Err(crate::ErrorKind::InputError(
+            "Backup exclusion must be selected by absolute path".to_string(),
+        )
+        .into());
+    }
+    let state = State::get().await?;
+    let root = require_eligible(instance_id, &state).await?;
+    let canonical_root = io::canonicalize(&root)?;
+    let name = selected_path.file_name().ok_or_else(|| {
+        crate::ErrorKind::InputError(
+            "The instance root cannot be excluded from its backup".to_string(),
+        )
+    })?;
+    let parent = selected_path.parent().ok_or_else(|| {
+        crate::ErrorKind::InputError(
+            "Backup exclusion has no parent directory".to_string(),
+        )
+    })?;
+    let canonical_parent = io::canonicalize(parent)?;
+    let relative_parent = canonical_parent
+        .strip_prefix(&canonical_root)
+        .map_err(|_| {
+            crate::ErrorKind::InputError(
+                "Backup exclusions must stay inside the instance".to_string(),
+            )
+        })?;
+    let relative = relative_parent.join(name);
+    let relative = relative
+        .to_str()
+        .ok_or_else(|| crate::ErrorKind::UTFError(relative.clone()))?
+        .replace('\\', "/");
+    let mut exclusions = validate_exclusion_paths(
+        &root,
+        vec![BackupExclusion {
+            path: relative,
+            kind,
+        }],
+    )
+    .await?;
+    Ok(exclusions.remove(0))
+}
+
+async fn validate_exclusion_ancestors(
+    root: &Path,
+    exclusions: &[BackupExclusion],
+) -> crate::Result<()> {
+    ensure_canonical_exclusions(exclusions)?;
+    for exclusion in exclusions {
+        let components: Vec<_> = exclusion.path.split('/').collect();
+        let mut current = root.to_path_buf();
+        for component in components.iter().take(components.len() - 1) {
+            current.push(component);
+            match tokio::fs::symlink_metadata(&current).await {
+                Ok(metadata) if io::is_symlink_or_reparse(&metadata) => {
+                    return Err(crate::ErrorKind::InputError(format!(
+                        "Backup exclusion has a linked parent: {}",
+                        exclusion.path
+                    ))
+                    .into());
+                }
+                Ok(metadata) if !metadata.is_dir() => {
+                    return Err(crate::ErrorKind::InputError(format!(
+                        "Backup exclusion parent is not a directory: {}",
+                        exclusion.path
+                    ))
+                    .into());
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    break;
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+    }
+    Ok(())
 }
 
 fn join_relative(root: &Path, relative: &str) -> PathBuf {
@@ -423,7 +583,7 @@ pub async fn instance_config(
             instance_id: instance_id.to_string(),
             enabled: false,
             eligibility,
-            selected_directories: Vec::new(),
+            excluded_paths: Vec::new(),
             snapshot_count: 0,
         });
     };
@@ -433,13 +593,21 @@ pub async fn instance_config(
     .bind(instance_id)
     .fetch_one(&pool)
     .await?;
-    let selected_directories = if enabled {
-        sqlx::query_scalar(
-            "SELECT path FROM backup_selections WHERE instance_id = ? ORDER BY path",
-        )
-        .bind(instance_id)
-        .fetch_all(&pool)
-        .await?
+    let excluded_paths = if enabled {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+			"SELECT path, kind FROM backup_exclusions WHERE instance_id = ? ORDER BY path",
+		)
+		.bind(instance_id)
+		.fetch_all(&pool)
+		.await?;
+        rows.into_iter()
+            .map(|(path, kind)| {
+                Ok(BackupExclusion {
+                    path,
+                    kind: parse_exclusion_kind(&kind)?,
+                })
+            })
+            .collect::<crate::Result<Vec<_>>>()?
     } else {
         Vec::new()
     };
@@ -454,9 +622,20 @@ pub async fn instance_config(
         instance_id: instance_id.to_string(),
         enabled,
         eligibility,
-        selected_directories,
+        excluded_paths,
         snapshot_count: snapshot_count.max(0) as u64,
     })
+}
+
+fn parse_exclusion_kind(value: &str) -> crate::Result<BackupExclusionKind> {
+    match value {
+        "file" => Ok(BackupExclusionKind::File),
+        "directory" => Ok(BackupExclusionKind::Directory),
+        _ => Err(crate::ErrorKind::FSError(format!(
+            "Unknown backup exclusion kind: {value}"
+        ))
+        .into()),
+    }
 }
 
 pub async fn list_top_level_directories(
@@ -521,13 +700,13 @@ pub async fn list_top_level_directories(
 
 pub async fn enable(
     instance_id: &str,
-    selected_directories: Vec<String>,
+    excluded_paths: Vec<BackupExclusion>,
 ) -> crate::Result<InstanceBackupConfig> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
     let root = require_eligible(instance_id, &state).await?;
-    let selected_directories =
-        validate_selection_paths(&root, selected_directories).await?;
+    let excluded_paths =
+        validate_exclusion_paths(&root, excluded_paths).await?;
     let (instance, _) = instance_and_root(instance_id, &state).await?;
     let (_, pool) = open_repository(&state, true).await?.ok_or_else(|| {
         crate::ErrorKind::OtherError(
@@ -550,18 +729,19 @@ pub async fn enable(
     .bind(now)
     .execute(&mut *tx)
     .await?;
-    sqlx::query("DELETE FROM backup_selections WHERE instance_id = ?")
+    sqlx::query("DELETE FROM backup_exclusions WHERE instance_id = ?")
         .bind(instance_id)
         .execute(&mut *tx)
         .await?;
-    for path in &selected_directories {
+    for exclusion in &excluded_paths {
         sqlx::query(
-            "INSERT INTO backup_selections (instance_id, path) VALUES (?, ?)",
-        )
-        .bind(instance_id)
-        .bind(path)
-        .execute(&mut *tx)
-        .await?;
+			"INSERT INTO backup_exclusions (instance_id, path, kind) VALUES (?, ?, ?)",
+		)
+		.bind(instance_id)
+		.bind(&exclusion.path)
+		.bind(exclusion.kind.as_str())
+		.execute(&mut *tx)
+		.await?;
     }
     tx.commit().await?;
     pool.close().await;
@@ -569,15 +749,15 @@ pub async fn enable(
     instance_config(instance_id).await
 }
 
-pub async fn update_selections(
+pub async fn update_exclusions(
     instance_id: &str,
-    selected_directories: Vec<String>,
+    excluded_paths: Vec<BackupExclusion>,
 ) -> crate::Result<InstanceBackupConfig> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
     let root = require_eligible(instance_id, &state).await?;
-    let selected_directories =
-        validate_selection_paths(&root, selected_directories).await?;
+    let excluded_paths =
+        validate_exclusion_paths(&root, excluded_paths).await?;
     let Some((_, pool)) = open_repository(&state, false).await? else {
         return Err(crate::ErrorKind::InputError(
             "Backups are not enabled for this instance".to_string(),
@@ -598,18 +778,19 @@ pub async fn update_selections(
         )
         .into());
     }
-    sqlx::query("DELETE FROM backup_selections WHERE instance_id = ?")
+    sqlx::query("DELETE FROM backup_exclusions WHERE instance_id = ?")
         .bind(instance_id)
         .execute(&mut *tx)
         .await?;
-    for path in &selected_directories {
+    for exclusion in &excluded_paths {
         sqlx::query(
-            "INSERT INTO backup_selections (instance_id, path) VALUES (?, ?)",
-        )
-        .bind(instance_id)
-        .bind(path)
-        .execute(&mut *tx)
-        .await?;
+			"INSERT INTO backup_exclusions (instance_id, path, kind) VALUES (?, ?, ?)",
+		)
+		.bind(instance_id)
+		.bind(&exclusion.path)
+		.bind(exclusion.kind.as_str())
+		.execute(&mut *tx)
+		.await?;
     }
     tx.commit().await?;
     pool.close().await;
@@ -775,18 +956,34 @@ async fn create_snapshot_inner(
         )
         .into());
     };
-    let selections: Vec<String> = sqlx::query_scalar(
-        "SELECT path FROM backup_selections WHERE instance_id = ? ORDER BY path",
-    )
-    .bind(instance_id)
-    .fetch_all(&pool)
-    .await?;
-    if selections.is_empty() {
+    let enabled: bool = sqlx::query_scalar(
+		"SELECT EXISTS(SELECT 1 FROM instance_backup_configs WHERE instance_id = ?)",
+	)
+	.bind(instance_id)
+	.fetch_one(&pool)
+	.await?;
+    if !enabled {
         return Err(crate::ErrorKind::InputError(
             "Backups are not enabled for this instance".to_string(),
         )
         .into());
     }
+    let exclusion_rows: Vec<(String, String)> = sqlx::query_as(
+		"SELECT path, kind FROM backup_exclusions WHERE instance_id = ? ORDER BY path",
+	)
+	.bind(instance_id)
+	.fetch_all(&pool)
+	.await?;
+    let exclusions = exclusion_rows
+        .into_iter()
+        .map(|(path, kind)| {
+            Ok(BackupExclusion {
+                path,
+                kind: parse_exclusion_kind(&kind)?,
+            })
+        })
+        .collect::<crate::Result<Vec<_>>>()?;
+    validate_exclusion_ancestors(&root, &exclusions).await?;
     let staging = repository.join(STAGING_DIR).join(operation_id.to_string());
     io::create_dir_all(&staging).await?;
     let mut created_objects = HashSet::new();
@@ -794,7 +991,7 @@ async fn create_snapshot_inner(
         &root,
         &repository,
         &staging,
-        &selections,
+        &exclusions,
         cancellation,
         &mut created_objects,
     )
@@ -808,13 +1005,13 @@ async fn create_snapshot_inner(
             &root,
             &repository,
             &staging,
-            &selections,
+            &exclusions,
             cancellation,
             &mut created_objects,
         )
         .await;
     }
-    let (roots, entries, added_size) = match scan_result {
+    let (entries, added_size) = match scan_result {
         Ok(result) => result,
         Err(error) => {
             cleanup_uncommitted_objects(&repository, &pool, &created_objects)
@@ -859,9 +1056,9 @@ async fn create_snapshot_inner(
         let mut tx = pool.begin().await?;
         sqlx::query(
             "INSERT INTO backup_snapshots
-         (id, instance_id, instance_name, created_at, file_count,
-          symlink_count, logical_size, added_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		 (id, instance_id, instance_name, created_at, file_count,
+		  symlink_count, logical_size, added_size, scope_mode)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'excluded_paths')",
         )
         .bind(&snapshot_id)
         .bind(instance_id)
@@ -873,14 +1070,14 @@ async fn create_snapshot_inner(
         .bind(added_size as i64)
         .execute(&mut *tx)
         .await?;
-        for root in &roots {
+        for exclusion in &exclusions {
             sqlx::query(
-                "INSERT INTO snapshot_roots (snapshot_id, path, existed)
-             VALUES (?, ?, ?)",
+                "INSERT INTO snapshot_exclusions (snapshot_id, path, kind)
+			 VALUES (?, ?, ?)",
             )
             .bind(&snapshot_id)
-            .bind(&root.path)
-            .bind(root.existed)
+            .bind(&exclusion.path)
+            .bind(exclusion.kind.as_str())
             .execute(&mut *tx)
             .await?;
         }
@@ -942,128 +1139,116 @@ async fn scan_snapshot(
     root: &Path,
     repository: &Path,
     staging: &Path,
-    selections: &[String],
+    exclusions: &[BackupExclusion],
     cancellation: &CancellationToken,
     created_objects: &mut HashSet<String>,
-) -> crate::Result<(Vec<SnapshotRoot>, Vec<PendingEntry>, u64)> {
-    let mut roots = Vec::new();
+) -> crate::Result<(Vec<PendingEntry>, u64)> {
     let mut entries = Vec::new();
     let mut scanned_directories = Vec::new();
     let mut added_size = 0u64;
-    for selection in selections {
+    let mut pending = Vec::new();
+    let mut root_names = Vec::new();
+    let mut read_root = tokio::fs::read_dir(root).await?;
+    while let Some(child) = read_root.next_entry().await? {
+        let Some(name) = child.file_name().to_str().map(str::to_string) else {
+            return Err(crate::ErrorKind::UTFError(child.path()).into());
+        };
+        root_names.push(name.clone());
+        let child_path = child.path();
+        let child_metadata = tokio::fs::symlink_metadata(&child_path).await?;
+        pending.push((child_path, name, child_metadata));
+    }
+    root_names.sort();
+    scanned_directories.push((root.to_path_buf(), root_names));
+    while let Some((absolute, relative, metadata)) = pending.pop() {
         if cancellation.is_cancelled() {
             return Err(crate::ErrorKind::OtherError(
                 "Backup was canceled".to_string(),
             )
             .into());
         }
-        let absolute = join_relative(root, selection);
-        let metadata = match tokio::fs::symlink_metadata(&absolute).await {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                roots.push(SnapshotRoot {
-                    path: selection.clone(),
-                    existed: false,
-                });
-                continue;
-            }
-            Err(error) => return Err(error.into()),
-        };
-        roots.push(SnapshotRoot {
-            path: selection.clone(),
-            existed: true,
-        });
-        let mut pending = vec![(absolute, selection.clone(), metadata)];
-        while let Some((absolute, relative, metadata)) = pending.pop() {
-            if cancellation.is_cancelled() {
-                return Err(crate::ErrorKind::OtherError(
-                    "Backup was canceled".to_string(),
-                )
-                .into());
-            }
-            if io::is_symlink_or_reparse(&metadata) {
-                let target = tokio::fs::read_link(&absolute).await?;
-                let target = target.to_str().ok_or_else(|| {
-                    crate::ErrorKind::UTFError(absolute.clone())
-                })?;
-                entries.push(PendingEntry {
-                    path: relative,
-                    kind: EntryKind::Symlink,
-                    object_hash: None,
-                    size: 0,
-                    modified_at: modified_millis(&metadata),
-                    unix_mode: unix_mode(&metadata),
-                    link_target: Some(target.to_string()),
-                    link_is_directory: Some(
-                        tokio::fs::metadata(&absolute)
-                            .await
-                            .is_ok_and(|metadata| metadata.is_dir()),
-                    ),
-                });
-                continue;
-            }
-            if metadata.is_dir() {
-                entries.push(PendingEntry {
-                    path: relative.clone(),
-                    kind: EntryKind::Directory,
-                    object_hash: None,
-                    size: 0,
-                    modified_at: modified_millis(&metadata),
-                    unix_mode: unix_mode(&metadata),
-                    link_target: None,
-                    link_is_directory: None,
-                });
-                let mut read_dir = tokio::fs::read_dir(&absolute).await?;
-                let mut child_names = Vec::new();
-                while let Some(child) = read_dir.next_entry().await? {
-                    let Some(name) =
-                        child.file_name().to_str().map(str::to_string)
-                    else {
-                        return Err(
-                            crate::ErrorKind::UTFError(child.path()).into()
-                        );
-                    };
-                    let child_relative = format!("{relative}/{name}");
-                    child_names.push(name);
-                    let child_path = child.path();
-                    let child_metadata =
-                        tokio::fs::symlink_metadata(&child_path).await?;
-                    pending.push((child_path, child_relative, child_metadata));
-                }
-                child_names.sort();
-                scanned_directories.push((absolute, child_names));
-                continue;
-            }
-            if !metadata.is_file() {
-                return Err(crate::ErrorKind::FSError(format!(
-                    "Unsupported backup entry: {}",
-                    absolute.display()
-                ))
-                .into());
-            }
-            let (hash, size, added) = hash_and_store_object(
-                &absolute,
-                &metadata,
-                repository,
-                staging,
-                cancellation,
-            )
-            .await?;
-            if added {
-                created_objects.insert(hash.clone());
-                added_size = added_size.saturating_add(size);
-            }
+        if is_excluded(&relative, exclusions) {
+            continue;
+        }
+        if io::is_symlink_or_reparse(&metadata) {
+            let target = tokio::fs::read_link(&absolute).await?;
+            let target = target
+                .to_str()
+                .ok_or_else(|| crate::ErrorKind::UTFError(absolute.clone()))?;
             entries.push(PendingEntry {
                 path: relative,
-                kind: EntryKind::File,
-                object_hash: Some(hash),
-                size,
+                kind: EntryKind::Symlink,
+                object_hash: None,
+                size: 0,
+                modified_at: modified_millis(&metadata),
+                unix_mode: unix_mode(&metadata),
+                link_target: Some(target.to_string()),
+                link_is_directory: Some(
+                    tokio::fs::metadata(&absolute)
+                        .await
+                        .is_ok_and(|metadata| metadata.is_dir()),
+                ),
+            });
+            continue;
+        }
+        if metadata.is_dir() {
+            entries.push(PendingEntry {
+                path: relative.clone(),
+                kind: EntryKind::Directory,
+                object_hash: None,
+                size: 0,
                 modified_at: modified_millis(&metadata),
                 unix_mode: unix_mode(&metadata),
                 link_target: None,
                 link_is_directory: None,
             });
+            let mut read_dir = tokio::fs::read_dir(&absolute).await?;
+            let mut child_names = Vec::new();
+            while let Some(child) = read_dir.next_entry().await? {
+                let Some(name) = child.file_name().to_str().map(str::to_string)
+                else {
+                    return Err(crate::ErrorKind::UTFError(child.path()).into());
+                };
+                let child_relative = format!("{relative}/{name}");
+                child_names.push(name);
+                let child_path = child.path();
+                let child_metadata =
+                    tokio::fs::symlink_metadata(&child_path).await?;
+                pending.push((child_path, child_relative, child_metadata));
+            }
+            child_names.sort();
+            scanned_directories.push((absolute, child_names));
+            continue;
         }
+        if !metadata.is_file() {
+            return Err(crate::ErrorKind::FSError(format!(
+                "Unsupported backup entry: {}",
+                absolute.display()
+            ))
+            .into());
+        }
+        let (hash, size, added) = hash_and_store_object(
+            &absolute,
+            &metadata,
+            repository,
+            staging,
+            cancellation,
+        )
+        .await?;
+        if added {
+            created_objects.insert(hash.clone());
+            added_size = added_size.saturating_add(size);
+        }
+        entries.push(PendingEntry {
+            path: relative,
+            kind: EntryKind::File,
+            object_hash: Some(hash),
+            size,
+            modified_at: modified_millis(&metadata),
+            unix_mode: unix_mode(&metadata),
+            link_target: None,
+            link_is_directory: None,
+        });
     }
     for (directory, expected_names) in scanned_directories {
         let mut actual_names = Vec::new();
@@ -1085,7 +1270,15 @@ async fn scan_snapshot(
         }
     }
     entries.sort_by(|left, right| left.path.cmp(&right.path));
-    Ok((roots, entries, added_size))
+    Ok((entries, added_size))
+}
+
+fn is_excluded(relative: &str, exclusions: &[BackupExclusion]) -> bool {
+    exclusions.iter().any(|exclusion| {
+        relative == exclusion.path
+            || (exclusion.kind == BackupExclusionKind::Directory
+                && relative.starts_with(&format!("{}/", exclusion.path)))
+    })
 }
 
 async fn hash_and_store_object(
@@ -1381,6 +1574,13 @@ async fn recover_interrupted_restores(state: &State) -> crate::Result<()> {
             continue;
         }
         let operation_root = entry.path();
+        if tokio::fs::symlink_metadata(operation_root.join(RESTORE_COMMITTED))
+            .await
+            .is_ok()
+        {
+            io::remove_dir_all(&operation_root).await?;
+            continue;
+        }
         let journal_bytes = match tokio::fs::read(
             operation_root.join(RESTORE_JOURNAL),
         )
@@ -1409,9 +1609,60 @@ async fn recover_interrupted_restores(state: &State) -> crate::Result<()> {
                 }
             };
         let (_, root) = instance_and_root(&journal.instance_id, state).await?;
-        recover_restore_operation(&root, &operation_root, &journal.roots)
+        if journal.whole_root {
+            recover_whole_root_restore(
+                &root,
+                &operation_root,
+                &journal.exclusions,
+            )
             .await?;
+        } else {
+            recover_restore_operation(&root, &operation_root, &journal.roots)
+                .await?;
+        }
     }
+    Ok(())
+}
+
+async fn recover_whole_root_restore(
+    root: &Path,
+    operation_root: &Path,
+    exclusions: &[BackupExclusion],
+) -> crate::Result<()> {
+    ensure_canonical_exclusions(exclusions)?;
+    let staged = operation_root.join("staged");
+    let rollback_root = operation_root.join("rollback").join("instance");
+    if tokio::fs::symlink_metadata(&rollback_root).await.is_ok() {
+        validate_exclusion_ancestors(&rollback_root, exclusions).await?;
+        for exclusion in exclusions.iter().rev() {
+            let destination = join_relative(&rollback_root, &exclusion.path);
+            let from_current = join_relative(root, &exclusion.path);
+            let from_staged = join_relative(&staged, &exclusion.path);
+            let source = if tokio::fs::symlink_metadata(&from_current)
+                .await
+                .is_ok()
+            {
+                Some(from_current)
+            } else if tokio::fs::symlink_metadata(&from_staged).await.is_ok() {
+                Some(from_staged)
+            } else {
+                None
+            };
+            if let Some(source) = source {
+                remove_path_if_exists(&destination).await;
+                if let Some(parent) = destination.parent() {
+                    io::create_dir_all(parent).await?;
+                }
+                tokio::fs::rename(source, destination).await?;
+            }
+        }
+        remove_path_if_exists(root).await;
+        if let Some(parent) = root.parent() {
+            io::create_dir_all(parent).await?;
+        }
+        tokio::fs::rename(&rollback_root, root).await?;
+    }
+    io::remove_dir_all(operation_root).await?;
     Ok(())
 }
 
@@ -1448,6 +1699,14 @@ async fn recover_restore_operation(
 async fn remove_path_if_exists(path: &Path) {
     let _ = io::remove_dir_all(path).await;
     let _ = tokio::fs::remove_file(path).await;
+}
+
+async fn mark_restore_committed(operation_root: &Path) -> crate::Result<()> {
+    let mut marker =
+        tokio::fs::File::create(operation_root.join(RESTORE_COMMITTED)).await?;
+    marker.write_all(b"committed").await?;
+    marker.sync_all().await?;
+    Ok(())
 }
 
 async fn sweep_unindexed_objects(
@@ -1620,8 +1879,8 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
         )
         .into());
     };
-    let instance_id: String = sqlx::query_scalar(
-        "SELECT instance_id FROM backup_snapshots WHERE id = ?",
+    let (instance_id, scope_mode): (String, String) = sqlx::query_as(
+        "SELECT instance_id, scope_mode FROM backup_snapshots WHERE id = ?",
     )
     .bind(snapshot_id)
     .fetch_optional(&pool)
@@ -1654,8 +1913,45 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
         "SELECT path, existed FROM snapshot_roots WHERE snapshot_id = ? ORDER BY path",
     )
     .bind(snapshot_id)
-    .fetch_all(&pool)
-    .await?;
+	.fetch_all(&pool)
+	.await?;
+    let exclusion_rows: Vec<(String, String)> = sqlx::query_as(
+		"SELECT path, kind FROM snapshot_exclusions WHERE snapshot_id = ? ORDER BY path",
+	)
+	.bind(snapshot_id)
+	.fetch_all(&pool)
+	.await?;
+    let raw_exclusions = exclusion_rows
+        .into_iter()
+        .map(|(path, kind)| {
+            Ok(BackupExclusion {
+                path,
+                kind: parse_exclusion_kind(&kind)?,
+            })
+        })
+        .collect::<crate::Result<Vec<_>>>()?;
+    let exclusions = canonicalize_exclusions(raw_exclusions.clone())?;
+    if exclusions.len() != raw_exclusions.len()
+        || raw_exclusions
+            .iter()
+            .any(|exclusion| !exclusions.contains(exclusion))
+    {
+        return Err(crate::ErrorKind::FSError(
+            "Invalid exclusion paths in backup snapshot".to_string(),
+        )
+        .into());
+    }
+    validate_exclusion_ancestors(&root, &exclusions).await?;
+    let whole_root = match scope_mode.as_str() {
+        "included_roots" => false,
+        "excluded_paths" => true,
+        _ => {
+            return Err(crate::ErrorKind::FSError(format!(
+                "Unknown backup snapshot scope: {scope_mode}"
+            ))
+            .into());
+        }
+    };
     let mut journal_roots = Vec::with_capacity(roots.len());
     for (path, _) in &roots {
         let normalized = normalize_relative_directory(path)?;
@@ -1677,6 +1973,8 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     let journal = RestoreJournal {
         instance_id: instance_id.clone(),
         roots: journal_roots,
+        whole_root,
+        exclusions: exclusions.clone(),
     };
     let mut journal_file =
         tokio::fs::File::create(operation_root.join(RESTORE_JOURNAL)).await?;
@@ -1693,15 +1991,47 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     .bind(snapshot_id)
     .fetch_all(&pool)
     .await?;
-    let materialize = materialize_snapshot(&repository, &staged, rows).await;
+    let materialize =
+        materialize_snapshot(&repository, &staged, rows, &exclusions).await;
     if let Err(error) = materialize {
         let _ = io::remove_dir_all(&operation_root).await;
         pool.close().await;
         return Err(error);
     }
+    if whole_root {
+        let replace_result =
+            replace_whole_root(&root, &operation_root, &exclusions).await;
+        if let Err(error) = replace_result {
+            let recovery =
+                recover_whole_root_restore(&root, &operation_root, &exclusions)
+                    .await;
+            pool.close().await;
+            if let Err(recovery_error) = recovery {
+                return Err(crate::ErrorKind::OtherError(format!(
+					"Backup restore failed: {error}; rollback failed: {recovery_error}"
+				))
+				.into());
+            }
+            return Err(error);
+        }
+        if let Err(error) = mark_restore_committed(&operation_root).await {
+            let recovery =
+                recover_whole_root_restore(&root, &operation_root, &exclusions)
+                    .await;
+            pool.close().await;
+            if let Err(recovery_error) = recovery {
+                return Err(crate::ErrorKind::OtherError(format!(
+					"Backup restore could not be committed: {error}; rollback failed: {recovery_error}"
+				))
+				.into());
+            }
+            return Err(error);
+        }
+        io::remove_dir_all(&operation_root).await?;
+        pool.close().await;
+        return Ok(());
+    }
 
-    let mut moved_to_rollback = Vec::new();
-    let mut installed = Vec::new();
     let replace_result: crate::Result<()> = async {
         for (path, existed) in &roots {
             let current = join_relative(&root, path);
@@ -1711,7 +2041,6 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
                     io::create_dir_all(parent).await?;
                 }
                 tokio::fs::rename(&current, &old).await?;
-                moved_to_rollback.push((old, current.clone()));
             }
             if *existed {
                 let new = join_relative(&staged, path);
@@ -1720,7 +2049,6 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
                         io::create_dir_all(parent).await?;
                     }
                     tokio::fs::rename(&new, &current).await?;
-                    installed.push(current);
                 }
             }
         }
@@ -1728,18 +2056,29 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     }
     .await;
     if let Err(error) = replace_result {
-        for path in installed.into_iter().rev() {
-            let _ = io::remove_dir_all(&path).await;
-            let _ = tokio::fs::remove_file(&path).await;
-        }
-        for (old, current) in moved_to_rollback.into_iter().rev() {
-            if let Some(parent) = current.parent() {
-                let _ = io::create_dir_all(parent).await;
-            }
-            let _ = tokio::fs::rename(old, current).await;
-        }
-        let _ = io::remove_dir_all(&operation_root).await;
+        let recovery =
+            recover_restore_operation(&root, &operation_root, &journal.roots)
+                .await;
         pool.close().await;
+        if let Err(recovery_error) = recovery {
+            return Err(crate::ErrorKind::OtherError(format!(
+				"Backup restore failed: {error}; rollback failed: {recovery_error}"
+			))
+			.into());
+        }
+        return Err(error);
+    }
+    if let Err(error) = mark_restore_committed(&operation_root).await {
+        let recovery =
+            recover_restore_operation(&root, &operation_root, &journal.roots)
+                .await;
+        pool.close().await;
+        if let Err(recovery_error) = recovery {
+            return Err(crate::ErrorKind::OtherError(format!(
+				"Backup restore could not be committed: {error}; rollback failed: {recovery_error}"
+			))
+			.into());
+        }
         return Err(error);
     }
     io::remove_dir_all(&operation_root).await?;
@@ -1747,10 +2086,39 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     Ok(())
 }
 
+async fn replace_whole_root(
+    root: &Path,
+    operation_root: &Path,
+    exclusions: &[BackupExclusion],
+) -> crate::Result<()> {
+    ensure_canonical_exclusions(exclusions)?;
+    let staged = operation_root.join("staged");
+    let rollback_root = operation_root.join("rollback").join("instance");
+    tokio::fs::rename(root, &rollback_root).await?;
+    for exclusion in exclusions {
+        let source = join_relative(&rollback_root, &exclusion.path);
+        if tokio::fs::symlink_metadata(&source).await.is_err() {
+            continue;
+        }
+        let destination = join_relative(&staged, &exclusion.path);
+        remove_path_if_exists(&destination).await;
+        if let Some(parent) = destination.parent() {
+            io::create_dir_all(parent).await?;
+        }
+        tokio::fs::rename(source, destination).await?;
+    }
+    if let Some(parent) = root.parent() {
+        io::create_dir_all(parent).await?;
+    }
+    tokio::fs::rename(staged, root).await?;
+    Ok(())
+}
+
 async fn materialize_snapshot(
     repository: &Path,
     staged: &Path,
     rows: Vec<sqlx::sqlite::SqliteRow>,
+    exclusions: &[BackupExclusion],
 ) -> crate::Result<()> {
     for row in rows {
         let relative: String = row.get("path");
@@ -1761,7 +2129,23 @@ async fn materialize_snapshot(
             )
             .into());
         }
+        if is_excluded(&relative, exclusions) {
+            return Err(crate::ErrorKind::FSError(
+                "Backup snapshot contains an excluded path".to_string(),
+            )
+            .into());
+        }
         let kind: String = row.get("kind");
+        if kind == "symlink"
+            && exclusions.iter().any(|exclusion| {
+                exclusion.path.starts_with(&format!("{relative}/"))
+            })
+        {
+            return Err(crate::ErrorKind::FSError(
+                "Backup snapshot links through an excluded path".to_string(),
+            )
+            .into());
+        }
         let destination = join_relative(staged, &relative);
         match kind.as_str() {
             "directory" => io::create_dir_all(&destination).await?,
@@ -2014,16 +2398,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn normalizes_and_deduplicates_directory_selections() {
+    fn normalizes_and_deduplicates_exclusions() {
         assert_eq!(
-            canonicalize_selections(vec![
-                "saves/world".to_string(),
-                "config\\mod".to_string(),
-                "saves".to_string(),
-                "config".to_string(),
+            canonicalize_exclusions(vec![
+                BackupExclusion {
+                    path: "saves/world".to_string(),
+                    kind: BackupExclusionKind::Directory,
+                },
+                BackupExclusion {
+                    path: "config\\bigdb.sqlite".to_string(),
+                    kind: BackupExclusionKind::File,
+                },
+                BackupExclusion {
+                    path: "saves".to_string(),
+                    kind: BackupExclusionKind::Directory,
+                },
             ])
             .unwrap(),
-            ["config", "saves"]
+            [
+                BackupExclusion {
+                    path: "saves".to_string(),
+                    kind: BackupExclusionKind::Directory,
+                },
+                BackupExclusion {
+                    path: "config/bigdb.sqlite".to_string(),
+                    kind: BackupExclusionKind::File,
+                },
+            ]
         );
     }
 
@@ -2055,8 +2456,11 @@ mod tests {
         .await
         .unwrap();
         assert!(tables.contains(&"backup_snapshots".to_string()));
+        assert!(tables.contains(&"backup_exclusions".to_string()));
         assert!(tables.contains(&"snapshot_entries".to_string()));
+        assert!(tables.contains(&"snapshot_exclusions".to_string()));
         assert!(tables.contains(&"backup_objects".to_string()));
+        assert!(!tables.contains(&"backup_selections".to_string()));
         let foreign_key_errors: Vec<(String, i64, String, i64)> =
             sqlx::query_as("PRAGMA foreign_key_check")
                 .fetch_all(&pool)
@@ -2066,13 +2470,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn selected_directory_rescans_new_files_and_reuses_existing_objects()
+    async fn full_instance_scan_includes_future_content_and_honors_exclusions()
     {
         let temp = tempfile::tempdir().unwrap();
         let instance = temp.path().join("instance");
         let repository = temp.path().join("repository");
         let staging = repository.join(STAGING_DIR).join("first");
         tokio::fs::create_dir_all(instance.join("config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(instance.join("caches"))
             .await
             .unwrap();
         tokio::fs::create_dir_all(repository.join(OBJECTS_DIR))
@@ -2082,13 +2489,32 @@ mod tests {
         tokio::fs::write(instance.join("config/first.toml"), b"same")
             .await
             .unwrap();
+        tokio::fs::write(instance.join("config/bigdb.sqlite"), b"ignored")
+            .await
+            .unwrap();
+        tokio::fs::write(instance.join("caches/data.bin"), b"ignored")
+            .await
+            .unwrap();
+        tokio::fs::write(instance.join("options.txt"), b"root")
+            .await
+            .unwrap();
+        let exclusions = [
+            BackupExclusion {
+                path: "caches".to_string(),
+                kind: BackupExclusionKind::Directory,
+            },
+            BackupExclusion {
+                path: "config/bigdb.sqlite".to_string(),
+                kind: BackupExclusionKind::File,
+            },
+        ];
 
         let mut first_objects = HashSet::new();
-        let (_, first_entries, first_added) = scan_snapshot(
+        let (first_entries, first_added) = scan_snapshot(
             &instance,
             &repository,
             &staging,
-            &["config".to_string()],
+            &exclusions,
             &CancellationToken::new(),
             &mut first_objects,
         )
@@ -2099,21 +2525,42 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.kind == EntryKind::File)
                 .count(),
-            1
+            2
         );
-        assert_eq!(first_added, 4);
+        assert!(
+            first_entries
+                .iter()
+                .any(|entry| entry.path == "options.txt")
+        );
+        assert!(
+            !first_entries
+                .iter()
+                .any(|entry| entry.path.starts_with("caches"))
+        );
+        assert!(
+            !first_entries
+                .iter()
+                .any(|entry| entry.path == "config/bigdb.sqlite")
+        );
+        assert_eq!(first_added, 8);
 
         tokio::fs::write(instance.join("config/second.toml"), b"new")
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(instance.join("logs"))
+            .await
+            .unwrap();
+        tokio::fs::write(instance.join("logs/latest.log"), b"future")
             .await
             .unwrap();
         let second_staging = repository.join(STAGING_DIR).join("second");
         tokio::fs::create_dir_all(&second_staging).await.unwrap();
         let mut second_objects = HashSet::new();
-        let (_, second_entries, second_added) = scan_snapshot(
+        let (second_entries, second_added) = scan_snapshot(
             &instance,
             &repository,
             &second_staging,
-            &["config".to_string()],
+            &exclusions,
             &CancellationToken::new(),
             &mut second_objects,
         )
@@ -2124,10 +2571,15 @@ mod tests {
                 .iter()
                 .filter(|entry| entry.kind == EntryKind::File)
                 .count(),
-            2
+            4
         );
-        assert_eq!(second_added, 3, "only the new content should be stored");
-        assert_eq!(second_objects.len(), 1);
+        assert!(
+            second_entries
+                .iter()
+                .any(|entry| entry.path == "logs/latest.log")
+        );
+        assert_eq!(second_added, 9, "only new content should be stored");
+        assert_eq!(second_objects.len(), 2);
     }
 
     #[tokio::test]
@@ -2269,5 +2721,110 @@ mod tests {
         );
         assert!(!root.join("saves").exists());
         assert!(!operation_root.exists());
+    }
+
+    #[tokio::test]
+    async fn interrupted_whole_root_restore_preserves_excluded_content() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("instance");
+        let operation_root = temp.path().join("operation");
+        let rollback_root = operation_root.join("rollback/instance");
+        tokio::fs::create_dir_all(rollback_root.join("config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(root.join("caches"))
+            .await
+            .unwrap();
+        tokio::fs::write(rollback_root.join("config/value.txt"), b"before")
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("config.txt"), b"restored")
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("caches/data.bin"), b"preserved")
+            .await
+            .unwrap();
+
+        recover_whole_root_restore(
+            &root,
+            &operation_root,
+            &[BackupExclusion {
+                path: "caches".to_string(),
+                kind: BackupExclusionKind::Directory,
+            }],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            tokio::fs::read(root.join("config/value.txt"))
+                .await
+                .unwrap(),
+            b"before"
+        );
+        assert_eq!(
+            tokio::fs::read(root.join("caches/data.bin")).await.unwrap(),
+            b"preserved"
+        );
+        assert!(!root.join("config.txt").exists());
+        assert!(!operation_root.exists());
+    }
+
+    #[tokio::test]
+    async fn whole_root_restore_replaces_managed_content_and_keeps_exclusions()
+    {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("instance");
+        let operation_root = temp.path().join("operation");
+        tokio::fs::create_dir_all(root.join("caches"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(operation_root.join("staged/config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(operation_root.join("rollback"))
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("old.txt"), b"old")
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("caches/data.bin"), b"preserved")
+            .await
+            .unwrap();
+        tokio::fs::write(
+            operation_root.join("staged/config/value.txt"),
+            b"snapshot",
+        )
+        .await
+        .unwrap();
+
+        replace_whole_root(
+            &root,
+            &operation_root,
+            &[BackupExclusion {
+                path: "caches".to_string(),
+                kind: BackupExclusionKind::Directory,
+            }],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            tokio::fs::read(root.join("config/value.txt"))
+                .await
+                .unwrap(),
+            b"snapshot"
+        );
+        assert_eq!(
+            tokio::fs::read(root.join("caches/data.bin")).await.unwrap(),
+            b"preserved"
+        );
+        assert!(!root.join("old.txt").exists());
+        assert_eq!(
+            tokio::fs::read(operation_root.join("rollback/instance/old.txt"))
+                .await
+                .unwrap(),
+            b"old"
+        );
     }
 }
