@@ -20,19 +20,22 @@ export interface BackupRepositoryStatus {
 	error: string | null
 }
 
-export interface BackupDirectoryEntry {
+export type BackupExclusionKind = 'file' | 'directory'
+
+export interface BackupExclusion {
 	path: string
-	name: string
-	exists: boolean
-	is_symlink: boolean
-	link_target: string | null
+	kind: BackupExclusionKind
+}
+
+export function formatBackupExclusionPath(exclusion: BackupExclusion): string {
+	return exclusion.kind === 'directory' ? `${exclusion.path}/` : exclusion.path
 }
 
 export interface InstanceBackupConfig {
 	instance_id: string
 	enabled: boolean
 	eligibility: InstanceBackupEligibility
-	selected_directories: string[]
+	excluded_paths: BackupExclusion[]
 	snapshot_count: number
 }
 
@@ -62,32 +65,28 @@ export interface BackupProgressEvent {
 	message?: string
 }
 
-export function normalizeBackupDirectory(value: string): string | null {
-	const normalized = value.trim().replaceAll('\\', '/')
-	if (
-		!normalized ||
-		normalized === '.' ||
-		normalized.startsWith('/') ||
-		/^[A-Za-z]:/.test(normalized)
-	) {
-		return null
-	}
-	const parts = normalized.split('/').filter((part) => part && part !== '.')
-	if (parts.length === 0 || parts.some((part) => part === '..')) return null
-	return parts.join('/')
-}
-
-export function canonicalizeBackupDirectories(values: string[]): string[] {
+export function canonicalizeBackupExclusions(values: BackupExclusion[]): BackupExclusion[] {
 	const normalized = values
-		.map(normalizeBackupDirectory)
-		.filter((value): value is string => value !== null)
+		.map((value) => ({ ...value, path: value.path.replaceAll('\\', '/') }))
 		.sort(
 			(left, right) =>
-				left.split('/').length - right.split('/').length || left.localeCompare(right),
+				left.path.split('/').length - right.path.split('/').length ||
+				left.path.localeCompare(right.path),
 		)
-	const result: string[] = []
+	const result: BackupExclusion[] = []
 	for (const value of normalized) {
-		if (result.includes(value) || result.some((parent) => value.startsWith(`${parent}/`))) continue
+		const duplicate = result.find((existing) => existing.path === value.path)
+		if (duplicate) {
+			if (value.kind === 'directory') duplicate.kind = 'directory'
+			continue
+		}
+		if (
+			result.some(
+				(parent) => parent.kind === 'directory' && value.path.startsWith(`${parent.path}/`),
+			)
+		) {
+			continue
+		}
 		result.push(value)
 	}
 	return result
@@ -105,24 +104,32 @@ export function getBackupConfig(instanceId: string): Promise<InstanceBackupConfi
 	return invoke('plugin:instance|instance_get_backup_config', { instanceId })
 }
 
-export function listBackupDirectories(instanceId: string): Promise<BackupDirectoryEntry[]> {
-	return invoke('plugin:instance|instance_list_backup_directories', { instanceId })
+export function normalizeBackupExclusion(
+	instanceId: string,
+	selectedPath: string,
+	kind: BackupExclusionKind,
+): Promise<BackupExclusion> {
+	return invoke('plugin:instance|instance_normalize_backup_exclusion', {
+		instanceId,
+		selectedPath,
+		kind,
+	})
 }
 
 export function enableBackups(
 	instanceId: string,
-	selectedDirectories: string[],
+	excludedPaths: BackupExclusion[],
 ): Promise<InstanceBackupConfig> {
-	return invoke('plugin:instance|instance_enable_backups', { instanceId, selectedDirectories })
+	return invoke('plugin:instance|instance_enable_backups', { instanceId, excludedPaths })
 }
 
-export function updateBackupSelections(
+export function updateBackupExclusions(
 	instanceId: string,
-	selectedDirectories: string[],
+	excludedPaths: BackupExclusion[],
 ): Promise<InstanceBackupConfig> {
-	return invoke('plugin:instance|instance_update_backup_selections', {
+	return invoke('plugin:instance|instance_update_backup_exclusions', {
 		instanceId,
-		selectedDirectories,
+		excludedPaths,
 	})
 }
 

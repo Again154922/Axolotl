@@ -13,8 +13,9 @@ import {
 } from '@modrinth/ui'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { get_full_path } from '@/helpers/instance'
 import {
-	type BackupDirectoryEntry,
+	type BackupExclusion,
 	type BackupProgressStage,
 	type BackupSnapshot,
 	cancelBackup,
@@ -24,16 +25,15 @@ import {
 	getBackupConfig,
 	type InstanceBackupConfig,
 	type InstanceBackupEligibility,
-	listBackupDirectories,
 	listBackups,
 	listenBackupProgress,
 	restoreBackup,
 	startBackup,
-	updateBackupSelections,
+	updateBackupExclusions,
 } from '@/helpers/instance-backup'
 import { injectInstanceSettings } from '@/providers/instance-settings'
 
-import BackupDirectorySelector from './BackupDirectorySelector.vue'
+import BackupExclusionSelector from './BackupExclusionSelector.vue'
 
 const { instance } = injectInstanceSettings()
 const { formatMessage } = useVIntl()
@@ -45,8 +45,7 @@ const messages = defineMessages({
 	title: { id: 'instance.backups.title', defaultMessage: 'Instance backups' },
 	description: {
 		id: 'instance.backups.description',
-		defaultMessage:
-			'Create deduplicated snapshots of selected folders while the instance is closed.',
+		defaultMessage: 'Create deduplicated snapshots of the whole instance while it is closed.',
 	},
 	loading: { id: 'instance.backups.loading', defaultMessage: 'Loading backup settings...' },
 	unavailable: { id: 'instance.backups.unavailable', defaultMessage: 'Backups are unavailable' },
@@ -76,14 +75,22 @@ const messages = defineMessages({
 	},
 	choose: {
 		id: 'instance.backups.choose',
-		defaultMessage: 'Choose folders to include in every future backup.',
+		defaultMessage:
+			'Everything is backed up by default. Add files or folders that should be excluded.',
 	},
 	enable: { id: 'instance.backups.enable', defaultMessage: 'Enable backups' },
-	editFolders: { id: 'instance.backups.edit-folders', defaultMessage: 'Edit folders' },
-	saveFolders: { id: 'instance.backups.save-folders', defaultMessage: 'Save folders' },
-	selectedFolders: {
-		id: 'instance.backups.selected-folders',
-		defaultMessage: 'Included folders: {folders}',
+	editExclusions: { id: 'instance.backups.edit-exclusions', defaultMessage: 'Edit exclusions' },
+	saveExclusions: {
+		id: 'instance.backups.save-exclusions',
+		defaultMessage: 'Save exclusions',
+	},
+	allIncluded: {
+		id: 'instance.backups.all-included',
+		defaultMessage: 'All instance files and folders are included.',
+	},
+	excludedPaths: {
+		id: 'instance.backups.excluded-paths',
+		defaultMessage: 'Excluded: {paths}',
 	},
 	backupNow: { id: 'instance.backups.backup-now', defaultMessage: 'Back up now' },
 	cancelBackup: { id: 'instance.backups.cancel', defaultMessage: 'Cancel backup' },
@@ -110,7 +117,8 @@ const messages = defineMessages({
 	restoreTitle: { id: 'instance.backups.restore-title', defaultMessage: 'Restore this backup?' },
 	restoreBody: {
 		id: 'instance.backups.restore-body',
-		defaultMessage: 'The folders included in this snapshot will replace their current versions.',
+		defaultMessage:
+			'The backed-up instance contents will be replaced. Files and folders excluded by this snapshot will be preserved.',
 	},
 	deleteTitle: { id: 'instance.backups.delete-title', defaultMessage: 'Delete this backup?' },
 	deleteBody: {
@@ -121,11 +129,11 @@ const messages = defineMessages({
 })
 
 const config = ref<InstanceBackupConfig | null>(null)
-const directories = ref<BackupDirectoryEntry[]>([])
 const snapshots = ref<BackupSnapshot[]>([])
+const instanceRoot = ref('')
 const loading = ref(true)
-const editingFolders = ref(false)
-const selectedDirectories = ref<string[]>(['config', 'saves'])
+const editingExclusions = ref(false)
+const excludedPaths = ref<BackupExclusion[]>([])
 const action = ref<string | null>(null)
 const operationId = ref<string | null>(null)
 const operationStage = ref<BackupProgressStage | null>(null)
@@ -162,16 +170,12 @@ async function refresh() {
 	try {
 		const nextConfig = await getBackupConfig(instance.value.id)
 		config.value = nextConfig
-		selectedDirectories.value = nextConfig.enabled
-			? [...nextConfig.selected_directories]
-			: ['config', 'saves']
-		const [nextDirectories, nextSnapshots] = await Promise.all([
-			nextConfig.eligibility === 'eligible'
-				? listBackupDirectories(instance.value.id)
-				: Promise.resolve([]),
+		excludedPaths.value = nextConfig.enabled ? [...nextConfig.excluded_paths] : []
+		const [nextRoot, nextSnapshots] = await Promise.all([
+			nextConfig.eligibility === 'eligible' ? get_full_path(instance.value.id) : '',
 			listBackups(instance.value.id),
 		])
-		directories.value = nextDirectories
+		instanceRoot.value = nextRoot
 		snapshots.value = nextSnapshots
 	} catch (error) {
 		handleError(error)
@@ -192,23 +196,21 @@ async function runAction(name: string, task: () => Promise<void>) {
 }
 
 function enable() {
-	if (selectedDirectories.value.length === 0) return
 	void runAction('enable', async () => {
-		config.value = await enableBackups(instance.value.id, selectedDirectories.value)
-		editingFolders.value = false
+		config.value = await enableBackups(instance.value.id, excludedPaths.value)
+		editingExclusions.value = false
 	})
 }
 
-function beginEditingFolders() {
-	selectedDirectories.value = [...(config.value?.selected_directories ?? [])]
-	editingFolders.value = true
+function beginEditingExclusions() {
+	excludedPaths.value = [...(config.value?.excluded_paths ?? [])]
+	editingExclusions.value = true
 }
 
-function saveFolders() {
-	if (selectedDirectories.value.length === 0) return
-	void runAction('folders', async () => {
-		config.value = await updateBackupSelections(instance.value.id, selectedDirectories.value)
-		editingFolders.value = false
+function saveExclusions() {
+	void runAction('exclusions', async () => {
+		config.value = await updateBackupExclusions(instance.value.id, excludedPaths.value)
+		editingExclusions.value = false
 	})
 }
 
@@ -296,26 +298,27 @@ watch(
 			{{ unavailableReason }}
 		</Admonition>
 		<template v-else-if="config">
-			<div v-if="!config.enabled || editingFolders" class="flex flex-col gap-4">
+			<div v-if="!config.enabled || editingExclusions" class="flex flex-col gap-4">
 				<p class="m-0 text-secondary">{{ formatMessage(messages.choose) }}</p>
-				<BackupDirectorySelector
-					v-model="selectedDirectories"
-					:directories="directories"
+				<BackupExclusionSelector
+					v-model="excludedPaths"
+					:instance-id="instance.id"
+					:instance-root="instanceRoot"
 					:disabled="action !== null"
 				/>
 				<div class="flex flex-wrap gap-2">
 					<ButtonStyled>
 						<button
 							type="button"
-							:disabled="action !== null || selectedDirectories.length === 0"
-							@click="config.enabled ? saveFolders() : enable()"
+							:disabled="action !== null"
+							@click="config.enabled ? saveExclusions() : enable()"
 						>
 							<SaveIcon />
-							{{ formatMessage(config.enabled ? messages.saveFolders : messages.enable) }}
+							{{ formatMessage(config.enabled ? messages.saveExclusions : messages.enable) }}
 						</button>
 					</ButtonStyled>
 					<ButtonStyled v-if="config.enabled" type="outlined">
-						<button type="button" :disabled="action !== null" @click="editingFolders = false">
+						<button type="button" :disabled="action !== null" @click="editingExclusions = false">
 							<XIcon />
 							{{ formatMessage(commonMessages.cancelButton) }}
 						</button>
@@ -327,9 +330,11 @@ watch(
 				<div class="flex flex-col gap-2 rounded-lg border border-solid border-surface-4 p-3">
 					<p class="m-0 text-sm text-secondary">
 						{{
-							formatMessage(messages.selectedFolders, {
-								folders: config.selected_directories.join(', '),
-							})
+							config.excluded_paths.length === 0
+								? formatMessage(messages.allIncluded)
+								: formatMessage(messages.excludedPaths, {
+										paths: config.excluded_paths.map((entry) => entry.path).join(', '),
+									})
 						}}
 					</p>
 					<div class="flex flex-wrap gap-2">
@@ -349,9 +354,9 @@ watch(
 							<button
 								type="button"
 								:disabled="isRunning || action !== null"
-								@click="beginEditingFolders"
+								@click="beginEditingExclusions"
 							>
-								{{ formatMessage(messages.editFolders) }}
+								{{ formatMessage(messages.editExclusions) }}
 							</button>
 						</ButtonStyled>
 					</div>

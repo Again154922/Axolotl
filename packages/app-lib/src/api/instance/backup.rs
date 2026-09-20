@@ -13,7 +13,7 @@ use sqlx::sqlite::{
     SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions,
 };
 use sqlx::{Row, SqlitePool};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
@@ -58,15 +58,6 @@ pub struct BackupRepositoryStatus {
     pub logical_size: u64,
     pub snapshot_count: u64,
     pub error: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct BackupDirectoryEntry {
-    pub path: String,
-    pub name: String,
-    pub exists: bool,
-    pub is_symlink: bool,
-    pub link_target: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -636,66 +627,6 @@ fn parse_exclusion_kind(value: &str) -> crate::Result<BackupExclusionKind> {
         ))
         .into()),
     }
-}
-
-pub async fn list_top_level_directories(
-    instance_id: &str,
-) -> crate::Result<Vec<BackupDirectoryEntry>> {
-    let state = State::get().await?;
-    let root = require_eligible(instance_id, &state).await?;
-    let mut entries = BTreeMap::new();
-    let mut read_dir = tokio::fs::read_dir(&root).await?;
-    while let Some(entry) = read_dir.next_entry().await? {
-        let path = entry.path();
-        let metadata = tokio::fs::symlink_metadata(&path).await?;
-        let is_symlink = io::is_symlink_or_reparse(&metadata);
-        let is_directory = metadata.is_dir()
-            || (is_symlink
-                && tokio::fs::metadata(&path)
-                    .await
-                    .is_ok_and(|metadata| metadata.is_dir()));
-        if !is_directory {
-            continue;
-        }
-        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
-            continue;
-        };
-        let link_target = if is_symlink {
-            Some(
-                tokio::fs::read_link(&path)
-                    .await?
-                    .to_str()
-                    .ok_or_else(|| {
-                        crate::ErrorKind::UTFError(path.to_path_buf())
-                    })?
-                    .to_string(),
-            )
-        } else {
-            None
-        };
-        entries.insert(
-            name.clone(),
-            BackupDirectoryEntry {
-                path: name.clone(),
-                name,
-                exists: true,
-                is_symlink,
-                link_target,
-            },
-        );
-    }
-    for default in ["config", "saves"] {
-        entries.entry(default.to_string()).or_insert_with(|| {
-            BackupDirectoryEntry {
-                path: default.to_string(),
-                name: default.to_string(),
-                exists: false,
-                is_symlink: false,
-                link_target: None,
-            }
-        });
-    }
-    Ok(entries.into_values().collect())
 }
 
 pub async fn enable(

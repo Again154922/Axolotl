@@ -27,16 +27,15 @@ pub(crate) mod synced_servers;
 mod upgrade;
 
 pub use self::backup::{
-    BackupDeleteSummary, BackupDirectoryEntry, BackupExclusion,
-    BackupExclusionKind, BackupRepositoryStatus, BackupSnapshot,
-    InstanceBackupConfig, InstanceBackupEligibility, cancel_backup,
+    BackupDeleteSummary, BackupExclusion, BackupExclusionKind,
+    BackupRepositoryStatus, BackupSnapshot, InstanceBackupConfig,
+    InstanceBackupEligibility, cancel_backup,
     delete_snapshot as delete_backup_snapshot, disable as disable_backups,
     enable as enable_backups,
     exclusion_from_absolute_path as get_backup_exclusion_from_path,
     instance_config as get_backup_config,
     instance_delete_summary as get_backup_delete_summary,
     list_snapshots as list_backup_snapshots,
-    list_top_level_directories as list_backup_directories,
     maintain_repository as maintain_backup_repository,
     move_repository as move_backup_repository,
     repository_status as get_backup_repository_status, restore_snapshot,

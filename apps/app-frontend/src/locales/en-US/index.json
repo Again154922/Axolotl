@@ -2258,11 +2258,11 @@
   "app.home.servers.join": {
     "message": "Join server"
   },
-  "app.home.servers.more-options": {
-    "message": "More options"
-  },
   "app.home.servers.local": {
     "message": "Local"
+  },
+  "app.home.servers.more-options": {
+    "message": "More options"
   },
   "app.home.servers.offline": {
     "message": "Offline"
@@ -6341,9 +6341,6 @@
   "app.privacy-consent.title": {
     "message": "Privacy & security"
   },
-  "app.project.curseforge.loading": {
-    "message": "Loading CurseForge project…"
-  },
   "app.project.curseforge.unavailable-description": {
     "message": "The CurseForge project did not return any data."
   },
@@ -7136,11 +7133,11 @@
   "app.servers.settings.memory-mb": {
     "message": "Memory (MB)"
   },
-  "app.servers.settings.pin-home": {
-    "message": "Pin to Home"
-  },
   "app.servers.settings.name": {
     "message": "Server name"
+  },
+  "app.servers.settings.pin-home": {
+    "message": "Pin to Home"
   },
   "app.servers.settings.pre-launch-hook-hint": {
     "message": "Runs in the server directory before the server starts. A non-zero exit code cancels the start."
@@ -10808,6 +10805,9 @@
   "instance.backups.added-size": {
     "message": "{size} newly stored"
   },
+  "instance.backups.all-included": {
+    "message": "All instance files and folders are included."
+  },
   "instance.backups.backup-now": {
     "message": "Back up now"
   },
@@ -10815,7 +10815,7 @@
     "message": "Cancel backup"
   },
   "instance.backups.choose": {
-    "message": "Choose folders to include in every future backup."
+    "message": "Everything is backed up by default. Add files or folders that should be excluded."
   },
   "instance.backups.delete": {
     "message": "Delete backup"
@@ -10827,37 +10827,7 @@
     "message": "Delete this backup?"
   },
   "instance.backups.description": {
-    "message": "Create deduplicated snapshots of selected folders while the instance is closed."
-  },
-  "instance.backups.directories.add": {
-    "message": "Add folder"
-  },
-  "instance.backups.directories.clear-all": {
-    "message": "Clear selection"
-  },
-  "instance.backups.directories.existing": {
-    "message": "Instance folders"
-  },
-  "instance.backups.directories.invalid": {
-    "message": "Enter a relative folder inside this instance."
-  },
-  "instance.backups.directories.linked": {
-    "message": "Symbolic link"
-  },
-  "instance.backups.directories.manual": {
-    "message": "Additional relative folder"
-  },
-  "instance.backups.directories.manual-placeholder": {
-    "message": "For example: shaderpacks/custom"
-  },
-  "instance.backups.directories.missing": {
-    "message": "Created when needed"
-  },
-  "instance.backups.directories.remove": {
-    "message": "Remove {path}"
-  },
-  "instance.backups.directories.select-all": {
-    "message": "Select existing folders"
+    "message": "Create deduplicated snapshots of the whole instance while it is closed."
   },
   "instance.backups.disable": {
     "message": "Disable backups"
@@ -10865,14 +10835,29 @@
   "instance.backups.disable-blocked": {
     "message": "Delete every snapshot before disabling backups."
   },
-  "instance.backups.edit-folders": {
-    "message": "Edit folders"
+  "instance.backups.edit-exclusions": {
+    "message": "Edit exclusions"
   },
   "instance.backups.empty": {
     "message": "No backups have been created yet."
   },
   "instance.backups.enable": {
     "message": "Enable backups"
+  },
+  "instance.backups.excluded-paths": {
+    "message": "Excluded: {paths}"
+  },
+  "instance.backups.exclusions.add-file": {
+    "message": "Add excluded file"
+  },
+  "instance.backups.exclusions.add-folder": {
+    "message": "Add excluded folder"
+  },
+  "instance.backups.exclusions.empty": {
+    "message": "No files or folders are excluded."
+  },
+  "instance.backups.exclusions.remove": {
+    "message": "Remove {path} from exclusions"
   },
   "instance.backups.loading": {
     "message": "Loading backup settings..."
@@ -10881,16 +10866,13 @@
     "message": "Restore backup"
   },
   "instance.backups.restore-body": {
-    "message": "The folders included in this snapshot will replace their current versions."
+    "message": "The backed-up instance contents will be replaced. Files and folders excluded by this snapshot will be preserved."
   },
   "instance.backups.restore-title": {
     "message": "Restore this backup?"
   },
-  "instance.backups.save-folders": {
-    "message": "Save folders"
-  },
-  "instance.backups.selected-folders": {
-    "message": "Included folders: {folders}"
+  "instance.backups.save-exclusions": {
+    "message": "Save exclusions"
   },
   "instance.backups.snapshot-meta": {
     "message": "{files, plural, one {# file} other {# files}} · {size}"

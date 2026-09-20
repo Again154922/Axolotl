@@ -30,7 +30,6 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             instance_get_backup_repository_status,
             instance_move_backup_repository,
             instance_get_backup_config,
-            instance_list_backup_directories,
             instance_normalize_backup_exclusion,
             instance_enable_backups,
             instance_update_backup_exclusions,
@@ -839,13 +838,6 @@ pub async fn instance_get_backup_config(
     instance_id: &str,
 ) -> Result<theseus::instance::InstanceBackupConfig> {
     Ok(theseus::instance::get_backup_config(instance_id).await?)
-}
-
-#[tauri::command]
-pub async fn instance_list_backup_directories(
-    instance_id: &str,
-) -> Result<Vec<theseus::instance::BackupDirectoryEntry>> {
-    Ok(theseus::instance::list_backup_directories(instance_id).await?)
 }
 
 #[tauri::command]

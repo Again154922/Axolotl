@@ -5660,42 +5660,6 @@
   "app.minecraft.playing-as": {
     "message": "当前游玩账号："
   },
-  "app.modal.install-to-play.content-required": {
-    "message": "需求内容"
-  },
-  "app.modal.install-to-play.header": {
-    "message": "安装以游玩"
-  },
-  "app.modal.install-to-play.install-button": {
-    "message": "安装"
-  },
-  "app.modal.install-to-play.mod-count": {
-    "message": "{count} 个模组"
-  },
-  "app.modal.install-to-play.required-modpack": {
-    "message": "需求整合包"
-  },
-  "app.modal.install-to-play.server-requires-mods": {
-    "message": "此服务器需要安装模组才能游玩。点击安装，从 Modrinth 下载所需文件，然后直接进入服务器。"
-  },
-  "app.modal.install-to-play.shared-instance": {
-    "message": "共享实例"
-  },
-  "app.modal.install-to-play.shared-server-instance": {
-    "message": "共享的服务端实例"
-  },
-  "app.modal.install-to-play.view-contents": {
-    "message": "查看内容"
-  },
-  "app.modal.update-to-play.header": {
-    "message": "更新以游玩"
-  },
-  "app.modal.update-to-play.update-required": {
-    "message": "需要更新"
-  },
-  "app.modal.update-to-play.update-required-description": {
-    "message": "需要更新至最新版本才能运行 {name}。请更新后启动游戏。"
-  },
   "app.modpack-install.already-installed": {
     "message": "此版本已安装"
   },
@@ -6376,9 +6340,6 @@
   },
   "app.privacy-consent.title": {
     "message": "隐私与安全"
-  },
-  "app.project.curseforge.loading": {
-    "message": "正在加载 CurseForge 项目…"
   },
   "app.project.curseforge.unavailable-description": {
     "message": "该 CurseForge 项目没有返回任何数据。"
@@ -10859,6 +10820,9 @@
   "instance.backups.added-size": {
     "message": "新增存储 {size}"
   },
+  "instance.backups.all-included": {
+    "message": "实例中的所有文件和文件夹都会纳入备份。"
+  },
   "instance.backups.backup-now": {
     "message": "立即备份"
   },
@@ -10866,7 +10830,7 @@
     "message": "取消备份"
   },
   "instance.backups.choose": {
-    "message": "选择每次后续备份都要包含的文件夹。"
+    "message": "默认备份实例中的全部内容，请添加不需要备份的文件或文件夹。"
   },
   "instance.backups.delete": {
     "message": "删除备份"
@@ -10878,37 +10842,7 @@
     "message": "删除此备份？"
   },
   "instance.backups.description": {
-    "message": "在实例关闭时，为选中的文件夹创建去重快照。"
-  },
-  "instance.backups.directories.add": {
-    "message": "添加文件夹"
-  },
-  "instance.backups.directories.clear-all": {
-    "message": "清空选择"
-  },
-  "instance.backups.directories.existing": {
-    "message": "实例文件夹"
-  },
-  "instance.backups.directories.invalid": {
-    "message": "请输入实例内部的相对文件夹路径。"
-  },
-  "instance.backups.directories.linked": {
-    "message": "符号链接"
-  },
-  "instance.backups.directories.manual": {
-    "message": "其他相对文件夹"
-  },
-  "instance.backups.directories.manual-placeholder": {
-    "message": "例如：shaderpacks/custom"
-  },
-  "instance.backups.directories.missing": {
-    "message": "将在需要时创建"
-  },
-  "instance.backups.directories.remove": {
-    "message": "移除 {path}"
-  },
-  "instance.backups.directories.select-all": {
-    "message": "选择现有文件夹"
+    "message": "在实例关闭时，为整个实例创建去重快照。"
   },
   "instance.backups.disable": {
     "message": "关闭备份"
@@ -10916,14 +10850,29 @@
   "instance.backups.disable-blocked": {
     "message": "必须先删除全部快照才能关闭备份。"
   },
-  "instance.backups.edit-folders": {
-    "message": "编辑文件夹"
+  "instance.backups.edit-exclusions": {
+    "message": "编辑排除项"
   },
   "instance.backups.empty": {
     "message": "尚未创建任何备份。"
   },
   "instance.backups.enable": {
     "message": "启用备份"
+  },
+  "instance.backups.excluded-paths": {
+    "message": "不备份：{paths}"
+  },
+  "instance.backups.exclusions.add-file": {
+    "message": "添加忽略文件"
+  },
+  "instance.backups.exclusions.add-folder": {
+    "message": "添加忽略文件夹"
+  },
+  "instance.backups.exclusions.empty": {
+    "message": "没有忽略任何文件或文件夹。"
+  },
+  "instance.backups.exclusions.remove": {
+    "message": "从排除项中移除 {path}"
   },
   "instance.backups.loading": {
     "message": "正在加载备份设置……"
@@ -10932,16 +10881,13 @@
     "message": "恢复备份"
   },
   "instance.backups.restore-body": {
-    "message": "此快照中包含的文件夹将替换它们当前的版本。"
+    "message": "已备份的实例内容将被替换；此快照排除的文件和文件夹会保留。"
   },
   "instance.backups.restore-title": {
     "message": "恢复此备份？"
   },
-  "instance.backups.save-folders": {
-    "message": "保存文件夹"
-  },
-  "instance.backups.selected-folders": {
-    "message": "已包含文件夹：{folders}"
+  "instance.backups.save-exclusions": {
+    "message": "保存排除项"
   },
   "instance.backups.snapshot-meta": {
     "message": "{files, plural, other {# 个文件}} · {size}"
@@ -11129,9 +11075,6 @@
   "instance.settings.sync.creative-hotbars": {
     "message": "创造模式快捷栏"
   },
-  "instance.settings.sync.data-packs": {
-    "message": "数据包"
-  },
   "instance.settings.sync.description": {
     "message": "选择此实例要与其他实例共享的设置。"
   },
@@ -11143,9 +11086,6 @@
   },
   "instance.settings.sync.resource-packs": {
     "message": "资源包"
-  },
-  "instance.settings.sync.screenshots": {
-    "message": "截图"
   },
   "instance.settings.sync.title": {
     "message": "设置同步"
