@@ -3582,6 +3582,16 @@ body.modrinth-console-fullscreen-active .app-contents::before {
 	opacity: 0;
 }
 
+// The body class is the console's authoritative fullscreen state. Keep the
+// shell layout correct even if its companion event is delayed or missed.
+body.modrinth-console-fullscreen-active .app-contents {
+	--right-bar-width: 0px;
+}
+
+body.modrinth-console-fullscreen-active .app-sidebar {
+	display: none;
+}
+
 .sidebar-teleport-content:empty + .sidebar-default-content.sidebar-enabled {
 	display: contents;
 }

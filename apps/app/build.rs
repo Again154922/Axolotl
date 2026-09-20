@@ -286,6 +286,7 @@ fn main() {
                         "curseforge_get_projects",
                         "curseforge_get_description",
                         "curseforge_get_files",
+                        "curseforge_get_files_page",
                         "curseforge_get_file",
                         "curseforge_get_files_many",
                         "curseforge_get_changelog",
