@@ -885,6 +885,9 @@
   "app.backup-exit.body": {
     "message": "仍有 {count} 个备份任务在运行。请保持启动器打开，或将其隐藏到托盘以等待任务完成。"
   },
+  "app.backup-exit.repository-move-body": {
+    "message": "备份文件仓库正在移动。此任务无法取消或强制终止，请保持启动器打开，或将其隐藏到托盘直至任务完成。"
+  },
   "app.backup-exit.return": {
     "message": "返回启动器"
   },

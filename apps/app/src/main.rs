@@ -570,6 +570,13 @@ async fn exit_app(app: tauri::AppHandle, force: bool) -> api::Result<()> {
             ))
             .into());
         }
+        if theseus::instance::has_active_backup_repository_move().await? {
+            return Err(theseus::Error::from(theseus::ErrorKind::InputError(
+                "The launcher cannot force exit while the backup repository is being moved"
+                    .to_string(),
+            ))
+            .into());
+        }
         theseus::instance::interrupt_active_backup_operations().await?;
     }
     app.exit(0);

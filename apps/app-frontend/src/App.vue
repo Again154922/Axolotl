@@ -975,6 +975,11 @@ const messages = defineMessages({
 		defaultMessage:
 			'{count, plural, one {# backup operation is} other {# backup operations are}} still running. Keep the launcher open or hide it to the tray to let them finish.',
 	},
+	backupExitRepositoryMoveBody: {
+		id: 'app.backup-exit.repository-move-body',
+		defaultMessage:
+			'The backup repository is being moved. This task cannot be cancelled or force-stopped; keep the launcher open or hide it to the tray until it finishes.',
+	},
 	backupExitReturn: { id: 'app.backup-exit.return', defaultMessage: 'Return to launcher' },
 	backupExitTray: { id: 'app.backup-exit.tray', defaultMessage: 'Hide to tray' },
 	backupExitCancel: {
@@ -1803,6 +1808,10 @@ async function forceBackupExit() {
 		handleError(error)
 	}
 }
+
+const hasActiveRepositoryMove = computed(() =>
+	activeBackupOperations.value.some((operation) => operation.operation_type === 'repository_move'),
+)
 
 function returnFromBackupExit() {
 	backupExitModal.value?.hide()
@@ -3115,6 +3124,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		<Admonition type="warning">
 			{{ formatMessage(messages.backupExitBody, { count: activeBackupOperations.length }) }}
 		</Admonition>
+		<Admonition v-if="hasActiveRepositoryMove" type="warning" class="mt-3">
+			{{ formatMessage(messages.backupExitRepositoryMoveBody) }}
+		</Admonition>
 		<template #actions>
 			<div class="flex flex-wrap items-center justify-end gap-2">
 				<ButtonStyled type="outlined">
@@ -3132,7 +3144,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 						{{ formatMessage(messages.backupExitCancel) }}
 					</button>
 				</ButtonStyled>
-				<ButtonStyled color="red">
+				<ButtonStyled v-if="!hasActiveRepositoryMove" color="red">
 					<button type="button" :disabled="closeRequestInProgress" @click="forceBackupExit">
 						{{ formatMessage(messages.backupExitForce) }}
 					</button>

@@ -594,6 +594,15 @@ pub async fn has_active_operations() -> crate::Result<bool> {
     Ok(!list_operations(None, true).await?.is_empty())
 }
 
+pub async fn has_active_repository_move() -> crate::Result<bool> {
+    if ACTIVE_INSTANCE_OPERATIONS.contains_key(REPOSITORY_OPERATION_KEY) {
+        return Ok(true);
+    }
+    Ok(list_operations(None, true).await?.iter().any(|operation| {
+        operation.operation_type == BackupOperationType::RepositoryMove
+    }))
+}
+
 pub async fn interrupt_active_operations() -> crate::Result<u64> {
     let state = State::get().await?;
     let Some((_, pool)) = open_repository(&state, false).await? else {

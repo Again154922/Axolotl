@@ -885,6 +885,9 @@
   "app.backup-exit.body": {
     "message": "{count, plural, one {# backup operation is} other {# backup operations are}} still running. Keep the launcher open or hide it to the tray to let them finish."
   },
+  "app.backup-exit.repository-move-body": {
+    "message": "The backup repository is being moved. This task cannot be cancelled or force-stopped; keep the launcher open or hide it to the tray until it finishes."
+  },
   "app.backup-exit.return": {
     "message": "Return to launcher"
   },

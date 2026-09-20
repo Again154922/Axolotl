@@ -35,6 +35,7 @@ pub use self::backup::{
     enable as enable_backups,
     exclusion_from_absolute_path as get_backup_exclusion_from_path,
     has_active_operations as has_active_backup_operations,
+    has_active_repository_move as has_active_backup_repository_move,
     instance_config as get_backup_config,
     instance_delete_summary as get_backup_delete_summary,
     interrupt_active_operations as interrupt_active_backup_operations,
