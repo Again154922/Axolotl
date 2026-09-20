@@ -6,7 +6,7 @@ use crate::state::{Settings, State};
 use crate::util::io;
 use chrono::Utc;
 use dashmap::DashMap;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{
@@ -18,7 +18,7 @@ use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 use std::time::UNIX_EPOCH;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -33,6 +33,8 @@ static BACKUP_CANCELLATIONS: LazyLock<DashMap<Uuid, CancellationToken>> =
 const DATABASE_FILE: &str = "backup.db";
 const OBJECTS_DIR: &str = "objects";
 const STAGING_DIR: &str = ".staging";
+const RESTORE_PREFIX: &str = ".backup-restore-";
+const RESTORE_JOURNAL: &str = "restore.json";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -126,6 +128,18 @@ impl EntryKind {
 struct SnapshotRoot {
     path: String,
     existed: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct RestoreJournal {
+    instance_id: String,
+    roots: Vec<RestoreJournalRoot>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct RestoreJournalRoot {
+    path: String,
+    had_current: bool,
 }
 
 pub(crate) async fn lock_instance_maintenance(
@@ -1302,6 +1316,7 @@ async fn run_gc(repository: &Path, pool: &SqlitePool) -> crate::Result<()> {
 pub async fn maintain_repository() -> crate::Result<()> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
+    recover_interrupted_restores(&state).await?;
     let Some((repository, pool)) = open_repository(&state, false).await? else {
         return Ok(());
     };
@@ -1345,6 +1360,94 @@ pub async fn maintain_repository() -> crate::Result<()> {
     sweep_unindexed_objects(&repository, &pool).await?;
     pool.close().await;
     Ok(())
+}
+
+async fn recover_interrupted_restores(state: &State) -> crate::Result<()> {
+    let instances = state.directories.instances_dir();
+    let mut entries = match tokio::fs::read_dir(&instances).await {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(());
+        }
+        Err(error) => return Err(error.into()),
+    };
+    while let Some(entry) = entries.next_entry().await? {
+        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if !name.starts_with(RESTORE_PREFIX)
+            || !entry.file_type().await?.is_dir()
+        {
+            continue;
+        }
+        let operation_root = entry.path();
+        let journal_bytes = match tokio::fs::read(
+            operation_root.join(RESTORE_JOURNAL),
+        )
+        .await
+        {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                tracing::warn!(
+                    path = %operation_root.display(),
+                    %error,
+                    "Cannot recover interrupted backup restore without its journal"
+                );
+                continue;
+            }
+        };
+        let journal: RestoreJournal =
+            match serde_json::from_slice(&journal_bytes) {
+                Ok(journal) => journal,
+                Err(error) => {
+                    tracing::warn!(
+                        path = %operation_root.display(),
+                        %error,
+                        "Cannot parse interrupted backup restore journal"
+                    );
+                    continue;
+                }
+            };
+        let (_, root) = instance_and_root(&journal.instance_id, state).await?;
+        recover_restore_operation(&root, &operation_root, &journal.roots)
+            .await?;
+    }
+    Ok(())
+}
+
+async fn recover_restore_operation(
+    root: &Path,
+    operation_root: &Path,
+    roots: &[RestoreJournalRoot],
+) -> crate::Result<()> {
+    let rollback = operation_root.join("rollback");
+    for journal_root in roots.iter().rev() {
+        let normalized = normalize_relative_directory(&journal_root.path)?;
+        if normalized != journal_root.path {
+            return Err(crate::ErrorKind::FSError(
+                "Invalid path in backup restore journal".to_string(),
+            )
+            .into());
+        }
+        let current = join_relative(root, &normalized);
+        let old = join_relative(&rollback, &normalized);
+        if tokio::fs::symlink_metadata(&old).await.is_ok() {
+            remove_path_if_exists(&current).await;
+            if let Some(parent) = current.parent() {
+                io::create_dir_all(parent).await?;
+            }
+            tokio::fs::rename(&old, &current).await?;
+        } else if !journal_root.had_current {
+            remove_path_if_exists(&current).await;
+        }
+    }
+    io::remove_dir_all(operation_root).await?;
+    Ok(())
+}
+
+async fn remove_path_if_exists(path: &Path) {
+    let _ = io::remove_dir_all(path).await;
+    let _ = tokio::fs::remove_file(path).await;
 }
 
 async fn sweep_unindexed_objects(
@@ -1538,14 +1641,10 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     let _repository_guard = REPOSITORY_LOCK.lock().await;
     let root = require_eligible(&instance_id, &state).await?;
     let operation_id = Uuid::new_v4().to_string();
-    let operation_root = root
-        .parent()
-        .ok_or_else(|| {
-            crate::ErrorKind::FSError(
-                "Instance has no parent directory".to_string(),
-            )
-        })?
-        .join(format!(".backup-restore-{operation_id}"));
+    let operation_root = state
+        .directories
+        .instances_dir()
+        .join(format!("{RESTORE_PREFIX}{operation_id}"));
     let staged = operation_root.join("staged");
     let rollback = operation_root.join("rollback");
     io::create_dir_all(&staged).await?;
@@ -1557,6 +1656,35 @@ pub async fn restore_snapshot(snapshot_id: &str) -> crate::Result<()> {
     .bind(snapshot_id)
     .fetch_all(&pool)
     .await?;
+    let mut journal_roots = Vec::with_capacity(roots.len());
+    for (path, _) in &roots {
+        let normalized = normalize_relative_directory(path)?;
+        if normalized != *path {
+            return Err(crate::ErrorKind::FSError(
+                "Invalid root path in backup snapshot".to_string(),
+            )
+            .into());
+        }
+        journal_roots.push(RestoreJournalRoot {
+            had_current: tokio::fs::symlink_metadata(join_relative(
+                &root, path,
+            ))
+            .await
+            .is_ok(),
+            path: path.clone(),
+        });
+    }
+    let journal = RestoreJournal {
+        instance_id: instance_id.clone(),
+        roots: journal_roots,
+    };
+    let mut journal_file =
+        tokio::fs::File::create(operation_root.join(RESTORE_JOURNAL)).await?;
+    journal_file
+        .write_all(&serde_json::to_vec(&journal)?)
+        .await?;
+    journal_file.sync_all().await?;
+    drop(journal_file);
     let rows = sqlx::query(
         "SELECT path, kind, object_hash, size, modified_at, unix_mode,
                 link_target, link_is_directory
@@ -1626,6 +1754,13 @@ async fn materialize_snapshot(
 ) -> crate::Result<()> {
     for row in rows {
         let relative: String = row.get("path");
+        let normalized = normalize_relative_directory(&relative)?;
+        if normalized != relative {
+            return Err(crate::ErrorKind::FSError(
+                "Invalid path in backup snapshot".to_string(),
+            )
+            .into());
+        }
         let kind: String = row.get("kind");
         let destination = join_relative(staged, &relative);
         match kind.as_str() {
@@ -1676,6 +1811,14 @@ async fn verify_object(
     expected_hash: &str,
     expected_size: u64,
 ) -> crate::Result<()> {
+    if expected_hash.len() != 64
+        || !expected_hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(crate::ErrorKind::FSError(
+            "Backup object has an invalid SHA-256 identifier".to_string(),
+        )
+        .into());
+    }
     let path = object_path(repository, expected_hash);
     let metadata = tokio::fs::metadata(&path).await?;
     if metadata.len() != expected_size {
@@ -1769,6 +1912,13 @@ pub async fn move_repository(destination: PathBuf) -> crate::Result<()> {
     let state = State::get().await?;
     let _repository_guard = REPOSITORY_LOCK.lock().await;
     let source = repository_path(&state).await?;
+    if !destination.is_absolute() {
+        return Err(crate::ErrorKind::InputError(
+            "The backup repository destination must be an absolute path"
+                .to_string(),
+        )
+        .into());
+    }
     if source == destination {
         return Ok(());
     }
@@ -2067,5 +2217,57 @@ mod tests {
         .await
         .unwrap();
         assert!(!exists);
+    }
+
+    #[tokio::test]
+    async fn interrupted_restore_rolls_back_every_selected_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("instance");
+        let operation_root = temp.path().join("operation");
+        tokio::fs::create_dir_all(operation_root.join("rollback/config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(root.join("config"))
+            .await
+            .unwrap();
+        tokio::fs::create_dir_all(root.join("saves")).await.unwrap();
+        tokio::fs::write(
+            operation_root.join("rollback/config/value.txt"),
+            b"before",
+        )
+        .await
+        .unwrap();
+        tokio::fs::write(root.join("config/value.txt"), b"restored")
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("saves/new.txt"), b"restored")
+            .await
+            .unwrap();
+
+        recover_restore_operation(
+            &root,
+            &operation_root,
+            &[
+                RestoreJournalRoot {
+                    path: "config".to_string(),
+                    had_current: true,
+                },
+                RestoreJournalRoot {
+                    path: "saves".to_string(),
+                    had_current: false,
+                },
+            ],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            tokio::fs::read(root.join("config/value.txt"))
+                .await
+                .unwrap(),
+            b"before"
+        );
+        assert!(!root.join("saves").exists());
+        assert!(!operation_root.exists());
     }
 }
