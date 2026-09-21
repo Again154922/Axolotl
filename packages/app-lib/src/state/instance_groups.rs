@@ -521,7 +521,7 @@ mod tests {
             .map(|g| g.id.clone())
             .collect();
         set_order(&[
-            "unknown",
+            "unknown".to_string(),
             non_favorites[2].clone(),
             non_favorites[0].clone(),
         ]);

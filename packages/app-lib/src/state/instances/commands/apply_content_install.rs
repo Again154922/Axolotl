@@ -21,7 +21,6 @@ use crate::util::fetch::{
     self, ContentValidation, DownloadMeta, DownloadReason, DownloadRequest,
     Integrity, ResourceClass, download_to_path,
 };
-use std::collections::HashMap;
 use crate::util::io;
 use crate::util::io::io_error_with_lock_info;
 use async_trait::async_trait;
@@ -31,6 +30,7 @@ use modrinth_content_management::{
     ResolutionPreferences, ResolveContentPlan, ResolveContentRequest,
     ResolvedContent, SkippedReason,
 };
+use std::collections::HashMap;
 use std::future::Future;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
@@ -281,16 +281,18 @@ async fn resolve_install_plan_with_cache(
         force_project_ids: request.force_project_ids,
     };
 
-    let mut plan = modrinth_content_management::resolve_content(provider, request)
-        .await
-        .map_err(resolver_error)?;
+    let mut plan =
+        modrinth_content_management::resolve_content(provider, request)
+            .await
+            .map_err(resolver_error)?;
 
     // Enrich plan with project-level metadata from cache
     {
-        let project_ids: Vec<ModrinthProjectId> = std::iter::once(&plan.primary.project_id)
-            .chain(plan.dependencies.iter().map(|d| &d.project_id))
-            .filter_map(|id| ModrinthProjectId::new(id.clone()).ok())
-            .collect();
+        let project_ids: Vec<ModrinthProjectId> =
+            std::iter::once(&plan.primary.project_id)
+                .chain(plan.dependencies.iter().map(|d| &d.project_id))
+                .filter_map(|id| ModrinthProjectId::new(id.clone()).ok())
+                .collect();
 
         if !project_ids.is_empty() {
             let projects = CachedEntry::get_project_many(
@@ -301,10 +303,8 @@ async fn resolve_install_plan_with_cache(
             )
             .await?;
 
-            let project_map: HashMap<String, &Project> = projects
-                .iter()
-                .map(|p| (p.id.clone(), p))
-                .collect();
+            let project_map: HashMap<String, &Project> =
+                projects.iter().map(|p| (p.id.clone(), p)).collect();
 
             let enrich = |rc: &mut ResolvedContent| {
                 let meta = rc.metadata.get_or_insert_with(Default::default);
@@ -347,16 +347,18 @@ pub(crate) async fn resolve_install_plan_for_target(
         force_project_ids: request.force_project_ids,
     };
 
-    let mut plan = modrinth_content_management::resolve_content(provider, request)
-        .await
-        .map_err(resolver_error)?;
+    let mut plan =
+        modrinth_content_management::resolve_content(provider, request)
+            .await
+            .map_err(resolver_error)?;
 
     // Enrich plan with project-level metadata from cache
     {
-        let project_ids: Vec<ModrinthProjectId> = std::iter::once(&plan.primary.project_id)
-            .chain(plan.dependencies.iter().map(|d| &d.project_id))
-            .filter_map(|id| ModrinthProjectId::new(id.clone()).ok())
-            .collect();
+        let project_ids: Vec<ModrinthProjectId> =
+            std::iter::once(&plan.primary.project_id)
+                .chain(plan.dependencies.iter().map(|d| &d.project_id))
+                .filter_map(|id| ModrinthProjectId::new(id.clone()).ok())
+                .collect();
 
         if !project_ids.is_empty() {
             let projects = CachedEntry::get_project_many(
@@ -367,10 +369,8 @@ pub(crate) async fn resolve_install_plan_for_target(
             )
             .await?;
 
-            let project_map: HashMap<String, &Project> = projects
-                .iter()
-                .map(|p| (p.id.clone(), p))
-                .collect();
+            let project_map: HashMap<String, &Project> =
+                projects.iter().map(|p| (p.id.clone(), p)).collect();
 
             let enrich = |rc: &mut ResolvedContent| {
                 let meta = rc.metadata.get_or_insert_with(Default::default);
