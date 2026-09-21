@@ -332,6 +332,89 @@ pub fn rename_instance(old_id: &str, new_id: &str) {
 
 // ── One-time import ─────────────────────────────────────────────────────────
 
+async fn import_sql_groups(
+    pool: &sqlx::SqlitePool,
+) -> crate::Result<InstanceGroupsFile> {
+    let columns: Vec<String> = sqlx::query_scalar(
+        "SELECT name FROM pragma_table_info('instance_groups')",
+    )
+    .fetch_all(pool)
+    .await?;
+    let has_column = |name: &str| columns.iter().any(|column| column == name);
+
+    let mut file = InstanceGroupsFile {
+        schema_version: INSTANCE_GROUPS_SCHEMA_VERSION,
+        groups: Vec::new(),
+        memberships: HashMap::new(),
+    };
+
+    if has_column("id") && has_column("name") {
+        let rows = sqlx::query_as::<_, (String, String)>(
+            "SELECT id, name FROM instance_groups ORDER BY display_order, name, id",
+        )
+        .fetch_all(pool)
+        .await?;
+        for (id, name) in rows {
+            file.groups.push(GroupDefinition { id, name });
+        }
+
+        let has_memberships: bool = sqlx::query_scalar(
+            "SELECT EXISTS(
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = 'instance_group_memberships'
+            )",
+        )
+        .fetch_one(pool)
+        .await?;
+        if has_memberships {
+            let memberships = sqlx::query_as::<_, (String, String)>(
+                "SELECT instance_id, group_id FROM instance_group_memberships",
+            )
+            .fetch_all(pool)
+            .await?;
+            for (instance_id, group_id) in memberships {
+                file.memberships
+                    .entry(instance_id)
+                    .or_default()
+                    .push(group_id);
+            }
+        }
+    } else if has_column("instance_id") && has_column("group_name") {
+        let rows = sqlx::query_as::<_, (String, String)>(
+            "SELECT instance_id, group_name
+             FROM instance_groups
+             ORDER BY group_name, instance_id",
+        )
+        .fetch_all(pool)
+        .await?;
+        let mut group_ids = HashMap::<String, String>::new();
+        for (instance_id, group_name) in rows {
+            let group_id = group_ids
+                .entry(group_name.clone())
+                .or_insert_with(|| uuid::Uuid::new_v4().to_string())
+                .clone();
+            file.memberships
+                .entry(instance_id)
+                .or_default()
+                .push(group_id.clone());
+            if !file.groups.iter().any(|group| group.id == group_id) {
+                file.groups.push(GroupDefinition {
+                    id: group_id,
+                    name: group_name,
+                });
+            }
+        }
+    } else if !columns.is_empty() {
+        warn!(
+            columns = ?columns,
+            "Skipping instance group import from an unrecognized SQLite schema"
+        );
+    }
+
+    file.normalize();
+    Ok(file)
+}
+
 /// Creates `instance_groups.json` from the pre-existing SQLite tables and
 /// instance sidecars, the first time the app runs after this change.
 ///
@@ -349,37 +432,7 @@ pub async fn ensure_imported(state: &State) -> crate::Result<()> {
         return Ok(());
     }
 
-    let mut file = InstanceGroupsFile {
-        schema_version: INSTANCE_GROUPS_SCHEMA_VERSION,
-        groups: Vec::new(),
-        memberships: HashMap::new(),
-    };
-
-    // Deliberately the runtime API rather than the `query!` macro: these
-    // statements exist only for this one-time import, and the macro would
-    // require regenerating the whole `.sqlx` offline cache.
-    let rows = sqlx::query_as::<_, (String, String)>(
-        "SELECT id, name FROM instance_groups ORDER BY display_order, name, id",
-    )
-    .fetch_all(&state.pool)
-    .await?;
-    for (id, name) in rows {
-        file.groups.push(GroupDefinition { id, name });
-    }
-
-    let memberships = sqlx::query_as::<_, (String, String)>(
-        "SELECT instance_id, group_id FROM instance_group_memberships",
-    )
-    .fetch_all(&state.pool)
-    .await?;
-    for (instance_id, group_id) in memberships {
-        file.memberships
-            .entry(instance_id)
-            .or_default()
-            .push(group_id);
-    }
-
-    file.normalize();
+    let file = import_sql_groups(&state.pool).await?;
     let group_count = file.groups.len();
     let instance_count = file.memberships.len();
 
@@ -402,6 +455,7 @@ pub async fn ensure_imported(state: &State) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
 
     fn file_with_groups(ids: &[&str]) -> InstanceGroupsFile {
         InstanceGroupsFile {
@@ -508,5 +562,39 @@ mod tests {
         );
         file.normalize();
         assert_eq!(file.memberships["instance"].len(), 2);
+    }
+
+    #[tokio::test]
+    async fn imports_legacy_instance_group_schema() {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::query(
+            "CREATE TABLE instance_groups (
+                instance_id TEXT NOT NULL,
+                group_name TEXT NOT NULL,
+                PRIMARY KEY (instance_id, group_name)
+            )",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO instance_groups (instance_id, group_name)
+             VALUES ('instance-1', 'Survival'), ('instance-2', 'Survival'),
+                    ('instance-1', 'Creative')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let file = import_sql_groups(&pool).await.unwrap();
+
+        assert_eq!(file.groups.len(), 3);
+        assert_eq!(file.groups[0].id, FAVORITES_GROUP_ID);
+        assert_eq!(file.memberships["instance-1"].len(), 2);
+        assert_eq!(file.memberships["instance-2"].len(), 1);
+        assert!(file.groups.iter().any(|group| group.name == "Survival"));
     }
 }
