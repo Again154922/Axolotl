@@ -62,7 +62,7 @@ import ConfirmDropTypeModal from '@modrinth/ui/src/components/flows/drop/Confirm
 import GenericContentInstallModal from '@modrinth/ui/src/components/flows/drop/GenericContentInstallModal.vue'
 import LauncherImportModal from '@modrinth/ui/src/components/flows/drop/LauncherImportModal.vue'
 import SymlinkMethodCards from '@modrinth/ui/src/components/flows/drop/SymlinkMethodCards.vue'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { getVersion } from '@tauri-apps/api/app'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -421,6 +421,7 @@ const updateAnnouncementShowing = ref(false)
 const isMaximized = ref(false)
 
 const authUnreachableDebug = useDebugLogger('AuthReachableChecker')
+const queryClient = useQueryClient()
 const authServerQuery = useQuery({
 	queryKey: ['authServerReachability'],
 	enabled: computed(() => !browserOffline.value),
@@ -1439,7 +1440,13 @@ async function setupApp() {
 	} else {
 		showOnboarding.value = !onboarded
 	}
-	void reconcileMojangAuthSourceAtStartup().catch(handleError)
+	// Reconciling the Mojang auth source is what turns on the Fallen mirror on
+	// networks where the official domains are blocked. The reachability query
+	// above runs before this finishes (and does not retry), so without a refetch
+	// the launcher stays in offline mode until the user refreshes manually.
+	void reconcileMojangAuthSourceAtStartup()
+		.then(() => queryClient.refetchQueries({ queryKey: ['authServerReachability'] }))
+		.catch(handleError)
 
 	isMaximized.value = await getCurrentWindow().isMaximized()
 
