@@ -287,9 +287,8 @@ async function unpinServer(world: ServerWorld & WorldWithInstance) {
 	await runtime.refreshFavorites()
 }
 
-async function startLocalServer(server: { id: string; name: string; onlineMode?: boolean | null }) {
-	if (!(await confirmOnlineModeLaunch(server))) return
-	await startServer(server.id)
+async function startLocalServer(serverId: string) {
+	await startServer(serverId)
 	await runtime.refreshPinnedLocalServers()
 }
 
@@ -482,7 +481,7 @@ async function unpinLocalServer(serverId: string) {
 								<button
 									v-tooltip="formatMessage(server.running ? messages.stop : messages.start)"
 									:class="server.running ? '!text-red' : '!text-brand'"
-									@click="server.running ? stopLocalServer(server.id) : startLocalServer(server)"
+									@click="server.running ? stopLocalServer(server.id) : startLocalServer(server.id)"
 								>
 									<StopCircleIcon v-if="server.running" />
 									<PlayIcon v-else />
