@@ -1194,6 +1194,10 @@ pub(in crate::api::instance) async fn detach(
     }
     if changed {
         write_library(&library, state).await?;
+        // Detaching only changes the library projection. Queue the worker so
+        // owned files are removed from the instance after the preference is
+        // disabled.
+        super::worker::queue_reconciliation(&metadata.instance.id);
     }
     Ok(())
 }
