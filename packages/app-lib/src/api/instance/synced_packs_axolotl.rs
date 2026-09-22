@@ -16,7 +16,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::Row;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::{Component, Path, PathBuf};
 
 #[derive(Clone, Debug, Serialize)]
@@ -826,9 +826,86 @@ pub(crate) async fn reconcile(
 }
 
 pub(crate) async fn capture_resource_pack_selection_change(
-    _: &crate::state::InstanceMetadata,
-    _: &State,
+    metadata: &crate::state::InstanceMetadata,
+    state: &State,
 ) -> crate::Result<()> {
+    let Some(options) = crate::api::instance::synced_options::game_options::read_resource_pack_entries(metadata, state).await? else {
+        return Ok(());
+    };
+    let global_enabled = globally_enabled(ProjectType::ResourcePack).await?;
+    if !global_enabled || !metadata.synced_options.resource_packs {
+        return Ok(());
+    }
+    let rows = sqlx::query(
+        "SELECT id, file_name, selected FROM synced_pack_catalog
+         WHERE project_type = 'resourcepack'",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+    let mut managed = BTreeSet::new();
+    let mut selected_names = BTreeSet::new();
+    let mut transaction = state.pool.begin().await?;
+    for (order, row) in rows.iter().enumerate() {
+        let id: String = row.try_get("id")?;
+        let file_name: String = row.try_get("file_name")?;
+        let entry = format!("file/{file_name}");
+        let legacy = file_name.clone();
+        let is_selected = options
+            .entries
+            .iter()
+            .any(|candidate| candidate == &entry || candidate == &legacy);
+        managed.insert(entry.clone());
+        managed.insert(legacy);
+        sqlx::query(
+            "UPDATE synced_pack_catalog
+             SET selected = ?, selection_order = ?
+             WHERE id = ?",
+        )
+        .bind(i64::from(is_selected))
+        .bind(
+            options
+                .entries
+                .iter()
+                .position(|candidate| {
+                    candidate == &entry || candidate == &file_name
+                })
+                .map(|value| value as i64)
+                .or(Some(order as i64)),
+        )
+        .bind(id)
+        .execute(&mut *transaction)
+        .await?;
+        if is_selected {
+            selected_names.insert(entry);
+        }
+    }
+    transaction.commit().await?;
+    let selected = options
+        .entries
+        .iter()
+        .filter(|entry| managed.contains(*entry))
+        .filter(|entry| {
+            selected_names.contains(*entry)
+                || selected_names
+                    .contains(entry.strip_prefix("file/").unwrap_or(entry))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+    for target in crate::state::list_instances(&state.pool).await? {
+        if target.instance.id == metadata.instance.id
+            || !target.synced_options.resource_packs
+        {
+            continue;
+        }
+        let _ = crate::api::instance::synced_options::game_options::merge_resource_pack_entries(
+            &target,
+            &managed,
+            &selected,
+            state,
+        )
+        .await?;
+    }
     Ok(())
 }
 
