@@ -287,9 +287,8 @@ async function unpinServer(world: ServerWorld & WorldWithInstance) {
 	await runtime.refreshFavorites()
 }
 
-async function startLocalServer(server: { id: string; name: string; onlineMode?: boolean | null }) {
-	if (!(await confirmOnlineModeLaunch(server))) return
-	await startServer(server.id)
+async function startLocalServer(serverId: string) {
+	await startServer(serverId)
 	await runtime.refreshPinnedLocalServers()
 }
 
