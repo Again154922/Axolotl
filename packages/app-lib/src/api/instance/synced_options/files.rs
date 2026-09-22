@@ -54,16 +54,6 @@ pub(in crate::api::instance) fn safe_instance_id(instance_id: &str) -> String {
     instance_id.replace([':', '/', '\\'], "_")
 }
 
-pub(crate) fn instance_dir(
-    metadata: &InstanceMetadata,
-    state: &State,
-) -> PathBuf {
-    state
-        .directories
-        .instances_dir()
-        .join(&metadata.instance.path)
-}
-
 pub(crate) fn instance_game_dir(
     metadata: &InstanceMetadata,
     state: &State,
