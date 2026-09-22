@@ -918,7 +918,6 @@ async fn apply_instance_inner(
             });
         if (included || placement.suspended)
             && !placement.excluded
-            && !placement.suspended
             && preparation
                 .run(library, owns_file(metadata, &placement, state))
                 .await?
