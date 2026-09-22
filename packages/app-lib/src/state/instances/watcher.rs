@@ -541,13 +541,13 @@ pub(crate) async fn watch_instance_folder(
 
     let full_instance_path_key =
         full_instance_path.to_string_lossy().to_string();
+    let mut debouncer = watcher.watcher.write().await;
     let is_watched = watcher
         .instance_ids
         .read()
         .await
         .contains_key(&full_instance_path_key);
     if !is_watched {
-        let mut debouncer = watcher.watcher.write().await;
         for full_path in &to_watch {
             if let Err(e) = debouncer
                 .watcher()
@@ -579,6 +579,8 @@ pub(crate) async fn watch_instance_folder(
         .entry(full_instance_path_key)
         .or_default()
         .insert(instance_id.to_string());
+    drop(instance_ids);
+    drop(debouncer);
     watcher
         .content_changes
         .write()
@@ -599,31 +601,29 @@ pub(crate) async fn unwatch_instance_folder(
 ) {
     let full_instance_path_key =
         full_instance_path.to_string_lossy().to_string();
-    let removed_instance_ids = {
+    let mut debouncer = watcher.watcher.write().await;
+    let (removed_instance_ids, should_unwatch) = {
         let mut mappings = watcher.instance_ids.write().await;
         let removed_instance_ids =
             mappings.remove(instance_path).unwrap_or_default();
+        let mut should_unwatch = false;
         if let Some(shared_ids) = mappings.get_mut(&full_instance_path_key) {
             for instance_id in &removed_instance_ids {
                 shared_ids.remove(instance_id);
             }
             if shared_ids.is_empty() {
                 mappings.remove(&full_instance_path_key);
+                should_unwatch = true;
             }
         }
-        removed_instance_ids
+        (removed_instance_ids, should_unwatch)
     };
-    if !watcher
-        .instance_ids
-        .read()
-        .await
-        .contains_key(&full_instance_path_key)
-    {
-        let mut debouncer = watcher.watcher.write().await;
+    if should_unwatch {
         for full_path in instance_watch_paths(full_instance_path) {
             let _ = debouncer.watcher().unwatch(&full_path);
         }
     }
+    drop(debouncer);
     for instance_id in removed_instance_ids {
         watcher.content_changes.write().await.remove(&instance_id);
     }
