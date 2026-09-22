@@ -43,6 +43,8 @@ export interface ServerInfoData extends ServerManifestData {
 	eulaExists: boolean
 	eulaAccepted: boolean
 	port: number | null
+	/** `online-mode` from server.properties; null when unset (defaults to on). */
+	onlineMode: boolean | null
 }
 
 export type ServerExitReason = 'eula'

@@ -122,6 +122,10 @@ pub struct ServerInfo {
     pub eula_exists: bool,
     pub eula_accepted: bool,
     pub port: Option<u16>,
+    /// `online-mode` from `server.properties`. `None` when the file does not
+    /// set it, which means the vanilla default of `true`.
+    #[serde(rename = "onlineMode")]
+    pub online_mode: Option<bool>,
 }
 
 pub(super) async fn server_path(server_id: &str) -> Result<PathBuf> {
@@ -195,6 +199,7 @@ pub(super) async fn build_server_info(
         .filter(|(key, _)| key.trim() == "eula")
         .is_some_and(|(_, value)| value.trim().eq_ignore_ascii_case("true"));
     let port = read_server_port(path).await;
+    let online_mode = read_online_mode(path).await;
     ServerInfo {
         manifest: manifest.clone(),
         path: path.to_string_lossy().into_owned(),
@@ -202,19 +207,32 @@ pub(super) async fn build_server_info(
         eula_exists,
         eula_accepted,
         port,
+        online_mode,
     }
 }
 
 /// Reads `server-port` from the server's `server.properties`, if present.
 pub(super) async fn read_server_port(path: &Path) -> Option<u16> {
+    read_server_property_value(path, "server-port")
+        .await
+        .and_then(|value| value.parse::<u16>().ok())
+}
+
+/// Reads `online-mode`. `None` means the file does not set it.
+pub(super) async fn read_online_mode(path: &Path) -> Option<bool> {
+    read_server_property_value(path, "online-mode")
+        .await
+        .map(|value| value.eq_ignore_ascii_case("true"))
+}
+
+async fn read_server_property_value(path: &Path, key: &str) -> Option<String> {
     tokio::fs::read_to_string(path.join("server.properties"))
         .await
         .ok()
         .and_then(|text| {
             text.lines().find_map(|line| {
-                let (key, value) = line.split_once('=')?;
-                (key.trim() == "server-port")
-                    .then(|| value.trim().parse::<u16>().ok())?
+                let (name, value) = line.split_once('=')?;
+                (name.trim() == key).then(|| value.trim().to_string())
             })
         })
 }
