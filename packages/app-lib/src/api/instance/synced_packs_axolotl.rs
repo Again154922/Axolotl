@@ -78,6 +78,16 @@ fn cache_path(state: &State, sha1: &str) -> PathBuf {
     cache_dir(state).join(sha1)
 }
 
+fn content_root(
+    state: &State,
+    metadata: &crate::state::InstanceMetadata,
+) -> crate::Result<PathBuf> {
+    crate::state::instances::commands::instance_content_root(
+        &state.directories,
+        &metadata.instance,
+    )
+}
+
 fn logical_path(
     project_type: ProjectType,
     file_name: &str,
@@ -179,10 +189,7 @@ async fn cleanup_materialization(
         );
         return Ok(());
     };
-    let absolute = state
-        .directories
-        .instance_game_dir(&metadata.instance)
-        .join(&relative_path);
+    let absolute = content_root(state, metadata)?.join(&relative_path);
     if file_matches_sha1(&absolute, &row.sha1).await {
         match tokio::fs::remove_file(&absolute).await {
             Ok(()) => {}
@@ -320,10 +327,7 @@ async fn materialize(
             crate::ErrorKind::InputError("Unknown instance".to_string())
         })?;
     let project_type = parse_type(&row.project_type)?;
-    let root = state
-        .directories
-        .instances_dir()
-        .join(&metadata.instance.path);
+    let root = content_root(state, &metadata)?;
     let relative_path =
         logical_path(project_type, &row.file_name, row.enabled != 0);
     let destination = root.join(&relative_path);
@@ -487,11 +491,7 @@ pub async fn get_pack_sync_preview(
             crate::ErrorKind::InputError("Invalid pack path".to_string())
         })?;
     validate_type(project_type)?;
-    let source = state
-        .directories
-        .instances_dir()
-        .join(&metadata.instance.path)
-        .join(project_path);
+    let source = content_root(&state, &metadata)?.join(project_path);
     let bytes = Bytes::from(tokio::fs::read(&source).await?);
     let sha1 = crate::util::fetch::sha1_async(bytes.clone()).await?;
     let row = sqlx::query_as::<_, PackRow>(
@@ -808,7 +808,7 @@ pub(crate) async fn seed_from_instance(
         crate::state::SyncedOption::DataPacks => ProjectType::DataPack,
         _ => return Ok(()),
     };
-    let root = state.directories.instance_game_dir(&metadata.instance);
+    let root = content_root(state, metadata)?;
     let directory = root.join(project_type.get_folder());
     let mut entries = match tokio::fs::read_dir(&directory).await {
         Ok(entries) => entries,
@@ -933,13 +933,8 @@ pub(crate) async fn seed_from_instance(
         else {
             continue;
         };
-        if tokio::fs::try_exists(
-            &state
-                .directories
-                .instance_game_dir(&metadata.instance)
-                .join(path),
-        )
-        .await?
+        if tokio::fs::try_exists(&content_root(&state, &metadata)?.join(path))
+            .await?
         {
             continue;
         }
