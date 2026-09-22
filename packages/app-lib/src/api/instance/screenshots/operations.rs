@@ -479,7 +479,20 @@ pub(super) async fn source_screenshots_dir(
     state: &State,
     source: &InstanceScreenshotSource,
 ) -> crate::Result<PathBuf> {
-    let instance_dir = state.directories.instances_dir().join(&source.path);
+    // Directly associated instances keep their files in the external launcher's
+    // resolved game directory (which may be the shared `.minecraft` root or an
+    // isolated version directory). Use the same runtime resolver as launching
+    // and content browsing so screenshots are read from the directory the game
+    // actually uses.
+    let instance_dir =
+        match instance_rows::get_instance_by_id(&source.id, &state.pool).await?
+        {
+            Some(instance) => crate::launcher::linked_game_dir(&instance)
+                .unwrap_or_else(|| {
+                    state.directories.instances_dir().join(&source.path)
+                }),
+            None => state.directories.instances_dir().join(&source.path),
+        };
     let canonical_instance_dir =
         tokio::fs::canonicalize(&instance_dir)
             .await
