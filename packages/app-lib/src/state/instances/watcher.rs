@@ -642,10 +642,11 @@ fn instance_watch_paths(full_instance_path: &Path) -> Vec<PathBuf> {
     // handle on a subfolder keeps Windows from renaming the instance root).
     let mut seen = HashSet::new();
     let mut paths = Vec::new();
-    for sub in ProjectType::iterator()
-        .map(|x| x.get_folder())
-        .chain(["crash-reports", "saves"])
-    {
+    for sub in ProjectType::iterator().map(|x| x.get_folder()).chain([
+        "crash-reports",
+        "saves",
+        "screenshots",
+    ]) {
         let full_path = full_instance_path.join(sub);
         if seen.insert(full_path.clone()) {
             paths.push(full_path);

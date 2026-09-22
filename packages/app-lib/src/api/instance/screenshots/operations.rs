@@ -9,7 +9,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
 use super::reconciliation::{
-    list_indexed_source_screenshots, reconcile_source_screenshots,
+    list_source_screenshots, reconcile_source_screenshots,
     scan_source_screenshots,
 };
 use crate::State;
@@ -62,7 +62,7 @@ pub async fn list_screenshots(
                 crate::ErrorKind::InputError("Unknown instance".to_string())
             })?;
 
-    list_indexed_source_screenshots(&state, &source).await
+    list_source_screenshots(&state, source).await
 }
 
 pub async fn list_synced_screenshots() -> crate::Result<Vec<InstanceScreenshot>>
@@ -82,7 +82,7 @@ async fn list_source_screenshot_sets(
 ) -> crate::Result<Vec<InstanceScreenshot>> {
     let mut screenshots =
         stream::iter(sources.into_iter().map(|source| async move {
-            list_indexed_source_screenshots(state, &source).await
+            list_source_screenshots(state, source).await
         }))
         .buffer_unordered(SCREENSHOT_SCAN_CONCURRENCY)
         .try_collect::<Vec<Vec<InstanceScreenshot>>>()
