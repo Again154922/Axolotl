@@ -116,6 +116,23 @@ fn game_versions(row: &PackRow) -> Vec<String> {
     serde_json::from_str(&row.game_versions_json).unwrap_or_default()
 }
 
+fn resource_pack_option_entry(
+    metadata: &crate::state::InstanceMetadata,
+    entry: &str,
+) -> String {
+    let legacy = metadata
+        .applied_content_set
+        .game_version
+        .strip_prefix("1.")
+        .and_then(|version| version.split('.').next()?.parse::<u32>().ok())
+        .is_some_and(|minor| minor < 13);
+    if legacy {
+        entry.strip_prefix("file/").unwrap_or(entry).to_string()
+    } else {
+        entry.to_string()
+    }
+}
+
 fn version_compatible(
     row: &PackRow,
     metadata: &crate::state::InstanceMetadata,
@@ -898,10 +915,14 @@ pub(crate) async fn capture_resource_pack_selection_change(
         {
             continue;
         }
+        let target_selected = selected
+            .iter()
+            .map(|entry| resource_pack_option_entry(&target, entry))
+            .collect::<Vec<_>>();
         let _ = crate::api::instance::synced_options::game_options::merge_resource_pack_entries(
             &target,
             &managed,
-            &selected,
+            &target_selected,
             state,
         )
         .await?;
