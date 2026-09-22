@@ -1,6 +1,7 @@
 <template>
 	<div class="flex gap-2 items-center">
 		<Dropdown
+			v-if="notificationHistory.length"
 			v-model:shown="notificationCenterShown"
 			placement="bottom-end"
 			:triggers="['click']"
