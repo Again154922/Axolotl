@@ -14,6 +14,7 @@ import { useRouter } from 'vue-router'
 
 import CreateServerModal from '@/components/multiplayer/servers/CreateServerModal.vue'
 import EulaModal from '@/components/multiplayer/servers/EulaModal.vue'
+import OnlineModeWarningModal from '@/components/multiplayer/servers/OnlineModeWarningModal.vue'
 import ServerCard from '@/components/multiplayer/servers/ServerCard.vue'
 import { useServerLifecycle } from '@/composables/useServerLifecycle'
 import { type ServerView, useServers } from '@/composables/useServers'
@@ -25,8 +26,15 @@ import {
 const router = useRouter()
 const { formatMessage } = useVIntl()
 const { servers, isRefreshing, refresh, stopServer } = useServers()
-const { eulaModal, eulaText, tryStartServer, acceptEula, declineEula, resumeInstall } =
-	useServerLifecycle()
+const {
+	eulaModal,
+	eulaText,
+	onlineModeWarningModal,
+	tryStartServer,
+	acceptEula,
+	declineEula,
+	resumeInstall,
+} = useServerLifecycle()
 const createModal = useTemplateRef<ComponentExposed<typeof CreateServerModal>>('createModal')
 
 const messages = defineMessages({
@@ -176,6 +184,7 @@ async function toggleRunning(server: ServerView) {
 
 		<CreateServerModal ref="createModal" @created="openServer" />
 		<EulaModal ref="eulaModal" :text="eulaText" @continue="acceptEula" @decline="declineEula" />
+		<OnlineModeWarningModal ref="onlineModeWarningModal" />
 	</div>
 </template>
 

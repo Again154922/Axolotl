@@ -5,6 +5,7 @@ import type { ComponentExposed } from 'vue-component-type-helpers'
 
 import type EulaModal from '@/components/multiplayer/servers/EulaModal.vue'
 import { resumeModpackInstall } from '@/composables/useServerInstalls'
+import { useOnlineModeWarning } from '@/composables/useOnlineModeWarning'
 import { type ServerView, setServerExitReasonHandler, useServers } from '@/composables/useServers'
 import { serverEventListener, servers as serversApi } from '@/helpers/servers'
 import { injectDownloadManager } from '@/providers/download-manager'
@@ -17,6 +18,7 @@ import { injectDownloadManager } from '@/providers/download-manager'
 export function useServerLifecycle() {
 	const { startServer } = useServers()
 	const { handleError } = injectNotificationManager()
+	const { onlineModeWarningModal, confirmOnlineModeLaunch } = useOnlineModeWarning()
 
 	// [SERVER-DOWNLOAD-BRIDGE] Capture the download manager once during Vue
 	// setup context.  See the note in `startModpackServerInstall` for why
@@ -53,6 +55,7 @@ export function useServerLifecycle() {
 	 * - eula.txt present and `eula=true` → start directly
 	 */
 	async function tryStartServer(server: ServerView) {
+		if (!(await confirmOnlineModeLaunch(server))) return
 		const accepted = await ensureEula(server.id)
 		if (accepted) {
 			await launchServer(server.id)
@@ -157,6 +160,7 @@ export function useServerLifecycle() {
 	return {
 		eulaModal,
 		eulaText,
+		onlineModeWarningModal,
 		tryStartServer,
 		acceptEula,
 		declineEula,

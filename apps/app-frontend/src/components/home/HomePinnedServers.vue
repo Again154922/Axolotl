@@ -23,10 +23,12 @@ import {
 import { computed, reactive, ref, watch } from 'vue'
 
 import HomeLocalServerPickerModal from '@/components/home/HomeLocalServerPickerModal.vue'
+import OnlineModeWarningModal from '@/components/multiplayer/servers/OnlineModeWarningModal.vue'
 import type { HomeWidgetSize } from '@/components/home/home-dashboard'
 import { useHomeDashboardRuntime } from '@/components/home/home-dashboard-runtime'
 import ManagedServerIcon from '@/components/multiplayer/servers/ServerIcon.vue'
 import { useMinecraftLaunchError } from '@/composables/useMinecraftLaunchError'
+import { useOnlineModeWarning } from '@/composables/useOnlineModeWarning'
 import { useServers } from '@/composables/useServers'
 import { trackEvent } from '@/helpers/analytics'
 import { kill } from '@/helpers/instance'
@@ -50,6 +52,7 @@ const props = defineProps<{
 const { addNotification, handleError } = injectNotificationManager()
 const { formatMessage } = useVIntl()
 const handleMinecraftLaunchError = useMinecraftLaunchError()
+const { onlineModeWarningModal, confirmOnlineModeLaunch } = useOnlineModeWarning()
 const runtime = useHomeDashboardRuntime()
 const { favoriteWorlds, localServers, runningInstanceIds } = runtime
 const { startServer, stopServer } = useServers()
@@ -239,6 +242,7 @@ async function joinServer(world: ServerWorld & WorldWithInstance, instance: Game
 	try {
 		const linked = linkedServer(world)
 		if (linked) {
+			if (!(await confirmOnlineModeLaunch(linked))) return
 			if (!linked.running) {
 				const started = await startServer(linked.id)
 				if (!started) return
@@ -283,8 +287,9 @@ async function unpinServer(world: ServerWorld & WorldWithInstance) {
 	await runtime.refreshFavorites()
 }
 
-async function startLocalServer(serverId: string) {
-	await startServer(serverId)
+async function startLocalServer(server: { id: string; name: string; onlineMode?: boolean | null }) {
+	if (!(await confirmOnlineModeLaunch(server))) return
+	await startServer(server.id)
 	await runtime.refreshPinnedLocalServers()
 }
 
@@ -477,7 +482,7 @@ async function unpinLocalServer(serverId: string) {
 								<button
 									v-tooltip="formatMessage(server.running ? messages.stop : messages.start)"
 									:class="server.running ? '!text-red' : '!text-brand'"
-									@click="server.running ? stopLocalServer(server.id) : startLocalServer(server.id)"
+									@click="server.running ? stopLocalServer(server.id) : startLocalServer(server)"
 								>
 									<StopCircleIcon v-if="server.running" />
 									<PlayIcon v-else />
@@ -506,6 +511,7 @@ async function unpinLocalServer(serverId: string) {
 			:selected-server-id="linkingWorld ? (linkedServer(linkingWorld)?.id ?? null) : null"
 			@select="linkLocalServer"
 		/>
+		<OnlineModeWarningModal ref="onlineModeWarningModal" />
 	</section>
 </template>
 

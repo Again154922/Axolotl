@@ -7020,6 +7020,18 @@
   "app.servers.modpack.done": {
     "message": "Installation complete"
   },
+  "app.servers.online-mode-warning.body": {
+    "message": "“{server}” has premium (online-mode) verification enabled, but the account you are using, “{account}”, is an offline account. The server will refuse that connection. Start anyway?"
+  },
+  "app.servers.online-mode-warning.cancel": {
+    "message": "Cancel"
+  },
+  "app.servers.online-mode-warning.confirm": {
+    "message": "Start anyway"
+  },
+  "app.servers.online-mode-warning.title": {
+    "message": "This server requires a premium account"
+  },
   "app.servers.modpack.download-in-background": {
     "message": "Download in background"
   },

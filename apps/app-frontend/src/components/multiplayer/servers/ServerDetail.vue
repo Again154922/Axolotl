@@ -29,6 +29,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import EulaModal from '@/components/multiplayer/servers/EulaModal.vue'
+import OnlineModeWarningModal from '@/components/multiplayer/servers/OnlineModeWarningModal.vue'
 import {
 	isServerStatusVisible,
 	SERVER_STATUS_META,
@@ -49,8 +50,15 @@ const router = useRouter()
 const serverId = route.params.id as string
 
 const { servers, refresh, stopServer } = useServers()
-const { eulaModal, eulaText, tryStartServer, acceptEula, declineEula, resumeInstall } =
-	useServerLifecycle()
+const {
+	eulaModal,
+	eulaText,
+	onlineModeWarningModal,
+	tryStartServer,
+	acceptEula,
+	declineEula,
+	resumeInstall,
+} = useServerLifecycle()
 const filePicker = injectFilePicker()
 const multiplayerSession = useMultiplayerSession()
 const { formatMessage } = useVIntl()
@@ -474,6 +482,7 @@ async function shareOnline() {
 			</div>
 
 			<EulaModal ref="eulaModal" :text="eulaText" @continue="acceptEula" @decline="declineEula" />
+			<OnlineModeWarningModal ref="onlineModeWarningModal" />
 		</template>
 	</div>
 </template>

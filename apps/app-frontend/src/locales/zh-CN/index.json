@@ -7023,6 +7023,18 @@
   "app.servers.modpack.download-in-background": {
     "message": "后台下载"
   },
+  "app.servers.online-mode-warning.body": {
+    "message": "服务器“{server}”开启了正版验证（online-mode=true），而你当前使用的账号“{account}”是离线账号，进入该服务器时会被拒绝。是否仍要继续启动？"
+  },
+  "app.servers.online-mode-warning.cancel": {
+    "message": "取消"
+  },
+  "app.servers.online-mode-warning.confirm": {
+    "message": "仍要继续"
+  },
+  "app.servers.online-mode-warning.title": {
+    "message": "该服务器启用了正版验证"
+  },
   "app.servers.modpack.downloading": {
     "message": "正在下载整合包文件..."
   },
