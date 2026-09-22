@@ -1276,6 +1276,9 @@ pub(crate) async fn remove_generated_instance_files(
         synced_options_path(state)
             .join("servers/generated")
             .join(&instance_id),
+        synced_options_path(state)
+            .join("backups")
+            .join(&instance_id),
     ] {
         if path.exists() {
             io::remove_dir_all(path).await?;
