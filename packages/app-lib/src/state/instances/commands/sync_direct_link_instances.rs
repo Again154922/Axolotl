@@ -307,9 +307,9 @@ pub(crate) async fn sync_direct_link_instances(
         if configured_root_matches(&root, &canonical_roots, &roots) {
             continue;
         }
-        instance_rows::delete_instance_by_id(
+        crate::state::remove_instance_preserving_external_files(
             &metadata.instance.id,
-            &state.pool,
+            state,
         )
         .await?;
         let _ =
@@ -334,9 +334,9 @@ pub(crate) async fn sync_direct_link_instances(
         if !configured_root_matches(Path::new(root), &canonical_roots, &roots) {
             // Configured roots are authoritative. Removing a root from Settings
             // only drops Axolotl's association; the external files remain intact.
-            instance_rows::delete_instance_by_id(
+            crate::state::remove_instance_preserving_external_files(
                 &metadata.instance.id,
-                &state.pool,
+                state,
             )
             .await?;
             let _ = emit_instance(
@@ -353,9 +353,9 @@ pub(crate) async fn sync_direct_link_instances(
         {
             // External deletion is authoritative, but there is nothing left
             // to delete on disk. Only remove the stale Axolotl record.
-            instance_rows::delete_instance_by_id(
+            crate::state::remove_instance_preserving_external_files(
                 &metadata.instance.id,
-                &state.pool,
+                state,
             )
             .await?;
             let _ = emit_instance(
