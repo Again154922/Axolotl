@@ -131,7 +131,7 @@ export async function get_initialized_synced_options(): Promise<GlobalSyncedOpti
 	return await invoke('plugin:instance|instance_get_initialized_synced_options')
 }
 export function isSyncedOptionAvailable(option: SyncedOption): boolean {
-	return option !== 'data_packs'
+	return true
 }
 export async function set_global_synced_option(
 	option: SyncedOption,
