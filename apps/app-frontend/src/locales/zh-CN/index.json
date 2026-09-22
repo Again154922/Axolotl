@@ -180,6 +180,9 @@
   "app.action-bar.no-instances-running": {
     "message": "没有运行中的实例"
   },
+  "app.action-bar.announcements": {
+    "message": "公告"
+  },
   "app.action-bar.notifications": {
     "message": "通知"
   },
@@ -6692,6 +6695,12 @@
   },
   "app.remote-announcements.preview-title": {
     "message": "公告样式预览"
+  },
+  "app.remote-announcements.center-title": {
+    "message": "公告"
+  },
+  "app.remote-announcements.empty": {
+    "message": "暂无公告"
   },
   "app.remote-announcements.read-all": {
     "message": "将所有公告标为已读"

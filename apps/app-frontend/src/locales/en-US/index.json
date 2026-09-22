@@ -180,6 +180,9 @@
   "app.action-bar.no-instances-running": {
     "message": "No instances running"
   },
+  "app.action-bar.announcements": {
+    "message": "Announcements"
+  },
   "app.action-bar.notifications": {
     "message": "Notifications"
   },
@@ -6692,6 +6695,12 @@
   },
   "app.remote-announcements.preview-title": {
     "message": "Announcement style preview"
+  },
+  "app.remote-announcements.center-title": {
+    "message": "Announcements"
+  },
+  "app.remote-announcements.empty": {
+    "message": "No announcements"
   },
   "app.remote-announcements.read-all": {
     "message": "Mark all announcements as read"
