@@ -7,6 +7,9 @@ import { type Ref, ref } from 'vue'
 
 export class AppNotificationManager extends AbstractWebNotificationManager {
 	private static readonly STORAGE_KEY = 'axolotl:active-web-notifications-v1'
+	private static readonly MAX_NOTIFICATIONS = 100
+	private static readonly MAX_NOTIFICATION_AGE_MS = 30 * 24 * 60 * 60 * 1000
+	private static readonly MAX_SUPPORT_DATA_BYTES = 32 * 1024
 	private readonly state: Ref<WebNotification[]>
 	private readonly locationState: Ref<NotificationPanelLocation>
 
@@ -69,6 +72,11 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 		this.saveActiveNotifications()
 	}
 
+	public override markNotificationRead = (id: string | number): void => {
+		super.markNotificationRead(id)
+		this.saveActiveNotifications()
+	}
+
 	public override removeNotification = (id: string | number): WebNotification | undefined => {
 		const notification = super.removeNotification(id)
 		this.saveActiveNotifications()
@@ -77,16 +85,21 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 
 	private loadActiveNotifications(): WebNotification[] {
 		try {
-			const value = JSON.parse(localStorage.getItem(AppNotificationManager.STORAGE_KEY) ?? '[]')
+			const parsed = JSON.parse(localStorage.getItem(AppNotificationManager.STORAGE_KEY) ?? '[]')
+			const value = Array.isArray(parsed) ? parsed : parsed?.notifications
 			if (!Array.isArray(value)) return []
-			return value.filter((notification): notification is WebNotification => {
-				return (
-					notification &&
-					(typeof notification.id === 'string' || typeof notification.id === 'number') &&
-					typeof notification.createdAt === 'number' &&
-					(notification.title === undefined || typeof notification.title === 'string')
-				)
-			})
+			const cutoff = Date.now() - AppNotificationManager.MAX_NOTIFICATION_AGE_MS
+			return value
+				.filter((notification): notification is WebNotification => {
+					return (
+						notification &&
+						(typeof notification.id === 'string' || typeof notification.id === 'number') &&
+						typeof notification.createdAt === 'number' &&
+						notification.createdAt >= cutoff &&
+						(notification.title === undefined || typeof notification.title === 'string')
+					)
+				})
+				.slice(0, AppNotificationManager.MAX_NOTIFICATIONS)
 		} catch {
 			return []
 		}
@@ -94,7 +107,28 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 
 	private saveActiveNotifications(): void {
 		try {
-			const persisted = this.state.value.map(({ timer: _timer, ...notification }) => notification)
+			const cutoff = Date.now() - AppNotificationManager.MAX_NOTIFICATION_AGE_MS
+			const active = this.state.value.filter(
+				(notification) => (notification.createdAt ?? 0) >= cutoff,
+			)
+			if (active.length !== this.state.value.length)
+				this.state.value.splice(0, this.state.value.length, ...active)
+			if (this.state.value.length > AppNotificationManager.MAX_NOTIFICATIONS)
+				this.state.value.splice(AppNotificationManager.MAX_NOTIFICATIONS)
+			const persisted = active
+				.slice(0, AppNotificationManager.MAX_NOTIFICATIONS)
+				.map(({ timer: _timer, supportData, ...notification }) => {
+					if (supportData === undefined) return notification
+				try {
+					const serialized = JSON.stringify(supportData)
+					const size = new TextEncoder().encode(serialized).byteLength
+					return size <= AppNotificationManager.MAX_SUPPORT_DATA_BYTES
+							? { ...notification, supportData }
+							: notification
+					} catch {
+						return notification
+					}
+				})
 			localStorage.setItem(AppNotificationManager.STORAGE_KEY, JSON.stringify(persisted))
 		} catch {
 			// Notification history remains usable when storage is unavailable.
