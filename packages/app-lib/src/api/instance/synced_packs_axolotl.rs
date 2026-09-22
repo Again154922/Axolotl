@@ -70,6 +70,17 @@ fn validate_type(project_type: ProjectType) -> crate::Result<()> {
     }
 }
 
+async fn globally_enabled(project_type: ProjectType) -> crate::Result<bool> {
+    let option = match project_type {
+        ProjectType::ResourcePack => crate::state::SyncedOption::ResourcePacks,
+        ProjectType::DataPack => crate::state::SyncedOption::DataPacks,
+        _ => return Ok(false),
+    };
+    Ok(crate::api::instance::synced_options::get_global_options()
+        .await?
+        .get(option))
+}
+
 fn cache_dir(state: &State) -> PathBuf {
     state.directories.synced_options_dir().join("packs/files")
 }
@@ -332,6 +343,7 @@ async fn materialize(
         logical_path(project_type, &row.file_name, row.enabled != 0);
     let destination = root.join(&relative_path);
     if excluded
+        || !globally_enabled(project_type).await?
         || !metadata.synced_options_for(project_type)
         || !version_compatible(row, &metadata)
     {
@@ -491,6 +503,7 @@ pub async fn get_pack_sync_preview(
             crate::ErrorKind::InputError("Invalid pack path".to_string())
         })?;
     validate_type(project_type)?;
+    let global_enabled = globally_enabled(project_type).await?;
     let source = content_root(&state, &metadata)?.join(project_path);
     let bytes = Bytes::from(tokio::fs::read(&source).await?);
     let sha1 = crate::util::fetch::sha1_async(bytes.clone()).await?;
@@ -516,8 +529,8 @@ pub async fn get_pack_sync_preview(
         .await?
         .into_iter()
         .map(|item| {
-            let participating = item.synced_options_for(project_type)
-                || item.instance.id == instance_id;
+            let participating =
+                global_enabled && item.synced_options_for(project_type);
             let versions = game_versions(&preview_row);
             let compatible = versions.is_empty()
                 || versions.iter().any(|version| {
@@ -541,19 +554,28 @@ pub async fn sync_pack(
 ) -> crate::Result<()> {
     let state = State::get().await?;
     let preview = get_pack_sync_preview(instance_id, project_path).await?;
-    let source = state
-        .directories
-        .instances_dir()
-        .join(
-            crate::state::get_instance(instance_id, &state.pool)
-                .await?
-                .ok_or_else(|| {
-                    crate::ErrorKind::InputError("Unknown instance".to_string())
-                })?
-                .instance
-                .path,
+    if !globally_enabled(preview.pack.project_type).await? {
+        return Err(crate::ErrorKind::InputError(
+            "This sync option is globally disabled.".to_string(),
         )
-        .join(project_path);
+        .into());
+    }
+    if !preview
+        .instances
+        .iter()
+        .any(|target| target.instance_id == instance_id && target.participating)
+    {
+        return Err(crate::ErrorKind::InputError(
+            "This sync option is disabled for the source instance.".to_string(),
+        )
+        .into());
+    }
+    let source_metadata = crate::state::get_instance(instance_id, &state.pool)
+        .await?
+        .ok_or_else(|| {
+            crate::ErrorKind::InputError("Unknown instance".to_string())
+        })?;
+    let source = content_root(&state, &source_metadata)?.join(project_path);
     let bytes = Bytes::from(tokio::fs::read(source).await?);
     let sha1 = crate::util::fetch::sha1_async(bytes.clone()).await?;
     write_cache(&state, &bytes, &sha1).await?;
@@ -585,6 +607,12 @@ pub async fn upload_synced_pack(
 ) -> crate::Result<()> {
     validate_type(project_type)?;
     let state = State::get().await?;
+    if !globally_enabled(project_type).await? {
+        return Err(crate::ErrorKind::InputError(
+            "This sync option is globally disabled.".to_string(),
+        )
+        .into());
+    }
     let bytes = Bytes::from(tokio::fs::read(&path).await?);
     let sha1 = crate::util::fetch::sha1_async(bytes.clone()).await?;
     write_cache(&state, &bytes, &sha1).await?;
@@ -609,6 +637,12 @@ pub async fn set_synced_pack_enabled(
 ) -> crate::Result<()> {
     let state = State::get().await?;
     let mut row = load_row(pack_id, &state).await?;
+    if !globally_enabled(parse_type(&row.project_type)?).await? {
+        return Err(crate::ErrorKind::InputError(
+            "This sync option is globally disabled.".to_string(),
+        )
+        .into());
+    }
     sqlx::query("UPDATE synced_pack_catalog SET enabled = ?, modified_at = ? WHERE id = ?").bind(i64::from(enabled)).bind(Utc::now().timestamp()).bind(pack_id).execute(&state.pool).await?;
     row.enabled = i64::from(enabled);
     for target in sqlx::query("SELECT instance_id FROM synced_pack_instances WHERE pack_id = ? AND excluded = 0").bind(pack_id).fetch_all(&state.pool).await? { materialize(&state, &row, target.try_get("instance_id")?, false).await?; }
