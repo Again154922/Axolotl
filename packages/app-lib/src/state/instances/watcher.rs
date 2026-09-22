@@ -440,10 +440,21 @@ pub(crate) async fn watch_instances_init(
     };
 
     for instance in instances {
+        let Ok(content_root) =
+            crate::state::instances::commands::instance_content_root(
+                dirs, &instance,
+            )
+        else {
+            tracing::warn!(
+                instance_id = instance.id,
+                "Unable to resolve instance content root for watcher"
+            );
+            continue;
+        };
         watch_instance_folder(
             &instance.id,
             &instance.path,
-            &dirs.instance_game_dir(&instance),
+            &content_root,
             watcher,
         )
         .await;
