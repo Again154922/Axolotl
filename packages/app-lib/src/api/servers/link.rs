@@ -54,7 +54,7 @@ pub(super) fn address_host(address: &str) -> &str {
 /// Whether `address` points at this machine: `localhost`, a loopback address,
 /// the unspecified address, or any address assigned to a local interface
 /// (IPv4 or IPv6).
-pub(super) fn is_local_address(address: &str) -> bool {
+pub fn is_local_address(address: &str) -> bool {
     let host = address_host(address)
         .trim_end_matches('.')
         .to_ascii_lowercase();
@@ -91,7 +91,7 @@ fn local_interface_addresses() -> Vec<IpAddr> {
 ///
 /// Returns `false` when the server is not running, exits while waiting, or the
 /// timeout elapses.
-pub(super) async fn wait_until_ready(
+pub async fn wait_until_ready(
     server_id: &str,
     timeout_ms: u64,
 ) -> Result<bool> {
