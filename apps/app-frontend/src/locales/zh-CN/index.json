@@ -2361,17 +2361,41 @@
   "app.home.recent.title": {
     "message": "从最近的项目开始"
   },
+  "app.home.servers.change-local-server": {
+    "message": "更改关联的本地服务器"
+  },
   "app.home.servers.empty": {
     "message": "将服务器标记为收藏后，就会固定在这里。"
   },
   "app.home.servers.join": {
     "message": "加入服务器"
   },
+  "app.home.servers.link-local-server": {
+    "message": "关联到本地服务器"
+  },
+  "app.home.servers.link-picker.description": {
+    "message": "从主页启动这台服务器时，会先启动所选本地服务器，等它就绪后再启动游戏。"
+  },
+  "app.home.servers.link-picker.empty": {
+    "message": "还没有本地服务器，请先创建一个再回来关联。"
+  },
+  "app.home.servers.link-picker.select": {
+    "message": "关联 {name}"
+  },
+  "app.home.servers.link-picker.title": {
+    "message": "选择要关联的本地服务器"
+  },
+  "app.home.servers.linked-toast": {
+    "message": "已关联到本地服务器“{name}”"
+  },
   "app.home.servers.more-options": {
     "message": "更多选项"
   },
   "app.home.servers.local": {
     "message": "本地"
+  },
+  "app.home.servers.local-server-not-ready": {
+    "message": "关联的本地服务器未能在超时前启动，请查看它的控制台日志后重试。"
   },
   "app.home.servers.offline": {
     "message": "离线"
@@ -2384,6 +2408,12 @@
   },
   "app.home.servers.stop": {
     "message": "停止"
+  },
+  "app.home.servers.unlink-local-server": {
+    "message": "取消关联本地服务器"
+  },
+  "app.home.servers.unlinked-toast": {
+    "message": "已取消关联本地服务器"
   },
   "app.home.servers.unpin": {
     "message": "取消固定"
