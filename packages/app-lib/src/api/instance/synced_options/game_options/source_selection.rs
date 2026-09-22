@@ -269,16 +269,16 @@ pub(in crate::api::instance) async fn initialize_from_source_instance(
         )
         .execute(&mut *tx)
         .await?;
-        sqlx::query!(
+        sqlx::query(
             "
 			INSERT INTO synced_game_option_preferences
 				(option_id, enabled, source, revision)
-			VALUES (?, 1, 'discovery_default', ?)
+			VALUES (?, 0, 'discovery_default', ?)
 			ON CONFLICT(option_id) DO NOTHING
 			",
-            option_id,
-            option_revision,
         )
+        .bind(option_id)
+        .bind(option_revision)
         .execute(&mut *tx)
         .await?;
     }
