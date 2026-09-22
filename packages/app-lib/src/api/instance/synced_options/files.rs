@@ -64,6 +64,16 @@ pub(crate) fn instance_dir(
         .join(&metadata.instance.path)
 }
 
+pub(crate) fn content_dir(
+    metadata: &InstanceMetadata,
+    state: &State,
+) -> crate::Result<PathBuf> {
+    crate::state::instances::commands::instance_content_root(
+        &state.directories,
+        &metadata.instance,
+    )
+}
+
 pub(in crate::api::instance) fn sync_files_are_protected(
     metadata: &InstanceMetadata,
 ) -> bool {

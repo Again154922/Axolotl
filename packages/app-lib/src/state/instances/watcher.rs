@@ -126,6 +126,7 @@ pub async fn init_watcher() -> crate::Result<FileWatcher> {
                                             | "options.txt"
                                             | "servers.dat"
                                             | "resourcepacks"
+                                            | "datapacks"
                                     )
                                 })
                             {
