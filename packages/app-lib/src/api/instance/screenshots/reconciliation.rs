@@ -103,14 +103,6 @@ pub(super) async fn scan_source_screenshots(
     state: &State,
     source: &InstanceScreenshotSource,
 ) -> crate::Result<Vec<ScannedScreenshot>> {
-    let instance_dir = state.directories.instances_dir().join(&source.path);
-    if !tokio::fs::try_exists(&instance_dir)
-        .await
-        .map_err(|error| IOError::with_path(error, &instance_dir))?
-    {
-        return Ok(Vec::new());
-    }
-
     let screenshots_dir = source_screenshots_dir(state, source).await?;
     tokio::task::spawn_blocking(move || scan_screenshots_dir(&screenshots_dir))
         .await?
