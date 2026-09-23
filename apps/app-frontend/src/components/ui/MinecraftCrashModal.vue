@@ -100,6 +100,7 @@ let unlistenLogShareAi: Unlisten | undefined
 let mounted = false
 let analysisVersion = 0
 let crashLogsPromise: Promise<void> | null = null
+let uploadTicketPromise: Promise<LogShareTicket | null> | null = null
 const aiAvailable = ref(false)
 const logShareSettingsLoaded = ref(false)
 
@@ -602,6 +603,7 @@ function show(modalPayload: CrashModalPayload, isPreview = false): boolean {
 	payload.value = modalPayload
 	lastAnalysis = null
 	uploadTicket.value = null
+	uploadTicketPromise = null
 	shareUrl.value = ''
 	sharing.value = false
 	logShareSummary.value = ''
@@ -718,9 +720,9 @@ async function loadLogShareSummary(instanceId: string): Promise<void> {
 	logShareSummaryError.value = ''
 	logShareSummary.value = ''
 	try {
-		const ticket = await logshare_upload_crash(instanceId)
+		const ticket = await uploadTicketForInstance(instanceId)
+		if (!ticket) throw new Error('Could not upload the crash logs to LogShare')
 		if (stale()) return
-		uploadTicket.value = ticket
 		const insights = await logshare_get_insights(ticket.id)
 		if (stale()) return
 		logShareSummary.value = formatInsights(insights)
@@ -811,13 +813,23 @@ function notifyNoLogContent(): void {
 
 async function uploadTicketForInstance(instanceId: string): Promise<LogShareTicket | null> {
 	if (uploadTicket.value) return uploadTicket.value
+	if (uploadTicketPromise) return uploadTicketPromise
+
+	const version = analysisVersion
+	const request = logshare_upload_crash(instanceId)
+		.then((ticket) => {
+			if (version === analysisVersion) uploadTicket.value = ticket
+			return ticket
+		})
+		.catch((error) => {
+			console.error('Failed to upload crash diagnostic to LogShare', error)
+			return null
+		})
+	uploadTicketPromise = request
 	try {
-		const ticket = await logshare_upload_crash(instanceId)
-		uploadTicket.value = ticket
-		return ticket
-	} catch (error) {
-		console.error('Failed to upload crash diagnostic to LogShare', error)
-		return null
+		return await request
+	} finally {
+		if (uploadTicketPromise === request) uploadTicketPromise = null
 	}
 }
 
@@ -876,8 +888,9 @@ async function shareDiagnostic(): Promise<void> {
 	try {
 		if (logShareSettings.value.share_provider === 'logshare') {
 			const ticket = await uploadTicketForInstance(instanceId)
+			if (stale()) return
 			if (ticket?.url) {
-				if (!stale()) shareUrl.value = ticket.url
+				shareUrl.value = ticket.url
 				await recordShared({
 					id: ticket.id,
 					url: ticket.url,
@@ -896,12 +909,14 @@ async function shareDiagnostic(): Promise<void> {
 		}
 
 		await crashLogsPromise
+		if (stale()) return
 		const shareContent = lastAnalysis?.combined_log || (await combinedCrashLogContent())
 		if (!shareContent) {
 			notifyNoLogContent()
 			return
 		}
 		const result = await shareLogs(client, shareContent)
+		if (stale()) return
 		if (result.truncated) {
 			addNotification({
 				title: formatMessage(messages.shareTruncated),
@@ -1028,7 +1043,9 @@ async function openAIAnalysis(): Promise<void> {
 	aiOutput.value = ''
 	aiQueued.value = false
 	aiStatus.value = formatMessage(messages.aiWorking)
+	const version = analysisVersion
 	await crashLogsPromise
+	if (version !== analysisVersion) return
 	if (crashLogFiles.value.length === 0) {
 		aiStatus.value = formatMessage(messages.noLogContent)
 		aiLoading.value = false
@@ -1037,7 +1054,6 @@ async function openAIAnalysis(): Promise<void> {
 		return
 	}
 
-	const version = analysisVersion
 	runLogShareAi()
 		.then((content) => {
 			if (version !== analysisVersion) return
