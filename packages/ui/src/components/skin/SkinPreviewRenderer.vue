@@ -291,7 +291,9 @@ const {
 	},
 })
 
-const armorConfig = ref<ArmorPreviewConfig>(createDefaultArmorPreviewConfig())
+const armorConfig = defineModel<ArmorPreviewConfig>('armorConfig', {
+	default: createDefaultArmorPreviewConfig,
+})
 
 const { isModelLoaded, isTextureLoaded, modelCenter, modelSize, scene } = useSkinPreviewScene({
 	selectedModelSrc,
