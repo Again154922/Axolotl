@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ExternalIcon } from '@modrinth/assets'
+import { ClipboardCopyIcon, ExternalIcon, ShareIcon, SparklesIcon } from '@modrinth/assets'
 import {
-	Admonition,
 	ButtonStyled,
 	defineMessages,
 	injectModrinthClient,
 	injectNotificationManager,
+	type LogLine,
+	LogViewport,
 	NewModal,
 	shareLogs,
 	useVIntl,
@@ -41,8 +42,10 @@ import {
 	combineCrashLogs,
 	type CrashLogFile,
 	crashLogKey,
+	crashLogLabel,
 	preferredCrashLogKey,
 	selectCrashLogFiles,
+	shouldUseLogShareAutoAnalysis,
 } from './minecraft-crash-logs'
 
 interface CrashModalPayload extends MinecraftLaunchErrorPayload {
@@ -121,6 +124,7 @@ const aiOutput = ref('')
 const aiLoading = ref(false)
 const aiStatus = ref('')
 const aiQueued = ref(false)
+const aiRequested = ref(false)
 const crashLogFiles = ref<CrashLogFile[]>([])
 const crashLogsLoading = ref(false)
 const crashLogsError = ref('')
@@ -128,6 +132,9 @@ const crashLogContents = ref<Record<string, string>>({})
 const crashLogContentErrors = ref<Record<string, string>>({})
 const selectedLogKey = ref('')
 const selectedLogLoading = ref(false)
+const activeTab = ref('')
+const aiTabVisible = ref(false)
+const AI_TAB = 'logagent'
 
 const messages = defineMessages({
 	title: {
@@ -362,6 +369,42 @@ const messages = defineMessages({
 		id: 'app.log-share.summary.loading',
 		defaultMessage: 'Loading structured summary...',
 	},
+	logShareSummaryEmpty: {
+		id: 'app.log-share.summary.empty',
+		defaultMessage: 'LogShare did not return a structured summary for these logs.',
+	},
+	logShareSummaryUnavailable: {
+		id: 'app.log-share.summary.no-storage',
+		defaultMessage: 'Structured summary is unavailable while no-storage mode is enabled.',
+	},
+	logShareSummaryFailed: {
+		id: 'app.log-share.summary.failed',
+		defaultMessage: 'Could not load the LogShare summary: {message}',
+	},
+	logFilesLoading: {
+		id: 'app.minecraft-crash.logs.loading',
+		defaultMessage: 'Loading crash logs...',
+	},
+	logFilesEmpty: {
+		id: 'app.minecraft-crash.logs.empty',
+		defaultMessage: 'No logs from this launch were found.',
+	},
+	logFilesFailed: {
+		id: 'app.minecraft-crash.logs.failed',
+		defaultMessage: 'Could not load the crash logs: {message}',
+	},
+	logFileLoading: {
+		id: 'app.minecraft-crash.log-file.loading',
+		defaultMessage: 'Loading log file...',
+	},
+	logFileFailed: {
+		id: 'app.minecraft-crash.log-file.failed',
+		defaultMessage: 'Could not load this log file: {message}',
+	},
+	logAgentTab: {
+		id: 'app.log-share.ai.tab',
+		defaultMessage: 'LogAgent deep analysis',
+	},
 	aiThinking: {
 		id: 'app.log-share.ai.thinking',
 		defaultMessage: 'Thinking…',
@@ -422,14 +465,26 @@ const body = computed(() => payload.value.body || formatMessage(messages.body))
 const hint = computed(() => payload.value.hint || formatMessage(messages.supportHint))
 const showSupportHint = computed(() => hint.value !== formatMessage(messages.supportHint))
 const isLogShareAutoAnalysis = computed(
-	() =>
-		logShareSettingsLoaded.value &&
-		logShareSettings.value.ai_source === 'logshare' &&
-		logShareSettings.value.auto_upload,
+	() => logShareSettingsLoaded.value && shouldUseLogShareAutoAnalysis(logShareSettings.value),
 )
 const selectedCrashLog = computed(
 	() => crashLogFiles.value.find((file) => crashLogKey(file) === selectedLogKey.value) ?? null,
 )
+const selectedLogContent = computed(() =>
+	selectedCrashLog.value ? (crashLogContents.value[crashLogKey(selectedCrashLog.value)] ?? '') : '',
+)
+const selectedLogError = computed(() =>
+	selectedCrashLog.value
+		? (crashLogContentErrors.value[crashLogKey(selectedCrashLog.value)] ?? '')
+		: '',
+)
+const selectedLogLines = computed(() => {
+	if (!selectedLogContent.value) return []
+	return selectedLogContent.value.split(/\r?\n/).map((text, originalIndex) => ({
+		line: { text, level: null } satisfies LogLine,
+		originalIndex,
+	}))
+})
 
 const renderedAiOutput = computed(() => renderHighlightedString(aiOutput.value))
 const renderedLogShareSummary = computed(() => renderHighlightedString(logShareSummary.value))
@@ -469,6 +524,14 @@ async function loadCrashLogContent(file: CrashLogFile): Promise<string> {
 	}
 }
 
+async function selectCrashLog(file: CrashLogFile): Promise<void> {
+	const key = crashLogKey(file)
+	selectedLogKey.value = key
+	activeTab.value = key
+	selectedLogLoading.value = false
+	await loadCrashLogContent(file)
+}
+
 async function loadCrashLogs(instanceId: string): Promise<void> {
 	const version = analysisVersion
 	crashLogsLoading.value = true
@@ -478,6 +541,7 @@ async function loadCrashLogs(instanceId: string): Promise<void> {
 		if (version !== analysisVersion) return
 		crashLogFiles.value = selectCrashLogFiles(logs)
 		selectedLogKey.value = preferredCrashLogKey(crashLogFiles.value)
+		activeTab.value = selectedLogKey.value
 		const selected = selectedCrashLog.value
 		if (selected) await loadCrashLogContent(selected)
 	} catch (error) {
@@ -549,6 +613,7 @@ function show(modalPayload: CrashModalPayload, isPreview = false): boolean {
 	aiLoading.value = false
 	aiStatus.value = ''
 	aiQueued.value = false
+	aiRequested.value = false
 	crashLogFiles.value = []
 	crashLogsLoading.value = false
 	crashLogsError.value = ''
@@ -556,6 +621,8 @@ function show(modalPayload: CrashModalPayload, isPreview = false): boolean {
 	crashLogContentErrors.value = {}
 	selectedLogKey.value = ''
 	selectedLogLoading.value = false
+	activeTab.value = ''
+	aiTabVisible.value = false
 	modal.value?.show()
 	crashLogsPromise = isPreview ? null : loadCrashLogs(modalPayload.instance_id)
 	return true
@@ -953,27 +1020,37 @@ async function openAIAnalysis(): Promise<void> {
 		aiModal.value?.show(payload.value.instance_id!)
 		return
 	}
-	await crashLogsPromise
-	if (crashLogFiles.value.length === 0) {
-		notifyNoLogContent()
-		return
-	}
-
+	aiTabVisible.value = true
+	activeTab.value = AI_TAB
+	if (aiRequested.value) return
+	aiRequested.value = true
 	aiLoading.value = true
 	aiOutput.value = ''
 	aiQueued.value = false
 	aiStatus.value = formatMessage(messages.aiWorking)
+	await crashLogsPromise
+	if (crashLogFiles.value.length === 0) {
+		aiStatus.value = formatMessage(messages.noLogContent)
+		aiLoading.value = false
+		aiRequested.value = false
+		notifyNoLogContent()
+		return
+	}
+
+	const version = analysisVersion
 	runLogShareAi()
 		.then((content) => {
+			if (version !== analysisVersion) return
 			aiOutput.value = content
 			aiStatus.value = ''
 		})
 		.catch((error) => {
+			if (version !== analysisVersion) return
 			const message = error instanceof Error ? error.message : String(error)
 			aiStatus.value = formatMessage(messages.aiFailed, { message })
 		})
 		.finally(() => {
-			aiLoading.value = false
+			if (version === analysisVersion) aiLoading.value = false
 		})
 }
 
@@ -1092,91 +1169,227 @@ defineExpose({
 </script>
 
 <template>
-	<NewModal ref="modal" :header="title" fade="danger" max-width="560px">
-		<div class="flex flex-col gap-4">
-			<Admonition type="critical" :header="summary">
-				{{ body }}
-			</Admonition>
-			<p class="m-0 text-secondary">
-				{{ hint }}
-			</p>
-			<p v-if="showSupportHint" class="m-0 text-secondary">
-				{{ formatMessage(messages.supportHint) }}
-			</p>
+	<NewModal
+		ref="modal"
+		fade="danger"
+		hide-header
+		merge-header
+		no-padding
+		width="1100px"
+		max-width="1100px"
+	>
+		<div class="crash-modal-shell">
+			<section class="crash-modal-sidebar flex min-h-0 flex-col gap-4 overflow-y-auto p-6">
+				<div class="flex flex-col gap-2">
+					<h2 class="m-0 pr-8 text-xl font-semibold text-contrast">{{ title }}</h2>
+					<p class="m-0 font-semibold text-red">{{ summary }}</p>
+					<p class="m-0 text-sm text-secondary">{{ body }}</p>
+					<p class="m-0 text-sm text-secondary">{{ hint }}</p>
+					<p v-if="showSupportHint" class="m-0 text-sm text-secondary">
+						{{ formatMessage(messages.supportHint) }}
+					</p>
+				</div>
 
-			<div v-if="logShareSummaryLoading" class="rounded-lg bg-surface-2 p-3 text-sm text-secondary">
-				{{ formatMessage(messages.logShareSummaryLoading) }}
-			</div>
-			<div v-else-if="logShareSummary" class="flex flex-col gap-2 rounded-lg bg-surface-2 p-3">
-				<span class="text-sm font-semibold text-contrast">
-					{{ formatMessage(messages.logShareSummaryTitle) }}
-				</span>
 				<div
-					class="markdown-body max-h-64 overflow-y-auto text-sm"
-					v-html="renderedLogShareSummary"
-				/>
-			</div>
-
-			<div
-				v-if="aiLoading || aiStatus || aiOutput"
-				class="flex flex-col gap-2 rounded-lg bg-surface-2 p-3"
-			>
-				<span class="text-sm font-semibold text-contrast">
-					{{ formatMessage(messages.aiAnalyzeLogShare) }}
-				</span>
-				<div v-if="aiStatus" class="text-sm text-secondary">{{ aiStatus }}</div>
-				<div
-					v-if="aiOutput"
-					class="markdown-body max-h-64 overflow-y-auto text-sm"
-					v-html="renderedAiOutput"
-				/>
-			</div>
-
-			<div v-if="shareUrl" class="flex items-center gap-2 rounded-lg bg-surface-2 p-3">
-				<ExternalIcon class="h-4 w-4 shrink-0 text-secondary" />
-				<a
-					:href="shareUrl"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="min-w-0 flex-1 truncate text-primary underline"
+					v-if="isLogShareAutoAnalysis"
+					class="flex min-h-32 flex-col gap-2 rounded-lg bg-surface-2 p-3"
 				>
-					{{ shareUrl }}
-				</a>
-				<ButtonStyled type="outlined">
-					<button @click="copyShareUrl">
-						{{ formatMessage(messages.copyLink) }}
+					<span class="text-sm font-semibold text-contrast">
+						{{ formatMessage(messages.logShareSummaryTitle) }}
+					</span>
+					<p v-if="logShareSummaryState === 'loading'" class="m-0 text-sm text-secondary">
+						{{ formatMessage(messages.logShareSummaryLoading) }}
+					</p>
+					<div
+						v-else-if="logShareSummaryState === 'ready'"
+						class="markdown-body text-sm"
+						v-html="renderedLogShareSummary"
+					/>
+					<p v-else-if="logShareSummaryState === 'empty'" class="m-0 text-sm text-secondary">
+						{{ formatMessage(messages.logShareSummaryEmpty) }}
+					</p>
+					<p v-else-if="logShareSummaryState === 'unavailable'" class="m-0 text-sm text-secondary">
+						{{ formatMessage(messages.logShareSummaryUnavailable) }}
+					</p>
+					<p v-else-if="logShareSummaryState === 'error'" class="m-0 text-sm text-red">
+						{{ formatMessage(messages.logShareSummaryFailed, { message: logShareSummaryError }) }}
+					</p>
+				</div>
+
+				<div v-if="shareUrl" class="flex items-center gap-2 rounded-lg bg-surface-2 p-3">
+					<ExternalIcon class="size-4 shrink-0 text-secondary" aria-hidden="true" />
+					<a
+						:href="shareUrl"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="min-w-0 flex-1 truncate text-sm text-primary underline"
+					>
+						{{ shareUrl }}
+					</a>
+					<ButtonStyled circular type="outlined">
+						<button :aria-label="formatMessage(messages.copyLink)" @click="copyShareUrl">
+							<ClipboardCopyIcon aria-hidden="true" />
+						</button>
+					</ButtonStyled>
+				</div>
+
+				<div class="mt-auto flex flex-wrap gap-2 pt-2">
+					<ButtonStyled type="outlined">
+						<button :disabled="sharing" @click="shareDiagnostic">
+							<ShareIcon aria-hidden="true" />
+							{{
+								sharing
+									? formatMessage(messages.sharingDiagnostic)
+									: formatMessage(messages.shareDiagnostic)
+							}}
+						</button>
+					</ButtonStyled>
+					<ButtonStyled v-if="aiAvailable" color="brand">
+						<button :disabled="aiLoading" @click="openAIAnalysis">
+							<SparklesIcon aria-hidden="true" />
+							{{
+								useLogShareAi()
+									? formatMessage(messages.aiAnalyzeLogShare)
+									: formatMessage(messages.aiAnalyze)
+							}}
+						</button>
+					</ButtonStyled>
+					<ButtonStyled v-if="modChangesAvailable" type="outlined">
+						<button @click="openModChanges">
+							{{ formatMessage(messages.viewModChanges) }}
+						</button>
+					</ButtonStyled>
+				</div>
+			</section>
+
+			<section class="crash-modal-workspace flex min-h-0 min-w-0 flex-col bg-surface-2">
+				<div
+					class="flex min-h-14 shrink-0 items-end gap-1 overflow-x-auto border-0 border-b border-solid border-surface-5 px-3 pr-16 pt-3"
+				>
+					<button
+						v-for="file in crashLogFiles"
+						:key="crashLogKey(file)"
+						class="crash-modal-tab"
+						:class="{ 'crash-modal-tab-active': activeTab === crashLogKey(file) }"
+						@click="selectCrashLog(file)"
+					>
+						{{ crashLogLabel(file) }}
 					</button>
-				</ButtonStyled>
-			</div>
+					<button
+						v-if="aiTabVisible"
+						class="crash-modal-tab"
+						:class="{ 'crash-modal-tab-active': activeTab === AI_TAB }"
+						@click="activeTab = AI_TAB"
+					>
+						{{ formatMessage(messages.logAgentTab) }}
+					</button>
+				</div>
+
+				<div v-if="activeTab === AI_TAB" class="min-h-0 flex-1 overflow-y-auto p-5">
+					<p v-if="aiStatus" class="m-0 mb-3 text-sm text-secondary">{{ aiStatus }}</p>
+					<div v-if="aiOutput" class="markdown-body text-sm" v-html="renderedAiOutput" />
+				</div>
+				<div
+					v-else-if="crashLogsLoading"
+					class="flex min-h-0 flex-1 items-start p-5 text-sm text-secondary"
+				>
+					{{ formatMessage(messages.logFilesLoading) }}
+				</div>
+				<div
+					v-else-if="crashLogsError"
+					class="flex min-h-0 flex-1 items-start p-5 text-sm text-red"
+				>
+					{{ formatMessage(messages.logFilesFailed, { message: crashLogsError }) }}
+				</div>
+				<div
+					v-else-if="crashLogFiles.length === 0"
+					class="flex min-h-0 flex-1 items-start p-5 text-sm text-secondary"
+				>
+					{{ formatMessage(messages.logFilesEmpty) }}
+				</div>
+				<div
+					v-else-if="selectedLogLoading"
+					class="flex min-h-0 flex-1 items-start p-5 text-sm text-secondary"
+				>
+					{{ formatMessage(messages.logFileLoading) }}
+				</div>
+				<div
+					v-else-if="selectedLogError"
+					class="flex min-h-0 flex-1 items-start p-5 text-sm text-red"
+				>
+					{{ formatMessage(messages.logFileFailed, { message: selectedLogError }) }}
+				</div>
+				<div
+					v-else-if="!selectedLogContent"
+					class="flex min-h-0 flex-1 items-start p-5 text-sm text-secondary"
+				>
+					{{ formatMessage(messages.logFilesEmpty) }}
+				</div>
+				<LogViewport v-else class="min-h-0 flex-1" :lines="selectedLogLines" />
+			</section>
 		</div>
-		<template #actions>
-			<div class="flex flex-wrap justify-end gap-2">
-				<ButtonStyled type="outlined">
-					<button :disabled="sharing" @click="shareDiagnostic">
-						{{
-							sharing
-								? formatMessage(messages.sharingDiagnostic)
-								: formatMessage(messages.shareDiagnostic)
-						}}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled v-if="aiAvailable" color="brand">
-					<button :disabled="aiLoading" @click="openAIAnalysis">
-						{{
-							useLogShareAi()
-								? formatMessage(messages.aiAnalyzeLogShare)
-								: formatMessage(messages.aiAnalyze)
-						}}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled v-if="modChangesAvailable" type="outlined">
-					<button @click="openModChanges">
-						{{ formatMessage(messages.viewModChanges) }}
-					</button>
-				</ButtonStyled>
-			</div>
-		</template>
 	</NewModal>
 	<CrashAIExplanationModal ref="aiModal" />
 	<CrashModChangesModal ref="modChangesModal" />
 </template>
+
+<style scoped>
+.crash-modal-shell {
+	display: grid;
+	grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
+	height: min(720px, calc(100vh - 3rem));
+	min-height: min(520px, calc(100vh - 3rem));
+}
+
+.crash-modal-sidebar {
+	border-right: 1px solid var(--surface-5);
+}
+
+.crash-modal-tab {
+	flex: 0 0 auto;
+	min-height: 36px;
+	padding: 0 0.75rem;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: transparent;
+	color: var(--color-text-secondary);
+	font: inherit;
+	cursor: pointer;
+}
+
+.crash-modal-tab:hover {
+	color: var(--color-text-primary);
+}
+
+.crash-modal-tab:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: -2px;
+}
+
+.crash-modal-tab-active {
+	border-bottom-color: var(--color-brand);
+	color: var(--color-text-primary);
+}
+
+@media screen and (max-width: 760px) {
+	.crash-modal-shell {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		overflow-y: auto;
+	}
+
+	.crash-modal-sidebar {
+		flex: 0 0 auto;
+		max-height: none;
+		overflow: visible;
+		border-right: 0;
+		border-bottom: 1px solid var(--surface-5);
+	}
+
+	.crash-modal-workspace {
+		min-height: 360px;
+		flex: 1 0 360px;
+	}
+}
+</style>

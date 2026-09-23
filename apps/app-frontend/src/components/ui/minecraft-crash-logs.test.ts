@@ -7,6 +7,7 @@ import {
 	crashLogLabel,
 	preferredCrashLogKey,
 	selectCrashLogFiles,
+	shouldUseLogShareAutoAnalysis,
 } from './minecraft-crash-logs.ts'
 
 const files: CrashLogFile[] = [
@@ -18,6 +19,22 @@ const files: CrashLogFile[] = [
 ]
 
 describe('Minecraft crash log selection', () => {
+	test('enables automatic LogShare analysis only from source and auto-upload settings', () => {
+		assert.equal(
+			shouldUseLogShareAutoAnalysis({
+				ai_source: 'logshare',
+				auto_upload: true,
+				no_storage: true,
+			}),
+			true,
+		)
+		assert.equal(
+			shouldUseLogShareAutoAnalysis({ ai_source: 'logshare', auto_upload: false }),
+			false,
+		)
+		assert.equal(shouldUseLogShareAutoAnalysis({ ai_source: 'custom', auto_upload: true }), false)
+	})
+
 	test('keeps current-run diagnostic files and one crash report per singleton type', () => {
 		const selected = selectCrashLogFiles(files)
 		assert.deepEqual(
@@ -30,6 +47,14 @@ describe('Minecraft crash log selection', () => {
 		const selected = selectCrashLogFiles(files)
 		assert.equal(preferredCrashLogKey(selected), 'CrashReport:crash-new.txt')
 		assert.equal(crashLogLabel(selected[0]!), 'crash-reports/crash-new.txt')
+	})
+
+	test('falls back to a JVM crash and then latest.log', () => {
+		assert.equal(
+			preferredCrashLogKey(files.filter((file) => file.log_type !== 'CrashReport')),
+			'JvmCrash:hs_err_pid10.log',
+		)
+		assert.equal(preferredCrashLogKey([files[0]!]), 'InfoLog:latest.log')
 	})
 
 	test('combines loaded files for non-LogShare fallback sharing', () => {

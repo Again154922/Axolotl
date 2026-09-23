@@ -7,6 +7,14 @@ export interface CrashLogFile {
 
 const RUN_ASSOCIATION_WINDOW_SECONDS = 3 * 60
 
+export function shouldUseLogShareAutoAnalysis(settings: {
+	ai_source: 'logshare' | 'custom'
+	auto_upload: boolean
+	no_storage?: boolean
+}): boolean {
+	return settings.ai_source === 'logshare' && settings.auto_upload
+}
+
 function isRelevantLog(file: CrashLogFile): boolean {
 	const lower = file.filename.toLowerCase()
 	if (file.log_type === 'CrashReport') return lower.endsWith('.txt')
