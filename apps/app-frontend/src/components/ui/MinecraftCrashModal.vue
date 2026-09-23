@@ -27,6 +27,8 @@ import { get as getInstance } from '@/helpers/instance'
 import {
 	get_crash_analysis_ai_settings,
 	get_log_share_settings,
+	get_logs,
+	get_output_by_filename,
 	logshare_ai_analyze_direct,
 	logshare_ai_analyze_stored,
 	logshare_get_insights,
@@ -34,6 +36,14 @@ import {
 	record_shared_log,
 } from '@/helpers/logs'
 import { shouldShowMinecraftCrash } from '@/helpers/process.js'
+
+import {
+	combineCrashLogs,
+	type CrashLogFile,
+	crashLogKey,
+	preferredCrashLogKey,
+	selectCrashLogFiles,
+} from './minecraft-crash-logs'
 
 interface CrashModalPayload extends MinecraftLaunchErrorPayload {
 	title?: string
@@ -86,7 +96,9 @@ let unlistenProcess: Unlisten | undefined
 let unlistenLogShareAi: Unlisten | undefined
 let mounted = false
 let analysisVersion = 0
+let crashLogsPromise: Promise<void> | null = null
 const aiAvailable = ref(false)
+const logShareSettingsLoaded = ref(false)
 
 const logShareSettings = ref<LogShareSettings>({
 	share_provider: 'logshare',
@@ -101,10 +113,21 @@ const shareUrl = ref('')
 const sharing = ref(false)
 const logShareSummary = ref('')
 const logShareSummaryLoading = ref(false)
+const logShareSummaryState = ref<'idle' | 'loading' | 'ready' | 'empty' | 'unavailable' | 'error'>(
+	'idle',
+)
+const logShareSummaryError = ref('')
 const aiOutput = ref('')
 const aiLoading = ref(false)
 const aiStatus = ref('')
 const aiQueued = ref(false)
+const crashLogFiles = ref<CrashLogFile[]>([])
+const crashLogsLoading = ref(false)
+const crashLogsError = ref('')
+const crashLogContents = ref<Record<string, string>>({})
+const crashLogContentErrors = ref<Record<string, string>>({})
+const selectedLogKey = ref('')
+const selectedLogLoading = ref(false)
 
 const messages = defineMessages({
 	title: {
@@ -398,9 +421,81 @@ const summary = computed(() => payload.value.summary || formatMessage(messages.s
 const body = computed(() => payload.value.body || formatMessage(messages.body))
 const hint = computed(() => payload.value.hint || formatMessage(messages.supportHint))
 const showSupportHint = computed(() => hint.value !== formatMessage(messages.supportHint))
+const isLogShareAutoAnalysis = computed(
+	() =>
+		logShareSettingsLoaded.value &&
+		logShareSettings.value.ai_source === 'logshare' &&
+		logShareSettings.value.auto_upload,
+)
+const selectedCrashLog = computed(
+	() => crashLogFiles.value.find((file) => crashLogKey(file) === selectedLogKey.value) ?? null,
+)
 
 const renderedAiOutput = computed(() => renderHighlightedString(aiOutput.value))
 const renderedLogShareSummary = computed(() => renderHighlightedString(logShareSummary.value))
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error)
+}
+
+async function loadCrashLogContent(file: CrashLogFile): Promise<string> {
+	const key = crashLogKey(file)
+	if (key in crashLogContents.value) return crashLogContents.value[key] ?? ''
+	const version = analysisVersion
+	if (selectedLogKey.value === key) selectedLogLoading.value = true
+	try {
+		const output = await get_output_by_filename(
+			payload.value.instance_id!,
+			file.log_type,
+			file.filename,
+		)
+		if (version !== analysisVersion) return ''
+		crashLogContents.value = { ...crashLogContents.value, [key]: output || '' }
+		const { [key]: _ignored, ...remainingErrors } = crashLogContentErrors.value
+		crashLogContentErrors.value = remainingErrors
+		return output || ''
+	} catch (error) {
+		if (version === analysisVersion) {
+			crashLogContentErrors.value = {
+				...crashLogContentErrors.value,
+				[key]: errorMessage(error),
+			}
+		}
+		return ''
+	} finally {
+		if (version === analysisVersion && selectedLogKey.value === key) {
+			selectedLogLoading.value = false
+		}
+	}
+}
+
+async function loadCrashLogs(instanceId: string): Promise<void> {
+	const version = analysisVersion
+	crashLogsLoading.value = true
+	crashLogsError.value = ''
+	try {
+		const logs = (await get_logs(instanceId, true)) as CrashLogFile[]
+		if (version !== analysisVersion) return
+		crashLogFiles.value = selectCrashLogFiles(logs)
+		selectedLogKey.value = preferredCrashLogKey(crashLogFiles.value)
+		const selected = selectedCrashLog.value
+		if (selected) await loadCrashLogContent(selected)
+	} catch (error) {
+		if (version === analysisVersion) crashLogsError.value = errorMessage(error)
+	} finally {
+		if (version === analysisVersion) crashLogsLoading.value = false
+	}
+}
+
+async function combinedCrashLogContent(): Promise<string> {
+	const files = await Promise.all(
+		crashLogFiles.value.map(async (file) => ({
+			...file,
+			output: await loadCrashLogContent(file),
+		})),
+	)
+	return combineCrashLogs(files)
+}
 
 function applyAnalysis(
 	modalPayload: CrashModalPayload,
@@ -441,17 +536,28 @@ function show(modalPayload: CrashModalPayload, isPreview = false): boolean {
 	}
 	analysisVersion += 1
 	payload.value = modalPayload
+	lastAnalysis = null
 	uploadTicket.value = null
 	shareUrl.value = ''
 	sharing.value = false
 	logShareSummary.value = ''
 	logShareSummaryLoading.value = false
+	logShareSummaryState.value = 'idle'
+	logShareSummaryError.value = ''
 	modChangesAvailable.value = false
 	aiOutput.value = ''
 	aiLoading.value = false
 	aiStatus.value = ''
 	aiQueued.value = false
+	crashLogFiles.value = []
+	crashLogsLoading.value = false
+	crashLogsError.value = ''
+	crashLogContents.value = {}
+	crashLogContentErrors.value = {}
+	selectedLogKey.value = ''
+	selectedLogLoading.value = false
 	modal.value?.show()
+	crashLogsPromise = isPreview ? null : loadCrashLogs(modalPayload.instance_id)
 	return true
 }
 
@@ -533,17 +639,16 @@ function formatInsights(value: unknown): string {
 }
 
 async function loadLogShareSummary(instanceId: string): Promise<void> {
-	if (
-		!useLogShareAi() ||
-		!logShareSettings.value.auto_upload ||
-		logShareSettings.value.no_storage ||
-		logShareSummaryLoading.value
-	) {
+	if (!isLogShareAutoAnalysis.value || logShareSummaryLoading.value) return
+	if (logShareSettings.value.no_storage) {
+		logShareSummaryState.value = 'unavailable'
 		return
 	}
 	const version = analysisVersion
 	const stale = () => version !== analysisVersion || instanceId !== payload.value.instance_id
 	logShareSummaryLoading.value = true
+	logShareSummaryState.value = 'loading'
+	logShareSummaryError.value = ''
 	logShareSummary.value = ''
 	try {
 		const ticket = await logshare_upload_crash(instanceId)
@@ -552,9 +657,14 @@ async function loadLogShareSummary(instanceId: string): Promise<void> {
 		const insights = await logshare_get_insights(ticket.id)
 		if (stale()) return
 		logShareSummary.value = formatInsights(insights)
+		logShareSummaryState.value = logShareSummary.value ? 'ready' : 'empty'
 	} catch (error) {
 		console.error('Failed to gather LogShare summary', error)
-		if (!stale()) logShareSummary.value = ''
+		if (!stale()) {
+			logShareSummary.value = ''
+			logShareSummaryError.value = errorMessage(error)
+			logShareSummaryState.value = 'error'
+		}
 	} finally {
 		if (!stale()) logShareSummaryLoading.value = false
 	}
@@ -594,15 +704,25 @@ async function handleLaunchError(
 		body: failureBody,
 		hint: formatMessage(messages.analyzing),
 	}
+	await refreshAIAvailability()
 	if (!show(modalPayload)) return true
-	await analyzeAndUpdate(modalPayload, formatMessage(messages.launchFailureHint))
+	if (isLogShareAutoAnalysis.value) {
+		void loadLogShareSummary(modalPayload.instance_id)
+	} else {
+		await analyzeAndUpdate(modalPayload, formatMessage(messages.launchFailureHint))
+	}
 	return true
 }
 
 async function handleWarning(warning: CrashWarningPayload): Promise<void> {
 	const modalPayload = { ...warning, hint: formatMessage(messages.analyzing) }
+	await refreshAIAvailability()
 	if (!show(modalPayload)) return
-	await analyzeAndUpdate(modalPayload)
+	if (isLogShareAutoAnalysis.value) {
+		void loadLogShareSummary(modalPayload.instance_id)
+	} else {
+		await analyzeAndUpdate(modalPayload)
+	}
 }
 
 function showPreview(): void {
@@ -681,10 +801,6 @@ async function copyToClipboard(url: string): Promise<void> {
 
 async function shareDiagnostic(): Promise<void> {
 	if (sharing.value) return
-	if (!lastAnalysis?.combined_log) {
-		notifyNoLogContent()
-		return
-	}
 	const version = analysisVersion
 	const stale = () => version !== analysisVersion
 	sharing.value = true
@@ -712,7 +828,13 @@ async function shareDiagnostic(): Promise<void> {
 			})
 		}
 
-		const result = await shareLogs(client, lastAnalysis.combined_log)
+		await crashLogsPromise
+		const shareContent = lastAnalysis?.combined_log || (await combinedCrashLogContent())
+		if (!shareContent) {
+			notifyNoLogContent()
+			return
+		}
+		const result = await shareLogs(client, shareContent)
 		if (result.truncated) {
 			addNotification({
 				title: formatMessage(messages.shareTruncated),
@@ -821,13 +943,19 @@ async function runLogShareAi(): Promise<string> {
 	return logshare_ai_analyze_stored(instanceId, ticket.id)
 }
 
-function openAIAnalysis(): void {
-	if (!lastAnalysis?.combined_log) {
-		notifyNoLogContent()
+async function openAIAnalysis(): Promise<void> {
+	if (aiLoading.value) return
+	if (!useLogShareAi()) {
+		if (!lastAnalysis?.combined_log) {
+			notifyNoLogContent()
+			return
+		}
+		aiModal.value?.show(payload.value.instance_id!)
 		return
 	}
-	if (!useLogShareAi()) {
-		aiModal.value?.show(payload.value.instance_id!)
+	await crashLogsPromise
+	if (crashLogFiles.value.length === 0) {
+		notifyNoLogContent()
 		return
 	}
 
@@ -851,23 +979,29 @@ function openAIAnalysis(): void {
 
 async function refreshAIAvailability(): Promise<void> {
 	try {
-		const [settings, aiSettings, state] = await Promise.all([
+		const [settings, aiSettings] = await Promise.all([
 			get_log_share_settings(),
 			get_crash_analysis_ai_settings(),
-			getAIState(),
 		])
 		logShareSettings.value = settings
+		logShareSettingsLoaded.value = true
 		if (aiSettings.ai_source === 'custom') {
-			const provider = state.providers.find((item) => item.provider_id === aiSettings.provider_id)
-			const providerReady =
-				!!provider &&
-				provider.enabled &&
-				provider.models.some((model) => model.id === aiSettings.model_id && model.enabled)
-			aiAvailable.value = aiSettings.enabled && state.settings.enabled && providerReady
+			try {
+				const state = await getAIState()
+				const provider = state.providers.find((item) => item.provider_id === aiSettings.provider_id)
+				const providerReady =
+					!!provider &&
+					provider.enabled &&
+					provider.models.some((model) => model.id === aiSettings.model_id && model.enabled)
+				aiAvailable.value = aiSettings.enabled && state.settings.enabled && providerReady
+			} catch {
+				aiAvailable.value = false
+			}
 		} else {
 			aiAvailable.value = true
 		}
 	} catch {
+		logShareSettingsLoaded.value = false
 		aiAvailable.value = false
 	}
 }
@@ -876,6 +1010,7 @@ async function handleProcessEvent(event: ProcessEvent): Promise<void> {
 	if (event.event === 'launched') {
 		activeRuns.set(event.instance_id, event.uuid)
 		clearCrashAnalysis(event.instance_id)
+		lastAnalysis = null
 		modChangesAvailable.value = false
 		return
 	}
@@ -889,15 +1024,26 @@ async function handleProcessEvent(event: ProcessEvent): Promise<void> {
 	if (!mounted || activeRuns.get(event.instance_id) !== event.uuid) return
 
 	try {
+		await refreshAIAvailability()
+		if (!mounted || activeRuns.get(event.instance_id) !== event.uuid) return
+		const instance = await getInstance(event.instance_id).catch(() => null)
+		if (!mounted) return
+
+		if (isLogShareAutoAnalysis.value) {
+			const shown = show({
+				instance_id: event.instance_id,
+				instance_name: instance?.name || 'Minecraft',
+			})
+			if (shown) void loadLogShareSummary(event.instance_id)
+			return
+		}
+
 		const analysis = await refreshCrashAnalysis(event.instance_id).catch((error) => {
 			console.error('Failed to analyze finished Minecraft process', error)
 			return null
 		})
-		lastAnalysis = analysis
 		if (!mounted) return
 
-		const instance = await getInstance(event.instance_id).catch(() => null)
-		if (!mounted) return
 		const shown = show(
 			applyAnalysis(
 				{
@@ -908,6 +1054,7 @@ async function handleProcessEvent(event: ProcessEvent): Promise<void> {
 			),
 		)
 		if (!shown) return
+		lastAnalysis = analysis
 		modChangesAvailable.value = !!analysis?.mod_changes.length
 		void loadLogShareSummary(event.instance_id)
 	} finally {
