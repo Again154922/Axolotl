@@ -209,10 +209,6 @@ const notificationGroupStyle = computed(() => ({
 	zIndex: hasModalActive.value ? 100 + stackCount.value * 10 + 8 : 200,
 }))
 const exporting = ref<Record<string | number, boolean>>({})
-// Download progress items share one parent popup notification. Keep dismissal
-// state per item so closing one row does not hide the other rows.
-const dismissedProgressItems = ref<Record<string, string[]>>({})
-
 const stopTimer = (n: PopupNotification) => popupNotificationManager.stopNotificationTimer(n)
 const setNotificationTimer = (n: PopupNotification) =>
 	popupNotificationManager.setNotificationTimer(n)
@@ -226,7 +222,6 @@ function isDownloadNotification(item: PopupNotification) {
 }
 
 function downloadToastItems(item: PopupNotification): PopupNotificationProgressItem[] {
-	const dismissed = dismissedProgressItems.value[String(item.id)] ?? []
 	const items = item.progressItems?.length
 		? item.progressItems
 		: [
@@ -242,7 +237,7 @@ function downloadToastItems(item: PopupNotification): PopupNotificationProgressI
 				},
 			]
 
-	return items.filter((progressItem) => !dismissed.includes(progressItem.id))
+	return items
 }
 
 function handleDownloadClick(item: PopupNotification, event: MouseEvent) {
@@ -252,21 +247,9 @@ function handleDownloadClick(item: PopupNotification, event: MouseEvent) {
 
 async function handleProgressItemDismiss(
 	item: PopupNotification,
-	progressItem: PopupNotificationProgressItem,
+	_progressItem: PopupNotificationProgressItem,
 ) {
-	// Dismissal is presentation-only. Download history must remain available for diagnosis.
-	const notificationKey = String(item.id)
-	const dismissed = dismissedProgressItems.value[notificationKey] ?? []
-	if (!dismissed.includes(progressItem.id)) {
-		dismissedProgressItems.value = {
-			...dismissedProgressItems.value,
-			[notificationKey]: [...dismissed, progressItem.id],
-		}
-	}
-
-	if (downloadToastItems(item).length === 0) {
-		popupNotificationManager.removeNotification(item.id)
-	}
+	popupNotificationManager.removeNotification(item.id)
 }
 
 async function handleProgressItemAction(

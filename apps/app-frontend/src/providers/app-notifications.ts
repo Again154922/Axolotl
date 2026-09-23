@@ -7,15 +7,23 @@ import { type Ref, ref } from 'vue'
 
 export class AppNotificationManager extends AbstractWebNotificationManager {
 	private static readonly STORAGE_KEY = 'axolotl:active-web-notifications-v1'
+	private static readonly DISMISSED_STORAGE_KEY = 'axolotl:dismissed-web-notifications-v2'
+	private static readonly LEGACY_DISMISSED_STORAGE_KEY = 'axolotl:dismissed-web-notifications'
 	private static readonly MAX_NOTIFICATIONS = 100
 	private static readonly MAX_NOTIFICATION_AGE_MS = 30 * 24 * 60 * 60 * 1000
 	private static readonly MAX_SUPPORT_DATA_BYTES = 32 * 1024
 	private readonly state: Ref<WebNotification[]>
 	private readonly locationState: Ref<NotificationPanelLocation>
+	private readonly dismissedKeys: Set<string>
 
 	public constructor() {
 		super()
-		this.state = ref<WebNotification[]>(this.loadActiveNotifications())
+		this.dismissedKeys = this.loadDismissedKeys()
+		this.state = ref<WebNotification[]>(
+			this.loadActiveNotifications().filter(
+				(notification) => !this.dismissedKeys.has(this.key(notification)),
+			),
+		)
 		this.locationState = ref<NotificationPanelLocation>('right')
 		this.state.value.forEach((notification) => this.restoreNotificationTimer(notification))
 		this.saveActiveNotifications()
@@ -34,6 +42,7 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 	}
 
 	protected addNotificationToStorage(notification: WebNotification): void {
+		if (this.dismissedKeys.has(this.key(notification))) return
 		this.state.value.unshift(notification)
 		this.saveActiveNotifications()
 	}
@@ -52,8 +61,12 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 	}
 
 	protected clearAllNotificationsFromStorage(): void {
+		for (const notification of this.state.value) {
+			this.dismissedKeys.add(this.key(notification))
+		}
 		this.state.value.splice(0)
 		this.saveActiveNotifications()
+		this.saveDismissedKeys()
 	}
 
 	public override addNotification = (notification: Partial<WebNotification>): WebNotification => {
@@ -78,9 +91,73 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 	}
 
 	public override removeNotification = (id: string | number): WebNotification | undefined => {
+		const existing = this.state.value.find((notification) => notification.id === id)
 		const notification = super.removeNotification(id)
+		if (existing && notification) {
+			this.dismissedKeys.add(this.key(existing))
+			this.saveDismissedKeys()
+		}
 		this.saveActiveNotifications()
 		return notification
+	}
+
+	private key(notification: WebNotification): string {
+		return JSON.stringify([
+			notification.title ?? '',
+			notification.text ?? '',
+			notification.type ?? '',
+			notification.errorCode ?? '',
+		])
+	}
+
+	private loadDismissedKeys(): Set<string> {
+		try {
+			const current = JSON.parse(
+				localStorage.getItem(AppNotificationManager.DISMISSED_STORAGE_KEY) ?? '[]',
+			)
+			const keys = new Set(
+				Array.isArray(current)
+					? current.filter((key): key is string => typeof key === 'string')
+					: [],
+			)
+			const legacy = JSON.parse(
+				localStorage.getItem(AppNotificationManager.LEGACY_DISMISSED_STORAGE_KEY) ?? '{}',
+			)
+			if (Array.isArray(legacy.keys)) {
+				for (const key of legacy.keys) {
+					if (typeof key !== 'string') continue
+					try {
+						const parsed = JSON.parse(key)
+						if (Array.isArray(parsed) && parsed.length >= 4) {
+							keys.add(
+								JSON.stringify([
+									parsed[0] ?? '',
+									parsed[1] ?? '',
+									parsed[2] ?? '',
+									parsed[3] ?? '',
+								]),
+							)
+						}
+					} catch {
+						// Ignore malformed legacy keys.
+					}
+				}
+			}
+			return keys
+		} catch {
+			return new Set()
+		}
+	}
+
+	private saveDismissedKeys(): void {
+		try {
+			localStorage.setItem(
+				AppNotificationManager.DISMISSED_STORAGE_KEY,
+				JSON.stringify([...this.dismissedKeys].slice(-100)),
+			)
+		} catch {
+			// Notification history remains usable when storage is unavailable.
+		}
 	}
 
 	private loadActiveNotifications(): WebNotification[] {
@@ -119,10 +196,10 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 				.slice(0, AppNotificationManager.MAX_NOTIFICATIONS)
 				.map(({ timer: _timer, supportData, ...notification }) => {
 					if (supportData === undefined) return notification
-				try {
-					const serialized = JSON.stringify(supportData)
-					const size = new TextEncoder().encode(serialized).byteLength
-					return size <= AppNotificationManager.MAX_SUPPORT_DATA_BYTES
+					try {
+						const serialized = JSON.stringify(supportData)
+						const size = new TextEncoder().encode(serialized).byteLength
+						return size <= AppNotificationManager.MAX_SUPPORT_DATA_BYTES
 							? { ...notification, supportData }
 							: notification
 					} catch {

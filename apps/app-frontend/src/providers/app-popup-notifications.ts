@@ -18,7 +18,7 @@ export class AppPopupNotificationManager extends AbstractPopupNotificationManage
 	}
 
 	protected addNotificationToStorage(notification: PopupNotification): void {
-		if (notification.type !== 'download' && this.dismissedKeys.has(this.key(notification))) return
+		if (this.dismissedKeys.has(this.key(notification))) return
 		this.state.value.unshift(notification)
 	}
 
@@ -34,7 +34,7 @@ export class AppPopupNotificationManager extends AbstractPopupNotificationManage
 	public override removeNotification = (id: string | number): void => {
 		const notification = this.state.value.find((item) => item.id === id)
 		super.removeNotification(id)
-		if (notification && notification.type !== 'download') {
+		if (notification) {
 			this.dismissedKeys.add(this.key(notification))
 			this.saveDismissedKeys()
 		}
@@ -42,7 +42,7 @@ export class AppPopupNotificationManager extends AbstractPopupNotificationManage
 
 	public override clearAllNotifications = (): void => {
 		for (const notification of this.state.value) {
-			if (notification.type !== 'download') this.dismissedKeys.add(this.key(notification))
+			this.dismissedKeys.add(this.key(notification))
 		}
 		super.clearAllNotifications()
 		this.saveDismissedKeys()
@@ -56,6 +56,14 @@ export class AppPopupNotificationManager extends AbstractPopupNotificationManage
 			notification.toast?.type ?? '',
 			notification.toast?.actorName ?? '',
 			notification.toast?.entityName ?? '',
+			...(notification.progressItems
+				? [
+						notification.progressItems
+							.map((item) => item.id)
+							.sort()
+							.join('|'),
+					]
+				: []),
 		])
 	}
 
