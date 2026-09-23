@@ -382,6 +382,14 @@ const messages = defineMessages({
 		id: 'app.log-share.summary.failed',
 		defaultMessage: 'Could not load the LogShare summary: {message}',
 	},
+	logShareProblems: {
+		id: 'app.log-share.summary.problems',
+		defaultMessage: 'Problems',
+	},
+	logShareInformation: {
+		id: 'app.log-share.summary.information',
+		defaultMessage: 'Information',
+	},
 	logFilesLoading: {
 		id: 'app.minecraft-crash.logs.loading',
 		defaultMessage: 'Loading crash logs...',
@@ -421,6 +429,10 @@ const messages = defineMessages({
 	aiUsingTool: {
 		id: 'app.log-share.ai.tool',
 		defaultMessage: 'Using tool: {name}',
+	},
+	aiUnknownTool: {
+		id: 'app.log-share.ai.unknown-tool',
+		defaultMessage: 'tool',
 	},
 	aiToolResult: {
 		id: 'app.log-share.ai.tool-result',
@@ -685,7 +697,7 @@ function formatInsights(value: unknown): string {
 	const problems = Array.isArray(analysis.problems) ? analysis.problems : []
 	const information = Array.isArray(analysis.information) ? analysis.information : []
 	if (problems.length) {
-		lines.push('**Problems**')
+		lines.push(`**${formatMessage(messages.logShareProblems)}**`)
 		for (const problem of problems as Record<string, unknown>[]) {
 			const message =
 				typeof problem.message === 'string' ? problem.message : JSON.stringify(problem.message)
@@ -697,7 +709,7 @@ function formatInsights(value: unknown): string {
 		}
 	}
 	if (information.length) {
-		lines.push('**Information**')
+		lines.push(`**${formatMessage(messages.logShareInformation)}**`)
 		for (const item of information as Record<string, unknown>[]) {
 			if (typeof item.label === 'string' && typeof item.value === 'string') {
 				lines.push(`- ${item.label}: ${item.value}`)
@@ -999,7 +1011,10 @@ function handleLogShareAiEvent(event: {
 			break
 		case 'tool':
 			aiStatus.value = formatMessage(messages.aiUsingTool, {
-				name: typeof event.data?.name === 'string' ? event.data.name : 'tool',
+				name:
+					typeof event.data?.name === 'string'
+						? event.data.name
+						: formatMessage(messages.aiUnknownTool),
 			})
 			break
 		case 'tool_result':
@@ -1026,7 +1041,7 @@ async function runLogShareAi(): Promise<string> {
 }
 
 async function openAIAnalysis(): Promise<void> {
-	if (aiLoading.value) return
+	if (aiLoading.value || (useLogShareAi() && aiRequested.value)) return
 	if (!useLogShareAi()) {
 		if (!lastAnalysis?.combined_log) {
 			notifyNoLogContent()
@@ -1191,8 +1206,8 @@ defineExpose({
 		hide-header
 		merge-header
 		no-padding
-		width="1100px"
-		max-width="1100px"
+		width="80vw"
+		max-width="80vw"
 	>
 		<div class="crash-modal-shell">
 			<section class="crash-modal-sidebar flex min-h-0 flex-col gap-4 overflow-y-auto p-6">
@@ -1261,7 +1276,10 @@ defineExpose({
 						</button>
 					</ButtonStyled>
 					<ButtonStyled v-if="aiAvailable" color="brand">
-						<button :disabled="aiLoading" @click="openAIAnalysis">
+						<button
+							:disabled="aiLoading || (useLogShareAi() && aiRequested)"
+							@click="openAIAnalysis"
+						>
 							<SparklesIcon aria-hidden="true" />
 							{{
 								useLogShareAi()
@@ -1353,8 +1371,8 @@ defineExpose({
 .crash-modal-shell {
 	display: grid;
 	grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
-	height: min(720px, calc(100vh - 3rem));
-	min-height: min(520px, calc(100vh - 3rem));
+	height: 80vh;
+	min-height: min(520px, 80vh);
 }
 
 .crash-modal-sidebar {
