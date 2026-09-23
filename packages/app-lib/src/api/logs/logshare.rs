@@ -4,7 +4,7 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::analyze_crash;
+use super::crash_analysis::collect_crash_logs;
 use crate::State;
 use crate::emit_logshare_ai_event;
 
@@ -201,15 +201,14 @@ fn source_identifier() -> String {
 
 async fn prepare_upload(instance_id: &str) -> crate::Result<UploadBody> {
     let settings = get_log_share_settings().await?;
-    let analysis = analyze_crash(instance_id).await?;
+    let logs = collect_crash_logs(instance_id).await?;
 
-    let combined = analysis.combined_log.as_str().to_string();
+    let combined = logs.combined_log.as_str().to_string();
     let files = if settings.multi_file {
-        analysis
-            .sources
+        logs.sources
             .iter()
             .map(|source| UploadFile {
-                name: source.filename.clone(),
+                name: source.name.clone(),
                 content: source.content.as_str().to_string(),
             })
             .collect::<Vec<_>>()
