@@ -5710,7 +5710,7 @@
     "message": "Analyzing the logs from this launch..."
   },
   "app.minecraft-crash.body": {
-    "message": "Do not send a screenshot of this window when asking for help. Export the error report instead so the crash report, game logs, debug log, and JVM details can be checked together."
+    "message": "Export the error report or share the diagnostic link when asking for help. Do not send only a screenshot of this window."
   },
   "app.minecraft-crash.copy-link": {
     "message": "Copy link"
@@ -5896,7 +5896,7 @@
     "message": "Minecraft stopped unexpectedly."
   },
   "app.minecraft-crash.support-hint": {
-    "message": "When asking for help, send the exported ZIP. Do not send only a screenshot of this window because it does not contain the diagnostic evidence."
+    "message": "Share the diagnostic link or exported package instead of only a screenshot."
   },
   "app.minecraft-crash.title": {
     "message": "{instanceName} crashed"

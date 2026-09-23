@@ -162,7 +162,7 @@ const messages = defineMessages({
 	body: {
 		id: 'app.minecraft-crash.body',
 		defaultMessage:
-			'Do not send a screenshot of this window when asking for help. Export the error report instead so the crash report, game logs, debug log, and JVM details can be checked together.',
+			'Export the error report or share the diagnostic link when asking for help. Do not send only a screenshot of this window.',
 	},
 	summary: {
 		id: 'app.minecraft-crash.summary',
@@ -170,8 +170,7 @@ const messages = defineMessages({
 	},
 	supportHint: {
 		id: 'app.minecraft-crash.support-hint',
-		defaultMessage:
-			'When asking for help, send the exported ZIP. Do not send only a screenshot of this window because it does not contain the diagnostic evidence.',
+		defaultMessage: 'Share the diagnostic link or exported package instead of only a screenshot.',
 	},
 	previewInstance: {
 		id: 'app.minecraft-crash.preview-instance',
@@ -509,7 +508,9 @@ const title = computed(
 const summary = computed(() => payload.value.summary || formatMessage(messages.summary))
 const body = computed(() => payload.value.body || formatMessage(messages.body))
 const hint = computed(() => payload.value.hint || formatMessage(messages.supportHint))
-const showSupportHint = computed(() => hint.value !== formatMessage(messages.supportHint))
+const showSupportHint = computed(
+	() => Boolean(payload.value.body) && hint.value !== formatMessage(messages.supportHint),
+)
 const isLogShareAutoAnalysis = computed(
 	() => logShareSettingsLoaded.value && shouldUseLogShareAutoAnalysis(logShareSettings.value),
 )
@@ -790,6 +791,7 @@ async function loadLogShareSummary(instanceId: string): Promise<void> {
 	if (!isLogShareAutoAnalysis.value || logShareSummaryLoading.value) return
 	if (logShareSettings.value.no_storage) {
 		logShareSummaryState.value = 'unavailable'
+		if (payload.value.hint === formatMessage(messages.analyzing)) payload.value.hint = ''
 		return
 	}
 	const version = analysisVersion
@@ -814,7 +816,10 @@ async function loadLogShareSummary(instanceId: string): Promise<void> {
 			logShareSummaryState.value = 'error'
 		}
 	} finally {
-		if (!stale()) logShareSummaryLoading.value = false
+		if (!stale()) {
+			logShareSummaryLoading.value = false
+			if (payload.value.hint === formatMessage(messages.analyzing)) payload.value.hint = ''
+		}
 	}
 }
 
@@ -830,8 +835,10 @@ async function analyzeAndUpdate(
 	lastAnalysis = analysis
 	modChangesAvailable.value = !!analysis?.mod_changes.length
 	if (mounted && version === analysisVersion) {
-		payload.value = applyAnalysis(modalPayload, analysis)
-		if (!analysis?.findings.length && fallbackHint) payload.value.hint = fallbackHint
+		const updatedPayload = applyAnalysis(modalPayload, analysis)
+		if (!analysis?.findings.length && fallbackHint) updatedPayload.hint = fallbackHint
+		if (updatedPayload.hint === formatMessage(messages.analyzing)) updatedPayload.hint = ''
+		payload.value = updatedPayload
 	}
 	void loadLogShareSummary(modalPayload.instance_id)
 	return analysis

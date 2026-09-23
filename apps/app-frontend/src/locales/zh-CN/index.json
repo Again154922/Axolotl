@@ -5710,7 +5710,7 @@
     "message": "正在分析本次启动留下的日志……"
   },
   "app.minecraft-crash.body": {
-    "message": "寻求帮助时不要发送此窗口截图。请导出错误报告，这样对方才能同时检查崩溃报告、游戏日志、调试日志和 JVM 信息。"
+    "message": "寻求帮助时请导出错误报告或分享诊断链接，不要只发送此窗口截图。"
   },
   "app.minecraft-crash.copy-link": {
     "message": "复制链接"
@@ -5896,7 +5896,7 @@
     "message": "Minecraft 意外停止运行。"
   },
   "app.minecraft-crash.support-hint": {
-    "message": "这里显示的是可能原因，不一定准确。寻求帮助时请分享日志链接，不要只发送此窗口截图，因为截图中没有完整证据。"
+    "message": "请分享诊断链接或导出的诊断包，不要只发送截图。"
   },
   "app.minecraft-crash.title": {
     "message": "{instanceName} 已崩溃"
