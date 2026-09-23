@@ -49,6 +49,7 @@ pub enum LogType {
     InfoLog,
     CrashReport,
     JvmCrash,
+    LauncherLog,
 }
 
 fn isolated_minecraft_root(instance_root: &Path) -> Option<PathBuf> {
@@ -80,6 +81,13 @@ fn log_directories_for_type(
             }
             directories
         }
+        LogType::LauncherLog => {
+            let mut directories = vec![game_dir.to_path_buf()];
+            if let Some(root) = isolated_minecraft_root(game_dir) {
+                directories.push(root);
+            }
+            directories
+        }
     }
 }
 
@@ -89,6 +97,10 @@ fn is_log_file_for_type(log_type: LogType, file_name: &str) -> bool {
             let lower = file_name.to_ascii_lowercase();
             lower.starts_with("hs_err") && lower.ends_with(".log")
         }
+        LogType::LauncherLog => matches!(
+            file_name.to_ascii_lowercase().as_str(),
+            "launcher_log.txt" | "latest_stdout.log"
+        ),
         _ => true,
     }
 }
@@ -553,6 +565,13 @@ pub async fn get_logs(
     get_logs_from_type(
         instance_id,
         LogType::JvmCrash,
+        clear_contents,
+        &mut logs,
+    )
+    .await?;
+    get_logs_from_type(
+        instance_id,
+        LogType::LauncherLog,
         clear_contents,
         &mut logs,
     )
@@ -1036,7 +1055,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn jvm_crash_logs_are_enumerated_and_read_from_linked_roots() {
+    async fn root_crash_logs_are_enumerated_and_read_from_linked_roots() {
         let _state = global_state().await;
         let (minecraft, metadata) =
             create_direct_link_fixture("logs-jvm").await;
@@ -1053,6 +1072,11 @@ mod tests {
             b"shared JVM crash details\n",
         )
         .unwrap();
+        std::fs::write(
+            version_dir.join("launcher_log.txt"),
+            b"launcher crash details\n",
+        )
+        .unwrap();
 
         let logs = get_logs(&metadata.instance.id, Some(true)).await.unwrap();
         assert!(logs.iter().any(|log| {
@@ -1060,6 +1084,10 @@ mod tests {
         }));
         assert!(logs.iter().any(|log| {
             log.log_type == LogType::JvmCrash && log.filename == shared_name
+        }));
+        assert!(logs.iter().any(|log| {
+            log.log_type == LogType::LauncherLog
+                && log.filename == "launcher_log.txt"
         }));
 
         let output = get_output_by_filename(

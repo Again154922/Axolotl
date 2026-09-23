@@ -14,6 +14,7 @@ const files: CrashLogFile[] = [
 	{ age: 1_000, filename: 'latest.log', log_type: 'InfoLog' },
 	{ age: 1_020, filename: 'crash-new.txt', log_type: 'CrashReport' },
 	{ age: 1_010, filename: 'hs_err_pid10.log', log_type: 'JvmCrash' },
+	{ age: 1_005, filename: 'launcher_log.txt', log_type: 'LauncherLog' },
 	{ age: 800, filename: 'crash-old.txt', log_type: 'CrashReport' },
 	{ age: 1_015, filename: '2026-09-23-1.log.gz', log_type: 'InfoLog' },
 ]
@@ -39,7 +40,7 @@ describe('Minecraft crash log selection', () => {
 		const selected = selectCrashLogFiles(files)
 		assert.deepEqual(
 			selected.map((file) => file.filename),
-			['crash-new.txt', 'hs_err_pid10.log', 'latest.log'],
+			['crash-new.txt', 'hs_err_pid10.log', 'launcher_log.txt', 'latest.log'],
 		)
 	})
 

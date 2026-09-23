@@ -1,7 +1,7 @@
 export interface CrashLogFile {
 	age: number
 	filename: string
-	log_type: 'InfoLog' | 'CrashReport' | 'JvmCrash'
+	log_type: 'InfoLog' | 'CrashReport' | 'JvmCrash' | 'LauncherLog'
 	output?: string | null
 }
 
