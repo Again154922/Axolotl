@@ -10,12 +10,14 @@ import {
 } from '@modrinth/assets'
 import {
 	ButtonStyled,
+	Card,
 	defineMessages,
 	injectModrinthClient,
 	injectNotificationManager,
 	type LogLine,
 	LogViewport,
 	NewModal,
+	ProgressBar,
 	shareLogs,
 	useVIntl,
 } from '@modrinth/ui'
@@ -1389,30 +1391,33 @@ defineExpose({
 					class="crash-modal-ai-output min-h-0 flex-1 overflow-y-auto p-5"
 				>
 					<p v-if="aiStatus" class="m-0 mb-3 text-sm text-secondary">{{ aiStatus }}</p>
-					<div v-if="logAgentInsight.insight" class="flex flex-col gap-4 text-sm">
+					<Card v-if="logAgentInsight.insight" class="!mb-0 flex flex-col gap-4 text-sm">
 						<section class="flex flex-col gap-2">
 							<div class="flex items-center justify-between gap-2 text-xs font-semibold uppercase">
 								<span class="flex items-center gap-1.5 text-secondary">
 									<ScanEyeIcon class="size-3.5" aria-hidden="true" />
 									{{ formatMessage(messages.logAgentRootCause) }}
 								</span>
-								<span
+								<div
 									v-if="logAgentInsight.insight.confidence !== null"
-									class="font-mono text-xs font-semibold text-secondary"
+									class="flex shrink-0 items-center gap-2 font-mono text-xs text-secondary"
 								>
-									{{ formatMessage(messages.logAgentConfidence) }}
-									{{
-										Math.round(Math.max(0, Math.min(1, logAgentInsight.insight.confidence)) * 100)
-									}}%
-								</span>
-								<span class="h-1.5 w-16 overflow-hidden rounded-full bg-surface-5">
-									<span
-										class="block h-full rounded-full bg-contrast transition-all duration-500"
-										:style="{
-											width: `${Math.max(0, Math.min(1, logAgentInsight.insight.confidence)) * 100}%`,
-										}"
-									/>
-								</span>
+									<span>{{ formatMessage(messages.logAgentConfidence) }}</span>
+									<span class="font-semibold text-contrast">
+										{{
+											Math.round(
+												Math.max(0, Math.min(1, logAgentInsight.insight.confidence)) * 100,
+											)
+										}}%
+									</span>
+									<span class="w-16 shrink-0">
+										<ProgressBar
+											full-width
+											:progress="Math.max(0, Math.min(1, logAgentInsight.insight.confidence))"
+											:gradient-border="false"
+										/>
+									</span>
+								</div>
 							</div>
 							<p class="m-0 text-base font-medium leading-snug text-contrast">
 								{{ logAgentInsight.insight.rootCause }}
@@ -1456,7 +1461,7 @@ defineExpose({
 								</span>
 							</div>
 						</section>
-					</div>
+					</Card>
 					<div
 						v-if="logAgentInsight.markdown"
 						class="markdown-body text-sm"
