@@ -54,6 +54,7 @@ const fitBounds = ref<HTMLElement>()
 const exporting = ref(false)
 const discarding = ref(false)
 const loadingEditorData = ref(true)
+const nativeImageReady = ref(false)
 const spacePressed = ref(false)
 const panning = ref<{
 	x: number
@@ -113,6 +114,9 @@ const nativeImageView = computed(
 		props.mode === 'view' &&
 		[props.item.src, props.item.editorSource?.path].some(isGifOrWebpSource),
 )
+const previewLoading = computed(
+	() => loadingEditorData.value || (nativeImageView.value && !nativeImageReady.value),
+)
 
 let resizeObserver: ResizeObserver | undefined
 let initializationGeneration = 0
@@ -137,6 +141,7 @@ function isGifOrWebpSource(source?: string) {
 function queueInitialization() {
 	const generation = ++initializationGeneration
 	loadingEditorData.value = true
+	nativeImageReady.value = false
 	const editorDataPromise = props.loadData(props.item)
 	initializationChain = initializationChain.then(async () => {
 		if (generation !== initializationGeneration) return
@@ -356,6 +361,7 @@ watch(
 		spacePressed.value = false
 		panning.value = undefined
 		brushPointer.value.visible = false
+		if (mode === 'view' && nativeImageView.value) nativeImageReady.value = false
 		setInteractionEnabled(mode === 'edit')
 	},
 )
@@ -398,18 +404,16 @@ defineExpose({ markSaved })
 		@pointercancel="panning = undefined"
 		@wheel="handleWheel"
 	>
-		<img
-			v-if="mode === 'view' && loadingEditorData && !nativeImageView"
-			:src="item.src"
-			:alt="item.alt"
-			class="pointer-events-none relative z-[2] m-auto block h-full w-full shrink-0 object-contain"
-			draggable="false"
+		<div
+			v-if="previewLoading"
+			class="pointer-events-none relative z-[3] m-auto h-full w-full shrink-0 animate-pulse rounded-md bg-surface-2"
+			aria-hidden="true"
 		/>
 		<div
-			v-show="nativeImageView || !loadingEditorData"
+			v-show="!previewLoading"
 			class="editor-canvas relative z-[2] m-auto shrink-0"
 			:class="{
-				'h-full w-full': nativeImageView && loadingEditorData,
+				'h-full w-full': nativeImageView && previewLoading,
 				'is-native-image-view': nativeImageView,
 			}"
 			@pointerenter="updateBrushPointer"
@@ -423,6 +427,7 @@ defineExpose({ markSaved })
 				:alt="item.alt"
 				class="pointer-events-none absolute inset-0 z-[2] h-full w-full object-contain"
 				draggable="false"
+				@load="nativeImageReady = true"
 			/>
 			<div
 				v-if="hasBrushPointer && brushPointer.visible"
