@@ -225,6 +225,14 @@ pub(super) async fn read_online_mode(path: &Path) -> Option<bool> {
         .map(|value| value.eq_ignore_ascii_case("true"))
 }
 
+/// Reads `server-ip`, the address the server binds to. Empty values mean the
+/// server listens on every interface.
+pub(super) async fn read_server_ip(path: &Path) -> Option<String> {
+    read_server_property_value(path, "server-ip")
+        .await
+        .filter(|value| !value.trim().is_empty())
+}
+
 async fn read_server_property_value(path: &Path, key: &str) -> Option<String> {
     tokio::fs::read_to_string(path.join("server.properties"))
         .await
