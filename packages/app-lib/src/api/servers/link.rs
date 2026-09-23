@@ -6,13 +6,13 @@
 //! pinned-servers widget starts the server first and waits until it accepts
 //! connections before the instance is launched.
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
 
 use crate::Result;
 
 use super::lifecycle::is_running;
-use super::manifest::{read_server_port, server_path};
+use super::manifest::{read_server_ip, read_server_port, server_path};
 
 /// Port used when `server.properties` has no `server-port` entry, matching the
 /// vanilla default.
@@ -101,7 +101,8 @@ pub async fn wait_until_ready(
 
     let path = server_path(server_id).await?;
     let port = read_server_port(&path).await.unwrap_or(DEFAULT_SERVER_PORT);
-    let target = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
+    let bind = read_server_ip(&path).await;
+    let targets = readiness_targets(port, bind.as_deref());
     let timeout =
         Duration::from_millis(timeout_ms.clamp(1_000, MAX_READY_TIMEOUT_MS));
     let deadline = Instant::now() + timeout;
@@ -110,14 +111,40 @@ pub async fn wait_until_ready(
         if !is_running(server_id) {
             return Ok(false);
         }
-        if tokio::net::TcpStream::connect(target).await.is_ok() {
-            return Ok(true);
+        for target in &targets {
+            if tokio::net::TcpStream::connect(target).await.is_ok() {
+                return Ok(true);
+            }
         }
         if Instant::now() >= deadline {
             return Ok(false);
         }
         tokio::time::sleep(READY_POLL_INTERVAL).await;
     }
+}
+
+/// Addresses to probe for readiness: the configured `server-ip` when it points
+/// at a specific address, plus both loopback addresses. Servers that bind to
+/// every interface (`server-ip` unset, empty, `0.0.0.0`, or `::`) stay
+/// reachable through loopback, and IPv6-only binds are covered by `::1`.
+fn readiness_targets(port: u16, bind: Option<&str>) -> Vec<SocketAddr> {
+    let mut targets = Vec::new();
+    if let Some(ip) = bind.and_then(|value| value.trim().parse::<IpAddr>().ok())
+    {
+        if !ip.is_unspecified() {
+            targets.push(SocketAddr::new(ip, port));
+        }
+    }
+    for loopback in [
+        IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(Ipv6Addr::LOCALHOST),
+    ] {
+        let candidate = SocketAddr::new(loopback, port);
+        if !targets.contains(&candidate) {
+            targets.push(candidate);
+        }
+    }
+    targets
 }
 
 #[cfg(test)]
@@ -152,5 +179,24 @@ mod tests {
         assert!(!is_local_address("203.0.113.7"));
         assert!(!is_local_address("[2001:db8::1]:25565"));
         assert!(!is_local_address(""));
+    }
+
+    #[test]
+    fn readiness_targets_cover_the_configured_bind_address() {
+        let bound = readiness_targets(25565, Some("192.168.1.10"));
+        assert!(bound.contains(&"192.168.1.10:25565".parse().unwrap()));
+        assert!(bound.contains(&"127.0.0.1:25565".parse().unwrap()));
+
+        let ipv6_only = readiness_targets(25565, Some("2001:db8::5"));
+        assert!(ipv6_only.contains(&"[2001:db8::5]:25565".parse().unwrap()));
+        assert!(ipv6_only.contains(&"[::1]:25565".parse().unwrap()));
+
+        // Unset and "every interface" binds are covered by both loopbacks.
+        for bind in [None, Some(""), Some("0.0.0.0"), Some("::")] {
+            let targets = readiness_targets(25565, bind);
+            assert_eq!(targets.len(), 2, "unexpected targets for {bind:?}");
+            assert!(targets.contains(&"127.0.0.1:25565".parse().unwrap()));
+            assert!(targets.contains(&"[::1]:25565".parse().unwrap()));
+        }
     }
 }
