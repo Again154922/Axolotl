@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { ClipboardCopyIcon, ExternalIcon, ShareIcon, SparklesIcon } from '@modrinth/assets'
+import {
+	ClipboardCopyIcon,
+	ExternalIcon,
+	LinkIcon,
+	ListOrderedIcon,
+	ScanEyeIcon,
+	ShareIcon,
+	SparklesIcon,
+} from '@modrinth/assets'
 import {
 	ButtonStyled,
 	defineMessages,
@@ -80,6 +88,13 @@ interface LogShareSettings {
 	multi_file: boolean
 	no_storage: boolean
 	show_progress: boolean
+}
+
+interface LogAgentInsight {
+	rootCause: string
+	confidence: number | null
+	evidence: string[]
+	steps: string[]
 }
 
 type Unlisten = () => void
@@ -412,7 +427,23 @@ const messages = defineMessages({
 	},
 	logAgentTab: {
 		id: 'app.log-share.ai.tab',
-		defaultMessage: 'LogAgent deep analysis',
+		defaultMessage: 'LogAgent detailed analysis',
+	},
+	logAgentRootCause: {
+		id: 'app.log-share.ai.root-cause',
+		defaultMessage: 'Core root cause',
+	},
+	logAgentConfidence: {
+		id: 'app.log-share.ai.confidence',
+		defaultMessage: 'Diagnostic confidence',
+	},
+	logAgentSteps: {
+		id: 'app.log-share.ai.steps',
+		defaultMessage: 'Recommended troubleshooting steps',
+	},
+	logAgentEvidence: {
+		id: 'app.log-share.ai.evidence',
+		defaultMessage: 'Supporting evidence',
 	},
 	aiThinking: {
 		id: 'app.log-share.ai.thinking',
@@ -499,7 +530,41 @@ const selectedLogLines = computed(() => {
 	}))
 })
 
-const renderedAiOutput = computed(() => renderHighlightedString(aiOutput.value))
+function parseLogAgentInsight(value: string): {
+	markdown: string
+	insight: LogAgentInsight | null
+} {
+	const matches = [...value.matchAll(/```json\s*([\s\S]*?)```/gi)]
+	const rawBlock = matches.at(-1)?.[1]?.trim()
+	if (!rawBlock) return { markdown: value, insight: null }
+
+	const jsonText =
+		rawBlock.startsWith("'") && rawBlock.endsWith("'")
+			? rawBlock.slice(1, -1).replace(/\\n/g, '\n').replace(/\\"/g, '"')
+			: rawBlock
+	try {
+		const parsed = JSON.parse(jsonText) as Record<string, unknown>
+		if (typeof parsed.rootCause !== 'string') return { markdown: value, insight: null }
+		return {
+			markdown: value.replace(/```json\s*[\s\S]*?```/gi, '').trim(),
+			insight: {
+				rootCause: parsed.rootCause,
+				confidence: typeof parsed.confidence === 'number' ? parsed.confidence : null,
+				evidence: Array.isArray(parsed.evidence)
+					? parsed.evidence.filter((item): item is string => typeof item === 'string')
+					: [],
+				steps: Array.isArray(parsed.steps)
+					? parsed.steps.filter((item): item is string => typeof item === 'string')
+					: [],
+			},
+		}
+	} catch {
+		return { markdown: value, insight: null }
+	}
+}
+
+const logAgentInsight = computed(() => parseLogAgentInsight(aiOutput.value))
+const renderedAiOutput = computed(() => renderHighlightedString(logAgentInsight.value.markdown))
 const renderedLogShareSummary = computed(() => renderHighlightedString(logShareSummary.value))
 
 function errorMessage(error: unknown): string {
@@ -1319,9 +1384,84 @@ defineExpose({
 					</button>
 				</div>
 
-				<div v-if="activeTab === AI_TAB" class="min-h-0 flex-1 overflow-y-auto p-5">
+				<div
+					v-if="activeTab === AI_TAB"
+					class="crash-modal-ai-output min-h-0 flex-1 overflow-y-auto p-5"
+				>
 					<p v-if="aiStatus" class="m-0 mb-3 text-sm text-secondary">{{ aiStatus }}</p>
-					<div v-if="aiOutput" class="markdown-body text-sm" v-html="renderedAiOutput" />
+					<div v-if="logAgentInsight.insight" class="flex flex-col gap-4 text-sm">
+						<section class="flex flex-col gap-2">
+							<div class="flex items-center justify-between gap-2 text-xs font-semibold uppercase">
+								<span class="flex items-center gap-1.5 text-secondary">
+									<ScanEyeIcon class="size-3.5" aria-hidden="true" />
+									{{ formatMessage(messages.logAgentRootCause) }}
+								</span>
+								<span
+									v-if="logAgentInsight.insight.confidence !== null"
+									class="font-mono text-xs font-semibold text-secondary"
+								>
+									{{ formatMessage(messages.logAgentConfidence) }}
+									{{
+										Math.round(Math.max(0, Math.min(1, logAgentInsight.insight.confidence)) * 100)
+									}}%
+								</span>
+								<span class="h-1.5 w-16 overflow-hidden rounded-full bg-surface-5">
+									<span
+										class="block h-full rounded-full bg-contrast transition-all duration-500"
+										:style="{
+											width: `${Math.max(0, Math.min(1, logAgentInsight.insight.confidence)) * 100}%`,
+										}"
+									/>
+								</span>
+							</div>
+							<p class="m-0 text-base font-medium leading-snug text-contrast">
+								{{ logAgentInsight.insight.rootCause }}
+							</p>
+						</section>
+
+						<section
+							v-if="logAgentInsight.insight.steps.length"
+							class="flex flex-col gap-2 border-t border-solid border-surface-5 pt-3"
+						>
+							<h3 class="m-0 flex items-center gap-1.5 text-xs font-semibold text-secondary">
+								<ListOrderedIcon class="size-3.5" aria-hidden="true" />
+								{{ formatMessage(messages.logAgentSteps) }}
+							</h3>
+							<ol class="m-0 list-decimal space-y-1.5 pl-5 text-secondary">
+								<li
+									v-for="step in logAgentInsight.insight.steps"
+									:key="step"
+									class="leading-relaxed"
+								>
+									{{ step }}
+								</li>
+							</ol>
+						</section>
+
+						<section
+							v-if="logAgentInsight.insight.evidence.length"
+							class="flex flex-col gap-2 border-t border-solid border-surface-5 pt-3"
+						>
+							<h3 class="m-0 flex items-center gap-1.5 text-xs font-semibold text-secondary">
+								<LinkIcon class="size-3.5" aria-hidden="true" />
+								{{ formatMessage(messages.logAgentEvidence) }}
+							</h3>
+							<div class="flex flex-wrap gap-1.5">
+								<span
+									v-for="evidence in logAgentInsight.insight.evidence"
+									:key="evidence"
+									class="break-all rounded border border-surface-5 bg-surface-3 px-2 py-1 font-mono text-xs text-secondary"
+								>
+									{{ evidence }}
+								</span>
+							</div>
+						</section>
+					</div>
+					<div
+						v-if="logAgentInsight.markdown"
+						class="markdown-body text-sm"
+						v-html="renderedAiOutput"
+					/>
 				</div>
 				<div
 					v-else-if="crashLogsLoading"
@@ -1377,6 +1517,14 @@ defineExpose({
 
 .crash-modal-sidebar {
 	border-right: 1px solid var(--surface-5);
+}
+
+.crash-modal-ai-output,
+.crash-modal-ai-output * {
+	-webkit-user-select: text;
+	-moz-user-select: text;
+	-ms-user-select: text;
+	user-select: text;
 }
 
 .crash-modal-tab {
