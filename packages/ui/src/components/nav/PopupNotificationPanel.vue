@@ -247,8 +247,17 @@ function handleDownloadClick(item: PopupNotification, event: MouseEvent) {
 
 async function handleProgressItemDismiss(
 	item: PopupNotification,
-	_progressItem: PopupNotificationProgressItem,
+	progressItem: PopupNotificationProgressItem,
 ) {
+	try {
+		await progressItem.onDismiss?.()
+	} catch {
+		return
+	}
+	if (item.progressItems?.length) {
+		item.progressItems = item.progressItems.filter((candidate) => candidate.id !== progressItem.id)
+		if (item.progressItems.length > 0) return
+	}
 	popupNotificationManager.removeNotification(item.id)
 }
 
@@ -280,8 +289,12 @@ async function handleButtonClick(id: string | number, btn: PopupNotificationButt
 }
 
 async function handleToastAction(item: PopupNotification, action?: () => void | Promise<void>) {
+	try {
+		await action?.()
+	} catch {
+		return
+	}
 	popupNotificationManager.removeNotification(item.id)
-	await action?.()
 }
 
 async function handleErrorAction(notification: PopupNotification): Promise<void> {
