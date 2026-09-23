@@ -21,6 +21,7 @@ import Toolbar from './toolbar.vue'
 import type {
 	ImageViewerEditorData,
 	ImageViewerEditorItem,
+	ImageViewerEditorMetadata,
 	ImageViewerEditorSavePayload,
 } from './types'
 import { useImageEditor } from './use-image-editor'
@@ -45,6 +46,7 @@ const emit = defineEmits<{
 	edit: []
 	next: []
 	previous: []
+	metadata: [metadata: ImageViewerEditorMetadata]
 	save: [payload: ImageViewerEditorSavePayload]
 }>()
 
@@ -76,6 +78,8 @@ const {
 	zoom,
 	fitScale,
 	isFit,
+	originalWidth,
+	originalHeight,
 	canZoomIn,
 	initialize,
 	dispose,
@@ -154,6 +158,11 @@ function queueInitialization() {
 			observeViewport()
 			await waitForRender()
 			if (generation !== initializationGeneration) return
+			emit('metadata', {
+				size: editorData.source.size,
+				width: originalWidth.value,
+				height: originalHeight.value,
+			})
 		} catch (error) {
 			if (generation !== initializationGeneration) return
 			handleError(error)
