@@ -1391,7 +1391,7 @@ defineExpose({
 					class="crash-modal-ai-output min-h-0 flex-1 overflow-y-auto p-5"
 				>
 					<p v-if="aiStatus" class="m-0 mb-3 text-sm text-secondary">{{ aiStatus }}</p>
-					<Card v-if="logAgentInsight.insight" class="!mb-0 flex flex-col gap-4 text-sm">
+					<Card v-if="logAgentInsight.insight" class="flex flex-col gap-4 text-sm">
 						<section class="flex flex-col gap-2">
 							<div class="flex items-center justify-between gap-2 text-xs font-semibold uppercase">
 								<span class="flex items-center gap-1.5 text-secondary">
@@ -1426,7 +1426,7 @@ defineExpose({
 
 						<section
 							v-if="logAgentInsight.insight.steps.length"
-							class="flex flex-col gap-2 border-t border-solid border-surface-5 pt-3"
+							class="flex flex-col gap-2 rounded-xl border border-solid border-surface-4 bg-surface-2 p-3"
 						>
 							<h3 class="m-0 flex items-center gap-1.5 text-xs font-semibold text-secondary">
 								<ListOrderedIcon class="size-3.5" aria-hidden="true" />
@@ -1445,7 +1445,7 @@ defineExpose({
 
 						<section
 							v-if="logAgentInsight.insight.evidence.length"
-							class="flex flex-col gap-2 border-t border-solid border-surface-5 pt-3"
+							class="flex flex-col gap-2 rounded-xl border border-solid border-surface-4 bg-surface-2 p-3"
 						>
 							<h3 class="m-0 flex items-center gap-1.5 text-xs font-semibold text-secondary">
 								<LinkIcon class="size-3.5" aria-hidden="true" />
