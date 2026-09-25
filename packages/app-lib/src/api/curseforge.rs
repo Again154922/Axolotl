@@ -9683,7 +9683,7 @@ impl From<CurseForgeProject> for UnifiedSearchHit {
             categories,
             versions,
             downloads: project.download_count,
-            icon_url: project.logo.map(|logo| logo.thumbnail_url),
+            icon_url: project.logo.map(|logo| logo.url),
             date_created: project.date_created,
             date_modified: project.date_modified,
             latest_version: project

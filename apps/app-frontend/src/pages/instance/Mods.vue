@@ -261,7 +261,11 @@ import {
 } from '@/helpers/content-change-jobs'
 import { mergeContentItemMetadata } from '@/helpers/content-item-metadata'
 import { lookupContentWikiIds, translateContentItemTitles } from '@/helpers/content-search'
-import { type CurseForgeFile, getCurseForgeChangelog } from '@/helpers/curseforge'
+import {
+	getCurseForgeChangelog,
+	getCurseForgeImageUrl,
+	type CurseForgeFile,
+} from '@/helpers/curseforge'
 import {
 	type CurseForgeManualDownloadItem,
 	getCurseForgeManualDownloadUrl,
@@ -795,6 +799,16 @@ const {
 	toggleWorldDatapackItem,
 } = useWorldDatapacks(() => props.instance.id)
 
+function displayContentIconUrl(item: Pick<ContentItem, 'project'>): string | undefined {
+	const iconUrl = item.project?.icon_url
+	if (!iconUrl) return undefined
+	if (item.project?.id.startsWith('curseforge:')) {
+		const resolved = getCurseForgeImageUrl(iconUrl) ?? iconUrl
+		return resolved
+	}
+	return localContentIconUrl(iconUrl)
+}
+
 const mergedProjects = computed<ContentItem[]>(() => {
 	const active = installingItems.value.get(props.instance.id)
 	const pending = active ?? installingBuffer.value
@@ -807,7 +821,7 @@ const mergedProjects = computed<ContentItem[]>(() => {
 						...project,
 						project: {
 							...project.project,
-							icon_url: localContentIconUrl(project.project.icon_url),
+							icon_url: displayContentIconUrl(project),
 						},
 					}
 				: project
@@ -932,7 +946,9 @@ const displayedModpackProject = computed(() => {
 	if (!project) return undefined
 	return {
 		...project,
-		icon_url: localContentIconUrl(project.icon_url || fallbackProject?.icon_url),
+		icon_url: project.id.startsWith('curseforge:')
+			? (getCurseForgeImageUrl(project.icon_url || fallbackProject?.icon_url) ?? project.icon_url)
+			: localContentIconUrl(project.icon_url || fallbackProject?.icon_url),
 	}
 })
 
@@ -1007,7 +1023,16 @@ function allDependencyGraphItems() {
 		const id = getContentItemId(item)
 		if (id) itemsById.set(id, item)
 	}
-	return [...itemsById.values()]
+	return [...itemsById.values()].map((item) => {
+		if (!item.project?.icon_url) return item
+		return {
+			...item,
+			project: {
+				...item.project,
+				icon_url: displayContentIconUrl(item),
+			},
+		}
+	})
 }
 
 function handleViewDependencies() {
@@ -1516,7 +1541,7 @@ async function promptToggleDependencies(
 		primaryTitle: targets[0]?.project?.title ?? targets[0]?.file_name ?? '',
 		related: related.map((item) => ({
 			title: item.project?.title ?? item.file_name,
-			iconUrl: item.project?.icon_url ?? null,
+			iconUrl: displayContentIconUrl(item) ?? null,
 			versionNumber: item.version?.version_number,
 		})),
 	})

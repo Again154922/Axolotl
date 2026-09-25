@@ -551,7 +551,9 @@ function layoutComponent(
 	const maxRowsPerColumn = 8
 	let columnX = 0
 	for (const [, column] of [...columns.entries()].sort(([left], [right]) => left - right)) {
-		column.sort((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id))
+		column.sort(
+			(left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
+		)
 		const columnCount = Math.max(1, Math.ceil(column.length / maxRowsPerColumn))
 		column.forEach((node, index) => {
 			positions.set(node.id, {
@@ -559,7 +561,9 @@ function layoutComponent(
 					columnX +
 					Math.floor(index / maxRowsPerColumn) *
 						(dependencyGraphMetrics.nodeWidth + dependencyGraphMetrics.rowGap),
-				y: (index % maxRowsPerColumn) * (dependencyGraphMetrics.nodeHeight + dependencyGraphMetrics.rowGap),
+				y:
+					(index % maxRowsPerColumn) *
+					(dependencyGraphMetrics.nodeHeight + dependencyGraphMetrics.rowGap),
 			})
 		})
 		columnX +=
