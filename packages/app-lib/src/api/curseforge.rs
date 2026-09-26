@@ -5059,18 +5059,14 @@ pub(crate) async fn update_managed_modpack_with_reporter(
     let game_version = pack_file
         .game_versions
         .iter()
-        .find(|value| loader_type(value).is_none())
+        .find(|value| looks_like_game_version(value))
         .cloned()
         .unwrap_or_else(|| metadata.applied_content_set.game_version.clone());
     let loader = pack_file
         .game_versions
         .iter()
-        .find_map(|value| {
-            loader_type(value).map(|_| value.to_ascii_lowercase())
-        })
-        .or_else(|| {
-            Some(metadata.applied_content_set.loader.as_str().to_string())
-        });
+        .find_map(|value| loader_type(value).map(|_| value.to_ascii_lowercase()))
+        .or_else(|| Some(metadata.applied_content_set.loader.as_str().to_string()));
     let content_set_loader = loader
         .as_deref()
         .map(crate::data::ModLoader::try_from_string)
@@ -5796,13 +5792,20 @@ pub(crate) fn loader_family(loader_id: &str) -> &str {
 }
 
 fn loader_type(loader: &str) -> Option<u32> {
-    match loader {
+    match loader.trim().to_ascii_lowercase().as_str() {
         "forge" | "cleanroom" => Some(1),
         "fabric" => Some(4),
         "quilt" => Some(5),
         "neoforge" => Some(6),
         _ => None,
     }
+}
+
+fn looks_like_game_version(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty()
+        && value.as_bytes().first().is_some_and(u8::is_ascii_digit)
+        && loader_type(value).is_none()
 }
 
 fn merge_install_result(
@@ -12899,7 +12902,15 @@ mod tests {
         assert_eq!(loader_family("forge-47.4.0"), "forge");
         assert_eq!(loader_family("fabric-0.16.10"), "fabric");
         assert_eq!(loader_type("cleanroom"), Some(1));
+        assert_eq!(loader_type("Fabric"), Some(4));
         assert_eq!(loader_type("neoforge"), Some(6));
+    }
+
+    #[test]
+    fn curseforge_game_versions_ignore_loader_labels() {
+        assert!(looks_like_game_version("1.21.8"));
+        assert!(!looks_like_game_version("Fabric"));
+        assert!(!looks_like_game_version("forge"));
     }
 
     #[test]
