@@ -1410,11 +1410,13 @@ async fn load_upgrade_catalog(
 /// against a list that is older than the cache TTL: serving stale rows here
 /// hides releases published since the list was cached (issue #594). When the
 /// refresh fails (offline, API error) the cached copy is used instead, so
-/// planning still works without a network connection.
+/// planning still works without a network connection. A failure to read that
+/// cached copy is propagated instead of being reported as an empty version
+/// list, which would silently look like "no compatible release".
 async fn load_planner_project_versions(
     project_id: &ModrinthProjectId,
     state: &State,
-) -> Vec<Version> {
+) -> crate::Result<Vec<Version>> {
     match CachedEntry::get_project_versions(
         project_id,
         Some(CacheBehaviour::MustRevalidate),
@@ -1423,23 +1425,21 @@ async fn load_planner_project_versions(
     )
     .await
     {
-        Ok(versions) => versions.unwrap_or_default(),
+        Ok(versions) => Ok(versions.unwrap_or_default()),
         Err(error) => {
             tracing::warn!(
                 project_id = %project_id,
                 error = %error,
                 "Failed to refresh project versions for upgrade planning; using cached versions"
             );
-            CachedEntry::get_project_versions(
+            Ok(CachedEntry::get_project_versions(
                 project_id,
                 Some(CacheBehaviour::CacheOnly),
                 &state.pool,
                 &state.api_semaphore,
             )
-            .await
-            .ok()
-            .flatten()
-            .unwrap_or_default()
+            .await?
+            .unwrap_or_default())
         }
     }
 }
@@ -1454,7 +1454,8 @@ async fn load_modrinth_candidates(
     state: &State,
 ) -> crate::Result<CandidatePool> {
     let project_id = ModrinthProjectId::new(key.project_id.clone())?;
-    let mut versions = load_planner_project_versions(&project_id, state).await;
+    let mut versions =
+        load_planner_project_versions(&project_id, state).await?;
     let has_target_game_version_release = versions.iter().any(|version| {
         version
             .game_versions
