@@ -1417,31 +1417,39 @@ async fn load_planner_project_versions(
     project_id: &ModrinthProjectId,
     state: &State,
 ) -> crate::Result<Vec<Version>> {
-    match CachedEntry::get_project_versions(
+    let refresh_result = CachedEntry::get_project_versions(
         project_id,
         Some(CacheBehaviour::MustRevalidate),
         &state.pool,
         &state.api_semaphore,
     )
-    .await
-    {
-        Ok(versions) => Ok(versions.unwrap_or_default()),
+    .await;
+
+    match refresh_result {
+        Ok(Some(versions)) => return Ok(versions),
+        Ok(None) => {
+            tracing::warn!(
+                project_id = %project_id,
+                "Project versions refresh returned no data for upgrade planning; using cached versions"
+            );
+        }
         Err(error) => {
             tracing::warn!(
                 project_id = %project_id,
                 error = %error,
                 "Failed to refresh project versions for upgrade planning; using cached versions"
             );
-            Ok(CachedEntry::get_project_versions(
-                project_id,
-                Some(CacheBehaviour::CacheOnly),
-                &state.pool,
-                &state.api_semaphore,
-            )
-            .await?
-            .unwrap_or_default())
         }
     }
+
+    Ok(CachedEntry::get_project_versions(
+        project_id,
+        Some(CacheBehaviour::CacheOnly),
+        &state.pool,
+        &state.api_semaphore,
+    )
+    .await?
+    .unwrap_or_default())
 }
 
 async fn load_modrinth_candidates(
