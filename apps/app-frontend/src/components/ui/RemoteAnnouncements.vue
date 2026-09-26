@@ -68,7 +68,6 @@ let endpoint: URL | undefined
 let cacheLoaded = false
 let inFlight = false
 let disposed = false
-let lastAttempt = 0
 let controller: AbortController | undefined
 let interval: ReturnType<typeof setInterval> | undefined
 let advanceTimer: ReturnType<typeof setTimeout> | undefined
@@ -211,7 +210,6 @@ function loadCache() {
 async function refresh() {
 	if (inFlight || disposed) return
 	inFlight = true
-	lastAttempt = Date.now()
 	const abort = new AbortController()
 	controller = abort
 	const timeout = setTimeout(() => abort.abort(), 10000)
@@ -265,9 +263,6 @@ function contentClick(event: MouseEvent) {
 	event.stopPropagation()
 	void openLink(link.getAttribute('href'))
 }
-function reconnect() {
-	if (Date.now() - lastAttempt > 30000) void refresh()
-}
 function preview(type: RemoteAnnouncement['type'], withAction = false) {
 	if (!props.previewOnly || !props.ready || hasModal.value || disposed) return
 	const now = new Date().toISOString()
@@ -300,15 +295,14 @@ onMounted(() => {
 	}
 	window.addEventListener(OPEN_REMOTE_ANNOUNCEMENT_CENTER_EVENT, handleOpenCenter)
 	const start = () => {
+		if (disposed) return
 		void refresh()
 		interval = setInterval(() => {
 			sync(items, false)
 			advance()
-			if (Date.now() - lastAttempt >= 300000) void refresh()
 		}, 15000)
-		window.addEventListener('online', reconnect)
 	}
-	// Defer network polling until after first paint.
+	// Defer the startup request until after first paint.
 	if (typeof requestIdleCallback === 'function') {
 		requestIdleCallback(start, { timeout: 2000 })
 	} else {
@@ -324,7 +318,6 @@ onUnmounted(() => {
 	controller?.abort()
 	if (interval) clearInterval(interval)
 	if (advanceTimer) clearTimeout(advanceTimer)
-	window.removeEventListener('online', reconnect)
 	window.removeEventListener(OPEN_REMOTE_ANNOUNCEMENT_CENTER_EVENT, handleOpenCenter)
 })
 </script>
