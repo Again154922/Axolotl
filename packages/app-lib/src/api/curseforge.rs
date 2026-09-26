@@ -5065,8 +5065,12 @@ pub(crate) async fn update_managed_modpack_with_reporter(
     let loader = pack_file
         .game_versions
         .iter()
-        .find_map(|value| loader_type(value).map(|_| value.to_ascii_lowercase()))
-        .or_else(|| Some(metadata.applied_content_set.loader.as_str().to_string()));
+        .find_map(|value| {
+            loader_type(value).map(|_| value.to_ascii_lowercase())
+        })
+        .or_else(|| {
+            Some(metadata.applied_content_set.loader.as_str().to_string())
+        });
     let content_set_loader = loader
         .as_deref()
         .map(crate::data::ModLoader::try_from_string)
