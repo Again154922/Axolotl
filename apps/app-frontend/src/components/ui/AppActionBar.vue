@@ -402,6 +402,10 @@ async function runNotificationAction(item: NotificationHistoryItem) {
 
 function clearNotificationHistory() {
 	const progressItems = buildDownloadItems()
+	// Clearing the history has to drop the remembered dismissal as well, even
+	// when there is currently nothing on the list.
+	persistDismissedDownloadSignature(null)
+	dismissedDownloadSignature.value = null
 	if (progressItems.length > 0) {
 		dismissed.value = true
 		dismissedDownloadSignature.value = buildDownloadSignature(progressItems)
@@ -954,10 +958,15 @@ const hasDownloadNotificationItems = computed(
 )
 
 function buildDownloadSignature(items: PopupNotificationProgressItem[]): string {
-	return items
+	const itemSignature = items
 		.map((item) => item.id)
 		.sort()
 		.join('|')
+	// Job state is part of the signature so that a job which keeps its id but
+	// changes status or phase is treated as new information instead of matching
+	// a dismissal that was remembered from an earlier launch.
+	const stateSignature = installJobNotifications.stateSignature.value
+	return stateSignature ? `${itemSignature}|state:${stateSignature}` : itemSignature
 }
 
 function updateNotification(resummon = false): void {
