@@ -38,7 +38,8 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 		changes: {
 			fixed: [
 				{
-					'en-US': 'Fixed screenshots from external instances failing to open in the Screenshot Center.',
+					'en-US':
+						'Fixed screenshots from external instances failing to open in the Screenshot Center.',
 					'zh-CN': '修复外部实例的截图在截图中心无法打开的问题。',
 				},
 				{

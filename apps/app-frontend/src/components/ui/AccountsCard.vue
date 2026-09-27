@@ -373,6 +373,7 @@ import axolotlLogo from '@/assets/axolotl.png'
 import steveSkinTexture from '@/assets/skins/steve.png?inline'
 import MinecraftLoginModal from '@/components/ui/MinecraftLoginModal.vue'
 import { useNetworkStatus } from '@/composables/useNetworkStatus'
+import { preferredOnlineAccountId } from '@/helpers/account-selection'
 import { compareMinecraftAccounts } from '@/helpers/accounts'
 import { trackEvent } from '@/helpers/analytics'
 import {
@@ -393,7 +394,6 @@ import { process_listener } from '@/helpers/events'
 import { getPlayerHeadUrl } from '@/helpers/rendering/batch-skin-renderer.ts'
 import type { Skin } from '@/helpers/skins'
 import { get_available_skins } from '@/helpers/skins'
-import { preferredOnlineAccountId } from '@/helpers/account-selection'
 import { handleSevereError } from '@/store/error.js'
 
 const { formatMessage } = useVIntl()
@@ -605,11 +605,7 @@ async function refreshValues(headRefreshAttempt = 0, preferOnlineAccount = false
 					const selectedAccountSkin = getAccountSkin(
 						accounts.value.find((account) => account.account_id === resolvedSelectedUser),
 					)
-					cacheAccountHead(
-						resolvedSelectedUser,
-						selectedAccountSkin ?? equippedSkin.value,
-						headUrl,
-					)
+					cacheAccountHead(resolvedSelectedUser, selectedAccountSkin ?? equippedSkin.value, headUrl)
 				}
 			} catch (error) {
 				console.warn('Failed to get head render for equipped skin:', error)

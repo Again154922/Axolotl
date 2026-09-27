@@ -167,7 +167,10 @@ test('focus context includes all incoming and outgoing relationship closure', ()
 	const focused = getRelatedNodeIds(graph, new Set([nodeId('focus')]))
 	const layout = layoutDependencyGraph(graph, focused)
 
-	assert.deepEqual(focused, new Set([nodeId('root'), nodeId('focus'), nodeId('child'), nodeId('leaf')]))
+	assert.deepEqual(
+		focused,
+		new Set([nodeId('root'), nodeId('focus'), nodeId('child'), nodeId('leaf')]),
+	)
 	assert.equal(layout.nodes.length, 4)
 	assert.ok(layout.nodes.every((node) => focused.has(node.id)))
 	assert.ok(layout.width >= dependencyGraphMetrics.nodeWidth)
