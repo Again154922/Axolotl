@@ -506,7 +506,7 @@ watch(
 watchServerContextChanges()
 
 let initialInstanceFilterPromise: Promise<void> = Promise.resolve()
-let initialInstalledProjectsPromise: Promise<void> = Promise.resolve()
+let initialInstalledProjectsPromise: Promise<boolean> = Promise.resolve(false)
 await initInstanceContext()
 
 async function refreshInstalledProjectIds() {
@@ -515,7 +515,7 @@ async function refreshInstalledProjectIds() {
 	if (!instanceId) {
 		installedProjectIds.value = null
 		installedProjectIdsInstanceId.value = null
-		return
+		return false
 	}
 	const requestInstanceId = instanceId
 	if (installedProjectIdsInstanceId.value !== requestInstanceId) {
@@ -527,17 +527,20 @@ async function refreshInstalledProjectIds() {
 
 	if (route.query.from === 'worlds') {
 		const worlds = await get_instance_worlds(requestInstanceId).catch(handleError)
-		if (!worlds) return
+		if (!worlds) return false
 		if (requestId !== installedProjectRequestId || activeInstance.value?.id !== requestInstanceId)
-			return
+			return false
 
 		const serverProjectIds = worlds
 			.filter((w) => w.type === 'server' && 'project_id' in w && w.project_id)
 			.map((w) => (w as { project_id: string }).project_id)
 		debugLog('installedServerProjectIds loaded', { count: serverProjectIds.length })
+		const changed =
+			installedProjectIdsInstanceId.value !== requestInstanceId ||
+			!sameProjectIds(installedProjectIds.value, serverProjectIds)
 		installedProjectIds.value = serverProjectIds
 		installedProjectIdsInstanceId.value = requestInstanceId
-		return
+		return changed
 	}
 
 	const ids = await getInstalledProjectIds(requestInstanceId).catch(handleError)
@@ -547,10 +550,25 @@ async function refreshInstalledProjectIds() {
 		activeInstance.value?.id === requestInstanceId
 	) {
 		debugLog('installedProjectIds loaded', { count: ids.length })
+		const changed =
+			installedProjectIdsInstanceId.value !== requestInstanceId ||
+			!sameProjectIds(installedProjectIds.value, ids)
 		installedProjectIds.value = ids
 		installedProjectIdsInstanceId.value = requestInstanceId
 		await contentSelection.refreshInstalledIdentities()
+		return changed
 	}
+	return false
+}
+
+function sameProjectIds(previous: string[] | null, current: string[]) {
+	const currentIds = new Set(current)
+	return (
+		previous !== null &&
+		previous.length === current.length &&
+		new Set(previous).size === currentIds.size &&
+		previous.every((id) => currentIds.has(id))
+	)
 }
 
 async function initInstanceContext() {
@@ -3070,8 +3088,9 @@ onMounted(() => {
 			event.instance_id === activeInstance.value.id &&
 			['synced', 'content_install_finished', 'content_install_failed'].includes(event.event)
 		) {
-			await refreshInstalledProjectIds()
-			await searchState.refreshSearch()
+			if (await refreshInstalledProjectIds()) {
+				await searchState.refreshSearch()
+			}
 		}
 	})
 		.then((unlisten) => {

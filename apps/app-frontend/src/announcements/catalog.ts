@@ -28,6 +28,24 @@ export const ANNOUNCEMENT_CHANGE_TYPES: readonly AnnouncementChangeType[] = [
 
 export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 	{
+		id: 'launcher-1.9.7-beta.6',
+		version: '1.9.7-beta.6',
+		publishedAt: '2026-09-27',
+		title: {
+			'en-US': 'Axolotl Launcher 1.9.7-beta.6',
+			'zh-CN': 'Axolotl Launcher 1.9.7-beta.6',
+		},
+		changes: {
+			fixed: [
+				{
+					'en-US':
+						'Tried to fix the issue of repeated infinite loading when searching on the browse page.',
+					'zh-CN': '尝试修复浏览页搜索时反复无限加载的问题。',
+				},
+			],
+		},
+	},
+	{
 		id: 'launcher-1.9.7-beta.5',
 		version: '1.9.7-beta.5',
 		publishedAt: '2026-09-25',
