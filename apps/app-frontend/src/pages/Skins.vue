@@ -25,8 +25,9 @@ import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, watch } 
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
 import type AccountsCard from '@/components/ui/AccountsCard.vue'
-import ArmorTrimDrawer from '@/components/ui/skin/ArmorTrimDrawer.vue'
+import ArmorTrimTab from '@/components/ui/skin/ArmorTrimTab.vue'
 import EditSkinModal from '@/components/ui/skin/EditSkinModal.vue'
+import SkinListSkeleton from '@/components/ui/skin/SkinListSkeleton.vue'
 import VirtualSkinSectionList from '@/components/ui/skin/VirtualSkinSectionList.vue'
 import { useNetworkStatus } from '@/composables/useNetworkStatus'
 import { check_reachable, get_default_user, users } from '@/helpers/auth'
@@ -211,7 +212,6 @@ const skinSectionList = useTemplateRef<VirtualSkinSectionListExpose>('skinSectio
 const skinPreviewArea = useTemplateRef<HTMLElement>('skinPreviewArea')
 const savedArmorPreview = ref<ArmorPreviewConfig>(loadSkinArmorPreview())
 const armorPreviewConfig = ref<ArmorPreviewConfig>(cloneArmorPreviewConfig(savedArmorPreview.value))
-const isArmorDrawerOpen = ref(false)
 
 function saveArmorPreview() {
 	savedArmorPreview.value = cloneArmorPreviewConfig(armorPreviewConfig.value)
@@ -226,10 +226,17 @@ function restoreDefaultArmorPreview() {
 	armorPreviewConfig.value = createDefaultArmorPreviewConfig()
 }
 
-function closeArmorDrawer() {
-	// Leaving the drawer drops whatever was not saved on purpose.
+/** A third tab behind the two list tabs, opened from the preview's action row. */
+function openArmorTab() {
+	if (skinListTab.value !== 'armor') lastSkinListTab.value = skinListTab.value
+
+	skinListTab.value = 'armor'
+}
+
+function closeArmorTab() {
+	// Leaving the tab drops whatever was not saved on purpose.
 	resetArmorPreviewToSaved()
-	isArmorDrawerOpen.value = false
+	skinListTab.value = lastSkinListTab.value
 }
 
 const { formatMessage } = useVIntl()
@@ -355,7 +362,27 @@ const isAddSkinButtonDragActive = ref(false)
 
 const deleteSkinModal = ref()
 const skinToDelete = ref<Skin | null>(null)
-const skinListTab = ref<'saved' | 'default'>('saved')
+const skinListTab = ref<'saved' | 'default' | 'armor'>('saved')
+/** The list tab the tab bar keeps highlighted while the armour tab is showing. */
+const lastSkinListTab = ref<'saved' | 'default'>('saved')
+/**
+ * The list swaps its dataset in place, so a short skeleton covers the swap
+ * instead of letting the grid change under the pointer.
+ */
+const isSkinListBuffering = ref(false)
+let skinListBufferTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(skinListTab, (tab, previous) => {
+	if (tab === 'armor' || previous === 'armor') return
+
+	isSkinListBuffering.value = true
+	clearTimeout(skinListBufferTimer)
+	skinListBufferTimer = setTimeout(() => {
+		isSkinListBuffering.value = false
+	}, 240)
+})
+
+onUnmounted(() => clearTimeout(skinListBufferTimer))
 
 const skinListTabLinks = computed(() => [
 	{
@@ -1132,36 +1159,38 @@ await loadSkins()
 				<ArmorPreviewControls
 					v-model="armorPreviewConfig"
 					panel="external"
-					:open="isArmorDrawerOpen"
-					@open="isArmorDrawerOpen = true"
-					@close="closeArmorDrawer"
+					:open="skinListTab === 'armor'"
+					@open="openArmorTab"
+					@close="closeArmorTab"
 				/>
 			</div>
 		</div>
 
 		<div class="pt-2">
-			<Transition name="armor-drawer" mode="out-in">
-				<div v-if="!isArmorDrawerOpen" key="list">
-					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-						<NavTabs
-							:active-index="skinListTab === 'saved' ? 0 : 1"
-							:links="skinListTabLinks"
-							mode="local"
-							@tab-click="
-								(index: number) => {
-									skinListTab = index === 0 ? 'saved' : 'default'
-								}
-							"
-						/>
-						<Button type="colored" color="brand" @click="router.push('/lab/skin-editor')"
-							><PlusIcon />
-							{{ formatMessage(messages.createSkinButton) }}
-						</Button>
-					</div>
-					<!-- The armour drawer replaces the list where it stands, so it covers that area. -->
+			<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+				<NavTabs
+					:active-index="lastSkinListTab === 'saved' ? 0 : 1"
+					:links="skinListTabLinks"
+					mode="local"
+					@tab-click="
+						(index: number) => {
+							lastSkinListTab = index === 0 ? 'saved' : 'default'
+							skinListTab = lastSkinListTab
+						}
+					"
+				/>
+				<Button type="colored" color="brand" @click="router.push('/lab/skin-editor')"
+					><PlusIcon />
+					{{ formatMessage(messages.createSkinButton) }}
+				</Button>
+			</div>
+			<Transition name="armor-tab" mode="out-in">
+				<div v-if="skinListTab !== 'armor'" key="list">
+					<SkinListSkeleton v-if="isSkinListBuffering" />
 					<VirtualSkinSectionList
+						v-else
 						ref="skinSectionList"
-						:active-tab="skinListTab"
+						:active-tab="lastSkinListTab"
 						:saved-skins="savedSkins"
 						:default-skin-sections="defaultSkinSections"
 						:get-baked-skin-textures="getBakedSkinTextures"
@@ -1180,15 +1209,15 @@ await loadSkins()
 						@add-skin-drop="onAddSkinDrop"
 					/>
 				</div>
-				<ArmorTrimDrawer
+				<ArmorTrimTab
 					v-else
-					key="drawer"
+					key="armor"
 					v-model="armorPreviewConfig"
 					:saved="savedArmorPreview"
 					@save="saveArmorPreview"
 					@reset="resetArmorPreviewToSaved"
 					@defaults="restoreDefaultArmorPreview"
-					@close="closeArmorDrawer"
+					@close="closeArmorTab"
 				/>
 			</Transition>
 		</div>
@@ -1254,16 +1283,16 @@ await loadSkins()
 	}
 }
 
-// The armour drawer crossfades with the skin list it replaces.
-.armor-drawer-enter-active,
-.armor-drawer-leave-active {
+// The armour tab crossfades with the skin list it replaces.
+.armor-tab-enter-active,
+.armor-tab-leave-active {
 	transition:
 		opacity 180ms ease,
 		transform 180ms ease;
 }
 
-.armor-drawer-enter-from,
-.armor-drawer-leave-to {
+.armor-tab-enter-from,
+.armor-tab-leave-to {
 	opacity: 0;
 	transform: translateY(0.5rem);
 }

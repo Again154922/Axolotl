@@ -37,7 +37,7 @@ const emit = defineEmits<{
 const { formatMessage } = useVIntl()
 
 /**
- * The drawer is mounted only while it is open, so this listens exactly for that
+ * The tab is mounted only while it is showing, so this listens exactly for that
  * window. It listens in the capture phase because the app's own global
  * shortcuts listen on `window` the same way, and a bubble-phase listener here
  * would be skipped as soon as anything closer stopped the event. A modal on top
