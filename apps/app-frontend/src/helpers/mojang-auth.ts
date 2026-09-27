@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 
-import { check_mojang_services } from '@/helpers/auth.js'
+import { check_mojang_services, mojang_auth_use_mirror } from '@/helpers/auth.js'
 import { ensureFallenAuthProxyArgs, removeFallenAuthProxyArgs } from '@/helpers/java-arguments'
 import { type AppSettings, get, set } from '@/helpers/settings'
 
@@ -63,6 +63,22 @@ export async function reconcileMojangAuthSource(settings: AppSettings): Promise<
 
 export async function reconcileMojangAuthSourceAtStartup(): Promise<void> {
 	const settings = await get()
+	if (await reconcileMojangAuthSource(settings)) {
+		await set(settings)
+	}
+}
+
+/**
+ * Reconsiders an automatic Mojang auth source while the app is running, so a
+ * session that fell back to the mirror can go back to Mojang once it answers
+ * again. Only the automatic modes are reconsidered; an explicit choice is
+ * never overridden.
+ */
+export async function reconcileMojangAuthSourceIfMirrored(): Promise<void> {
+	if (!(await mojang_auth_use_mirror())) return
+	const settings = await get()
+	const mode = settings.mojang_auth_source ?? 'auto'
+	if (mode !== 'auto' && mode !== 'official_preferred') return
 	if (await reconcileMojangAuthSource(settings)) {
 		await set(settings)
 	}

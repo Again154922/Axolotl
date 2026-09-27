@@ -122,7 +122,10 @@ import {
 import { install_create_modpack_instance, install_get_modpack_preview } from '@/helpers/install'
 import { type DirectLinkSyncReport, get as getInstance, run } from '@/helpers/instance'
 import { type BackupOperation, cancelBackup, listBackupOperations } from '@/helpers/instance-backup'
-import { reconcileMojangAuthSourceAtStartup } from '@/helpers/mojang-auth'
+import {
+	reconcileMojangAuthSourceAtStartup,
+	reconcileMojangAuthSourceIfMirrored,
+} from '@/helpers/mojang-auth'
 import { cancelLogin, get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
 import { getNavShortcutEnabled } from '@/helpers/nav-shortcut-state'
 import { runWhenIdle } from '@/helpers/page-transition'
@@ -425,28 +428,35 @@ const authServerQuery = useQuery({
 	queryKey: ['authServerReachability'],
 	enabled: computed(() => mojangAuthSourceReady.value && !browserOffline.value),
 	queryFn: async () => {
+		await check_reachable()
+		setNetworkReachable(true)
+		authUnreachableDebug('Auth servers are reachable')
 		try {
-			await check_reachable()
-			setNetworkReachable(true)
-			authUnreachableDebug('Auth servers are reachable')
-			return true
+			await reconcileMojangAuthSourceIfMirrored()
 		} catch (error) {
-			setNetworkReachable(false)
-			throw error
+			console.warn('Failed to reconcile the Mojang auth source', error)
 		}
+		return true
 	},
 	refetchInterval: 5 * 60 * 1000, // 5 minutes
-	retry: false,
+	// A single slow probe is not enough to declare the auth servers down.
+	retry: 1,
+	retryDelay: 3000,
 	refetchOnWindowFocus: false,
 })
 
-const authUnreachable = computed(() => {
-	if (!offline.value && authServerQuery.isError.value && !authServerQuery.isLoading.value) {
-		console.warn('Failed to reach auth servers', authServerQuery.error.value)
-		return true
-	}
-	return false
-})
+const authUnreachable = computed(
+	() => !offline.value && authServerQuery.isError.value && !authServerQuery.isLoading.value,
+)
+
+watch(
+	() => authServerQuery.error.value,
+	(error) => {
+		if (!error) return
+		setNetworkReachable(false)
+		console.warn('Failed to reach auth servers', error)
+	},
+)
 
 const appUpdateDownload = {
 	progress: appUpdateState.progress,
