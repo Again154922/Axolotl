@@ -285,7 +285,6 @@ for (const root of roots) {
 				// on purpose, so a selector carrying one has already opted in.
 				if (/:(deep|slotted|global)\(/.test(rule.selector)) continue
 				const subject = subjectOf(rule.selector)
-				if (subject.includes('(')) continue
 				if (subject.startsWith('&')) continue
 				const bare = stripGroups(subject)
 				if (bare.includes('.') || bare.includes('#')) continue
