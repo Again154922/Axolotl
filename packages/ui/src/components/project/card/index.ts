@@ -1,5 +1,4 @@
 export { default as ProjectCard } from './ProjectCard.vue'
-export { default as ProjectCardAuthor } from './ProjectCardAuthor.vue'
 export { default as ProjectCardDate } from './ProjectCardDate.vue'
 export { default as ProjectCardEnvironment } from './ProjectCardEnvironment.vue'
 export { default as ProjectCardStats } from './ProjectCardStats.vue'

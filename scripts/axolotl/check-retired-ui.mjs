@@ -11,6 +11,7 @@ const RETIRED = [
 	{ pattern: /\bjoined-buttons\b/, reason: 'use ButtonGroup' },
 	{ pattern: /\bDropdownSelect\b/, reason: 'use Combobox' },
 	{ pattern: /\banimated-dropdown\b/, reason: 'use Combobox, which exposes data-combobox' },
+	{ pattern: /medal-promo/, reason: 'the token was an exact alias of blue with no consumers' },
 	{ pattern: /<\/?Input(?=[\s/>])/, reason: 'use StyledInput' },
 ]
 const RETIRED_SOURCE = [

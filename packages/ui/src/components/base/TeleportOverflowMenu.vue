@@ -109,7 +109,7 @@ interface Option {
 	icon?: Component
 	action?: (() => void) | string
 	shown?: boolean
-	color?: 'standard' | 'brand' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'medal-promo'
+	color?: 'standard' | 'brand' | 'red' | 'orange' | 'green' | 'blue' | 'purple'
 	disabled?: boolean
 	tooltip?: string
 }

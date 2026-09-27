@@ -6,7 +6,7 @@ export type ButtonSize = '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 export type ButtonInteraction = 'surface' | 'filled' | 'none'
 
 // TODO: Standardized color string enum props across @modrinth/ui
-export type ButtonColor = 'brand' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'medal-promo'
+export type ButtonColor = 'brand' | 'red' | 'orange' | 'green' | 'blue' | 'purple'
 
 type ButtonVisualBase = {
 	size?: ButtonSize

@@ -82,7 +82,6 @@ const colorVariables: Record<ButtonColor, string> = {
 	green: 'var(--color-green)',
 	blue: 'var(--color-blue)',
 	purple: 'var(--color-purple)',
-	'medal-promo': 'var(--color-medal-promo)',
 }
 
 // The 25%-opacity tint behind `chip`/`highlight`. Each accent has its own
@@ -94,7 +93,6 @@ const highlightVariables: Record<ButtonColor, string> = {
 	green: 'var(--color-green-highlight)',
 	blue: 'var(--color-blue-highlight)',
 	purple: 'var(--color-purple-highlight)',
-	'medal-promo': 'var(--color-medal-promo-highlight)',
 }
 
 const props = withDefaults(

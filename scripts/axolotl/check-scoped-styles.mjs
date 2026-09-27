@@ -29,8 +29,8 @@ const ignoredDirectories = new Set([
 	'public',
 ])
 
-// The tags the interactive components are rooted on: `Button`/`IconButton`/
-// `ButtonStyled`'s slot -> `button`, `FileInput` -> `label`, and the form
+// The tags the interactive components are rooted on: `Button`/`IconButton`'s
+// slot -> `button`, `FileInput`-style wrappers -> `label`, and the form
 // controls. These are the ones where a stray scoped rule overrides the
 // component's own layout and behaviour -- which is the failure this guards.
 //
@@ -54,21 +54,6 @@ function allow(group, entries) {
 // it carries the file's own scope id and the rule is deliberate. Each entry was
 // checked against the template, not the selector.
 allow('styles-its-own-element', [
-	[
-		'packages/ui/src/components/base/FileInput.vue',
-		'label',
-		"FileInput's own root element is that label (FileInput.vue:2)",
-	],
-	[
-		'packages/ui/src/components/base/FileInput.vue',
-		'label:focus-within',
-		'same own root label (FileInput.vue:2,77)',
-	],
-	[
-		'packages/ui/src/components/base/FileInput.vue',
-		'label input',
-		'the file input inside its own label (FileInput.vue:5)',
-	],
 	[
 		'packages/ui/src/components/skin/SkinButton.vue',
 		'.skin-button--disabled button',
