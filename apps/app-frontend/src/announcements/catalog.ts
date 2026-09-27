@@ -36,6 +36,119 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 			'zh-CN': 'Axolotl Launcher 1.9.7-beta.6',
 		},
 		changes: {
+			added: [
+				{
+					'en-US':
+						'Added a redesigned dependency graph with stable relationship clusters, improved navigation, and better performance for large graphs.',
+					'zh-CN': '新增重设计的依赖关系图，支持稳定的关系分组、改进的导航和大型关系图性能优化。',
+				},
+				{
+					'en-US':
+						'Added screenshot preview metadata and improved screenshot preview and editing workflows.',
+					'zh-CN': '新增截图预览元数据，并改进截图预览和编辑流程。',
+				},
+				{
+					'en-US': 'Added local persistence for armor preview selections in the skin editor.',
+					'zh-CN': '新增皮肤编辑器中盔甲预览选择的本地持久化。',
+				},
+				{
+					'en-US':
+						'Added structured crash-log analysis with selectable log files, LogAgent insights, and separate log and analysis views.',
+					'zh-CN':
+						'新增结构化崩溃日志分析，支持选择日志文件、查看 LogAgent 分析结果，以及分离的日志和分析视图。',
+				},
+			],
+			changed: [
+				{
+					'en-US':
+						'Improved crash diagnostics by reusing in-flight uploads, separating local analysis from log sharing, and exposing launcher crash logs.',
+					'zh-CN':
+						'改进崩溃诊断，支持复用进行中的上传任务、分离本地分析与日志分享，并显示启动器崩溃日志。',
+				},
+				{
+					'en-US':
+						'Improved notification handling so dismissed notifications stay dismissed and empty notification centers remain hidden.',
+					'zh-CN': '改进通知处理，确保已关闭的通知不会重新出现，并在通知为空时隐藏通知中心。',
+				},
+				{
+					'en-US':
+						'Improved content installation and updates by preventing database deadlocks, serializing database writes, and avoiding stale dependency or version metadata.',
+					'zh-CN':
+						'改进内容安装和更新流程，避免数据库死锁、串行化数据库写入，并防止使用过期的依赖或版本元数据。',
+				},
+				{
+					'en-US':
+						'Improved the overlay and tooltip systems with the new shared UI primitives and removed the remaining legacy floating-vue integration.',
+					'zh-CN':
+						'使用新的共享 UI 基础组件改进弹层和工具提示系统，并移除剩余的 floating-vue 集成。',
+				},
+				{
+					'en-US':
+						'Improved external-instance support across screenshots, assets, launch context, and CurseForge updates.',
+					'zh-CN': '改进外部实例在截图、资源、启动上下文和 CurseForge 更新中的支持。',
+				},
+			],
+			fixed: [
+				{
+					'en-US':
+						'Fixed screenshots from external instances failing to open in Screenshot Center.',
+					'zh-CN': '修复外部实例截图无法在截图中心打开的问题。',
+				},
+				{
+					'en-US':
+						'Fixed external screenshot previews and isolated screenshot directory resolution.',
+					'zh-CN': '修复外部截图预览和隔离截图目录解析问题。',
+				},
+				{
+					'en-US': 'Fixed repeated infinite loading when searching on the Browse page.',
+					'zh-CN': '修复发现页搜索时反复无限加载的问题。',
+				},
+				{
+					'en-US':
+						'Fixed skin preview controls overflowing or escaping the preview bounds in small windows.',
+					'zh-CN': '修复小窗口中皮肤预览控件溢出或超出预览区域的问题。',
+				},
+				{
+					'en-US': 'Fixed external instance deletion not being idempotent.',
+					'zh-CN': '修复外部实例删除操作无法安全重复执行的问题。',
+				},
+				{
+					'en-US':
+						'Fixed CurseForge updates losing resolved metadata or loader versions, and incorrectly treating loader labels as game versions.',
+					'zh-CN':
+						'修复 CurseForge 更新丢失已解析元数据或加载器版本，以及错误地将加载器标签识别为游戏版本的问题。',
+				},
+				{
+					'en-US':
+						'Fixed install progress not including external assets and extraction progress not resetting correctly.',
+					'zh-CN': '修复安装进度未包含外部资源，以及进入解压阶段时进度未正确重置的问题。',
+				},
+				{
+					'en-US': 'Fixed online account selection not being restored after network interruptions.',
+					'zh-CN': '修复网络中断后在线账户选择状态未恢复的问题。',
+				},
+				{
+					'en-US':
+						'Fixed dependency graph fitting and selection behavior for selected relationships.',
+					'zh-CN': '修复依赖关系图针对选中关系的适配和选择行为。',
+				},
+				{
+					'en-US':
+						'Fixed popup menus opening in the wrong direction and several overlay positioning regressions.',
+					'zh-CN': '修复弹出菜单打开方向错误以及多个弹层定位回归问题。',
+				},
+			],
+		},
+	},
+	{
+		id: 'launcher-1.9.7-beta.6',
+		version: '1.9.7-beta.6',
+		publishedAt: '2026-09-27',
+		title: {
+			'en-US': 'Axolotl Launcher 1.9.7-beta.6',
+			'zh-CN': 'Axolotl Launcher 1.9.7-beta.6',
+		},
+		changes: {
 			fixed: [
 				{
 					'en-US':
