@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import '../../styles/overlays.css'
 
-import { ArrowLeftIcon } from '@modrinth/assets'
+import { RightArrowIcon, ShieldIcon } from '@modrinth/assets'
 import { PopoverArrow, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, ref } from 'vue'
 
@@ -28,7 +28,7 @@ const model = defineModel<ArmorPreviewConfig>({ required: true })
 const { formatMessage } = useVIntl()
 const isOpen = ref(false)
 /**
- * The arrow flips about its centre axis into a right arrow while the panel is
+ * The shield flips about its centre axis into a right arrow while the panel is
  * open, so the same button reads as "back to the list" and closes it.
  */
 const isFlipped = computed(() => (panel === 'popover' ? isOpen.value : open))
@@ -53,11 +53,18 @@ const portalTarget = computed(() =>
 					:aria-label="formatMessage(messages.armorPreview)"
 					:aria-expanded="isOpen"
 				>
-					<ArrowLeftIcon
-						aria-hidden="true"
-						class="transition-transform duration-200"
-						:class="isFlipped && 'scale-x-[-1]'"
-					/>
+					<span class="relative size-5 shrink-0">
+						<ShieldIcon
+							aria-hidden="true"
+							class="absolute inset-0 size-5 transition-[transform,opacity] duration-200 ease-out"
+							:class="isFlipped ? 'scale-x-0 opacity-0' : 'scale-x-100'"
+						/>
+						<RightArrowIcon
+							aria-hidden="true"
+							class="absolute inset-0 size-5 transition-[transform,opacity] duration-200 ease-out"
+							:class="isFlipped ? 'scale-x-100' : 'scale-x-0 opacity-0'"
+						/>
+					</span>
 					<span>{{ formatMessage(messages.armorPreview) }}</span>
 				</button>
 			</PopoverTrigger>
@@ -85,11 +92,18 @@ const portalTarget = computed(() =>
 			:aria-expanded="open"
 			@click="open ? emit('close') : emit('open')"
 		>
-			<ArrowLeftIcon
-				aria-hidden="true"
-				class="transition-transform duration-200"
-				:class="isFlipped && 'scale-x-[-1]'"
-			/>
+			<span class="relative size-5 shrink-0">
+				<ShieldIcon
+					aria-hidden="true"
+					class="absolute inset-0 size-5 transition-[transform,opacity] duration-200 ease-out"
+					:class="isFlipped ? 'scale-x-0 opacity-0' : 'scale-x-100'"
+				/>
+				<RightArrowIcon
+					aria-hidden="true"
+					class="absolute inset-0 size-5 transition-[transform,opacity] duration-200 ease-out"
+					:class="isFlipped ? 'scale-x-100' : 'scale-x-0 opacity-0'"
+				/>
+			</span>
 			<span>{{ formatMessage(messages.armorPreview) }}</span>
 		</button>
 	</div>

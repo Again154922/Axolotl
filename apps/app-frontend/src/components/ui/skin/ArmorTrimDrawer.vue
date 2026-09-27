@@ -38,8 +38,11 @@ const { formatMessage } = useVIntl()
 
 /**
  * The drawer is mounted only while it is open, so this listens exactly for that
- * window. A modal on top of the page owns Escape while it is up, and focus sits
- * inside it, so the key is left to it.
+ * window. It listens in the capture phase because the app's own global
+ * shortcuts listen on `window` the same way, and a bubble-phase listener here
+ * would be skipped as soon as anything closer stopped the event. A modal on top
+ * of the page owns Escape while it is up, and focus sits inside it, so the key
+ * is left to it.
  */
 function handleKeydown(event: KeyboardEvent) {
 	if (event.key !== 'Escape') return
@@ -48,8 +51,8 @@ function handleKeydown(event: KeyboardEvent) {
 	emit('close')
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown))
-onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
+onMounted(() => window.addEventListener('keydown', handleKeydown, true))
+onUnmounted(() => window.removeEventListener('keydown', handleKeydown, true))
 
 const isDirty = computed(() =>
 	Object.entries(draft.value).some(([slot, piece]) => {
