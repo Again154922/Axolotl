@@ -12444,13 +12444,14 @@ mod tests {
             0,
         );
 
-        record_installed_curseforge_file(
+        record_installed_curseforge_file_with_permit(
             &instance_id,
             relative_path,
             &full_path,
             &file,
             ProjectType::Mod,
             crate::state::instances::ContentOwnershipKind::PackManaged,
+            None,
             &state,
         )
         .await
@@ -12489,13 +12490,14 @@ mod tests {
             compute_fingerprint(bytes) as u64,
         );
 
-        record_installed_curseforge_file(
+        record_installed_curseforge_file_with_permit(
             &instance_id,
             relative_path,
             &full_path,
             &file,
             ProjectType::Mod,
             crate::state::instances::ContentOwnershipKind::PackManaged,
+            None,
             &state,
         )
         .await
@@ -12534,13 +12536,14 @@ mod tests {
             0,
         );
 
-        record_installed_curseforge_file(
+        record_installed_curseforge_file_with_permit(
             &instance_id,
             relative_path,
             &full_path,
             &file,
             ProjectType::Mod,
             crate::state::instances::ContentOwnershipKind::PackManaged,
+            None,
             &state,
         )
         .await
