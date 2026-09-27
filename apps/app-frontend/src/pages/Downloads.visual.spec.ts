@@ -43,6 +43,7 @@ vi.mock('@modrinth/ui', async () => {
 				'BulletDivider',
 				'Button',
 				'Card',
+				'Combobox',
 				'ConfirmModal',
 				'EmptyState',
 				'NavTabs',
