@@ -36,7 +36,9 @@ pub async fn get_mod_full_path(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::CreateDirectLinkInstance;
+    use crate::state::{
+        CreateDirectLinkInstance, CreateInstance, InstanceLink, ModLoader,
+    };
     use std::path::Path;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -153,6 +155,75 @@ mod tests {
         let resolved = get_full_path(&instance.id).await.unwrap();
 
         assert_eq!(resolved, io::canonicalize(minecraft.path()).unwrap());
+    }
+
+    #[tokio::test]
+    async fn new_external_instances_resolve_before_version_json_exists() {
+        let state = global_state().await;
+        let minecraft = TempDir::new().unwrap();
+        let dot_minecraft = minecraft.path().join(".minecraft");
+        std::fs::create_dir_all(&dot_minecraft).unwrap();
+
+        let isolated_dir =
+            dot_minecraft.join("versions").join("fresh-isolated");
+        let isolated = crate::state::instances::commands::create_instance(
+            CreateInstance {
+                name: "fresh-isolated".to_string(),
+                path: None,
+                game_version: "1.21.1".to_string(),
+                loader: ModLoader::Vanilla,
+                loader_version: None,
+                icon_path: None,
+                link: InstanceLink::Unmanaged,
+                symlink_target: None,
+                game_dir_override: Some(
+                    isolated_dir.to_string_lossy().into_owned(),
+                ),
+            },
+            &state,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            get_full_path(&isolated.id).await.unwrap(),
+            io::canonicalize(&isolated_dir).unwrap()
+        );
+        let launch_context =
+            crate::state::instances::commands::get_instance_launch_context(
+                &isolated.id,
+                &state.pool,
+            )
+            .await
+            .unwrap()
+            .expect("instance created by the install flow should be queryable");
+        assert_eq!(launch_context.instance.id, isolated.id);
+        assert_eq!(
+            launch_context.instance.game_dir_override,
+            Some(isolated_dir.to_string_lossy().into_owned())
+        );
+
+        let shared = crate::state::instances::commands::create_instance(
+            CreateInstance {
+                name: "fresh-shared".to_string(),
+                path: None,
+                game_version: "1.21.1".to_string(),
+                loader: ModLoader::Vanilla,
+                loader_version: None,
+                icon_path: None,
+                link: InstanceLink::Unmanaged,
+                symlink_target: None,
+                game_dir_override: Some(
+                    dot_minecraft.to_string_lossy().into_owned(),
+                ),
+            },
+            &state,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            get_full_path(&shared.id).await.unwrap(),
+            io::canonicalize(&dot_minecraft).unwrap()
+        );
     }
 
     #[tokio::test]

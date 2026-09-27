@@ -55,11 +55,16 @@ async fn remove_instance_files_and_state(
     let _synced_options_lock = state.lock_synced_options().await;
     let _instance_lock = state.lock_instance_content(instance_id).await;
 
-    let instance = instance_rows::get_instance_by_id(instance_id, &state.pool)
-        .await?
-        .ok_or_else(|| {
-            crate::ErrorKind::InputError("Unknown instance".to_string())
-        })?;
+    let Some(instance) =
+        instance_rows::get_instance_by_id(instance_id, &state.pool).await?
+    else {
+        // The external-instance watcher can remove a record while a stale
+        // library view still has its delete dialog open. Deletion is
+        // idempotent, so finish cleanup successfully instead of surfacing a
+        // spurious "Unknown instance" error.
+        tracing::debug!(instance_id, "Instance was already removed");
+        return Ok(());
+    };
 
     // Directly associated instances have no Axolotl profile directory. Their
     // version directory is the instance itself, so removal deliberately

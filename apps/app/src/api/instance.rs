@@ -6,7 +6,8 @@ use path_util::SafeRelativeUtf8UnixPathBuf;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
+use tauri_plugin_fs::FsExt;
 use tauri_plugin_opener::OpenerExt;
 use theseus::DownloadReason;
 use theseus::data::{
@@ -1334,7 +1335,12 @@ fn serialize_screenshot<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     s: theseus::instance::InstanceScreenshot,
 ) -> Result<InstanceScreenshot> {
+    if let Some(parent) = s.path.parent() {
+        crate::api::files::ensure_browsable(app, parent);
+    }
     let mut url = super::utils::tauri_convert_file_src(&s.path)?;
+    app.asset_protocol_scope().allow_file(&s.path)?;
+    app.fs_scope().allow_file(&s.path)?;
     url.query_pairs_mut()
         .append_pair("revision", &s.modified_at.to_string());
     Ok(InstanceScreenshot {

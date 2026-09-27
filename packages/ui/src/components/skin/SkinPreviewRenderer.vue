@@ -19,7 +19,7 @@
 		</div>
 		<div
 			v-if="$slots.subtitle || armorPreview"
-			class="absolute left-0 right-0 z-10 flex items-center justify-center pointer-events-none"
+			class="absolute left-0 right-0 z-10 flex max-h-[calc(100%_-_1rem)] min-h-0 items-center justify-center overflow-y-auto pointer-events-none"
 			:style="subtitlePositionStyle"
 		>
 			<div

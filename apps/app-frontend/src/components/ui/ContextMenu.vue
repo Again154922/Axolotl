@@ -1,14 +1,6 @@
 <template>
 	<transition name="fade">
-		<div
-			v-show="shown"
-			ref="contextMenu"
-			class="context-menu"
-			:style="{
-				left: left,
-				top: top,
-			}"
-		>
+		<div v-show="shown" ref="contextMenu" class="context-menu" :style="menuStyle">
 			<div
 				v-for="(option, index) in options"
 				:key="option.name ?? option.id ?? index"
@@ -31,7 +23,9 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+
+import { placeContextMenu } from './context-menu-placement'
 
 const emit = defineEmits(['menu-closed', 'option-clicked'])
 
@@ -42,6 +36,64 @@ const left = ref('0px')
 const top = ref('0px')
 const shown = ref(false)
 let justOpened = false
+let anchorPoint = { clientX: 0, clientY: 0 }
+let activeViewport = null
+let resizeObserver = null
+
+const SAFE_GAP = 10
+const viewportBoundary = () => {
+	const viewport = activeViewport
+	if (viewport) {
+		const rect = viewport.getBoundingClientRect()
+		if (rect.width > 0 && rect.height > 0) return rect
+	}
+	return { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }
+}
+
+const updatePosition = () => {
+	if (!shown.value || !contextMenu.value) return
+	const rect = viewportBoundary()
+	const menuWidth = contextMenu.value.clientWidth || 200
+	const menuHeight = contextMenu.value.clientHeight || 100
+	const placement = placeContextMenu({
+		...anchorPoint,
+		menuWidth,
+		menuHeight,
+		boundary: rect,
+		safeGap: SAFE_GAP,
+	})
+	left.value = `${placement.left}px`
+	top.value = `${placement.top}px`
+}
+
+const menuStyle = computed(() => ({
+	left: left.value,
+	top: top.value,
+	maxWidth: `${Math.max(0, viewportBoundary().right - viewportBoundary().left - SAFE_GAP * 2)}px`,
+	maxHeight: `${Math.max(0, viewportBoundary().bottom - viewportBoundary().top - SAFE_GAP * 2)}px`,
+}))
+
+const cleanupPositionListeners = () => {
+	window.removeEventListener('resize', updatePosition)
+	window.removeEventListener('scroll', updatePosition, true)
+	activeViewport?.removeEventListener('scroll', updatePosition)
+	resizeObserver?.disconnect()
+	activeViewport = null
+	resizeObserver = null
+}
+
+const setupPositionListeners = (event) => {
+	cleanupPositionListeners()
+	const target = event.target instanceof Element ? event.target : null
+	activeViewport = target?.closest('.app-viewport') ?? null
+	window.addEventListener('resize', updatePosition)
+	window.addEventListener('scroll', updatePosition, true)
+	activeViewport?.addEventListener('scroll', updatePosition)
+	if (activeViewport && typeof ResizeObserver !== 'undefined') {
+		resizeObserver = new ResizeObserver(updatePosition)
+		resizeObserver.observe(activeViewport)
+	}
+}
 
 const CLOSE_ALL_EVENT = 'close-all-context-menus'
 
@@ -50,6 +102,8 @@ const showMenu = (event, passedItem, passedOptions) => {
 
 	item.value = passedItem
 	options.value = passedOptions
+	anchorPoint = { clientX: event.clientX, clientY: event.clientY }
+	setupPositionListeners(event)
 
 	justOpened = true
 	nextTick(() => {
@@ -59,24 +113,8 @@ const showMenu = (event, passedItem, passedOptions) => {
 	// show to get dimensions
 	shown.value = true
 
-	// then, adjust position if overflowing
-	nextTick(() => {
-		const menuWidth = contextMenu.value?.clientWidth || 200
-		const menuHeight = contextMenu.value?.clientHeight || 100
-		const minFromEdge = 10
-
-		if (event.pageX + menuWidth + minFromEdge >= window.innerWidth) {
-			left.value = Math.max(minFromEdge, event.pageX - menuWidth - minFromEdge) + 'px'
-		} else {
-			left.value = event.pageX + minFromEdge + 'px'
-		}
-
-		if (event.pageY + menuHeight + minFromEdge >= window.innerHeight) {
-			top.value = Math.max(minFromEdge, event.pageY - menuHeight - minFromEdge) + 'px'
-		} else {
-			top.value = event.pageY + minFromEdge + 'px'
-		}
-	})
+	// Render first so dimensions are available, then place against the content pane.
+	nextTick(updatePosition)
 }
 
 const optionName = (option) => option.name ?? option.id
@@ -94,6 +132,7 @@ const isInstanceLink = (item) => {
 
 const hideContextMenu = () => {
 	shown.value = false
+	cleanupPositionListeners()
 	emit('menu-closed')
 }
 
@@ -146,6 +185,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+	cleanupPositionListeners()
 	window.removeEventListener('click', handleClickOutside)
 	window.removeEventListener(CLOSE_ALL_EVENT, handleCloseOthers)
 	document.body.removeEventListener('keyup', onEscKeyRelease)
@@ -161,8 +201,10 @@ onBeforeUnmount(() => {
 	margin: 0;
 	position: fixed;
 	z-index: 1000000;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	padding: var(--gap-sm);
+	box-sizing: border-box;
 
 	.item {
 		align-items: center;
@@ -172,6 +214,7 @@ onBeforeUnmount(() => {
 		gap: var(--gap-sm);
 		padding: var(--gap-sm);
 		border-radius: var(--radius-sm);
+		white-space: normal;
 
 		&.disabled {
 			cursor: not-allowed;

@@ -1273,7 +1273,7 @@ async fn install_minecraft_with_local_source(
             )
             .await?;
     }
-    download::download_minecraft(
+    let minecraft_progress = download::download_minecraft(
         &state,
         local_source,
         &content_set.game_version,
@@ -1300,7 +1300,7 @@ async fn install_minecraft_with_local_source(
         InstanceRuntimeAdapter::for_instance(instance, &state.directories)?;
     if let Some(direct) = runtime_adapter.direct_link() {
         let resolved = direct.resolve()?;
-        direct_ensure::ensure_direct_launch_dependencies(
+        direct_ensure::ensure_direct_launch_dependencies_with_progress(
             &state,
             &direct,
             &resolved.merged.libraries,
@@ -1310,8 +1310,13 @@ async fn install_minecraft_with_local_source(
                 .map(|java| java.architecture.as_str())
                 .unwrap_or(std::env::consts::ARCH),
             minecraft_updated,
+            minecraft_progress.as_ref(),
         )
         .await?;
+    }
+
+    if let Some(progress) = minecraft_progress {
+        progress.finish().await?;
     }
 
     let client_path = state

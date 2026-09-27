@@ -629,6 +629,7 @@ pub(crate) async fn apply_staged_curseforge_upgrade_file_with_state(
         &scope.instance,
     )
     .join(relative_path);
+    let database_permit = Some(state.acquire_install_db_permit().await?);
     let _instance_lock = state
         .lock_instance_content_with_timeout(
             instance_id,
@@ -638,13 +639,14 @@ pub(crate) async fn apply_staged_curseforge_upgrade_file_with_state(
     let previous_path =
         crate::state::materialize_project_download(&staged.path, &full_path)
             .await?;
-    let record_result = record_installed_curseforge_file(
+    let record_result = record_installed_curseforge_file_with_permit(
         instance_id,
         relative_path,
         &full_path,
         &staged.file,
         staged.project_type,
         ownership_kind,
+        database_permit,
         state,
     )
     .await;
@@ -2558,6 +2560,7 @@ async fn persist_resolution_plan_dependency_edges(
     if plan.edges.is_empty() {
         return Ok(());
     }
+    let database_permit = state.acquire_install_db_permit().await?;
     let _instance_lock = state.lock_instance_content(instance_id).await;
     let scope = crate::state::instances::commands::resolve_content_scope(
         instance_id,
@@ -2622,6 +2625,7 @@ async fn persist_resolution_plan_dependency_edges(
 		.await?;
     }
     tx.commit().await?;
+    drop(database_permit);
     Ok(())
 }
 
@@ -2633,6 +2637,7 @@ async fn persist_curseforge_dependency_edges(
     if candidates.is_empty() {
         return Ok(());
     }
+    let database_permit = state.acquire_install_db_permit().await?;
     let _instance_lock = state.lock_instance_content(instance_id).await;
     let scope = crate::state::instances::commands::resolve_content_scope(
         instance_id,
@@ -2666,10 +2671,10 @@ async fn persist_curseforge_dependency_edges(
         else {
             continue;
         };
-        crate::state::instances::adapters::sqlite::content_rows::set_content_entry_auto_dependency(
+        crate::state::instances::adapters::sqlite::content_rows::set_content_entry_auto_dependency_in_transaction(
             &child_entry.id,
             true,
-            &state.pool,
+            &mut tx,
         )
         .await?;
         let now = chrono::Utc::now();
@@ -2695,6 +2700,7 @@ async fn persist_curseforge_dependency_edges(
         .await?;
     }
     tx.commit().await?;
+    drop(database_permit);
     Ok(())
 }
 
@@ -2765,6 +2771,7 @@ async fn persist_modrinth_fallback_dependency_edges(
     if fallbacks.is_empty() {
         return Ok(());
     }
+    let database_permit = state.acquire_install_db_permit().await?;
     let _instance_lock = state.lock_instance_content(instance_id).await;
     let scope = crate::state::instances::commands::resolve_content_scope(
         instance_id,
@@ -2868,6 +2875,7 @@ async fn persist_modrinth_fallback_dependency_edges(
         }
     }
     tx.commit().await?;
+    drop(database_permit);
     Ok(())
 }
 
@@ -3969,6 +3977,27 @@ pub async fn install_modpack_with_reporter(
     database_result?;
     download_result?;
 
+    // Every selected file has now passed verification and database
+    // registration. Publish an authoritative item-count completion snapshot
+    // so a final byte-progress sample cannot leave CurseForge installs at
+    // 99% in the frontend.
+    if let Some(reporter) = reporter.as_ref() {
+        reporter
+            .update(
+                InstallPhaseId::DownloadingContent,
+                Some(InstallProgress {
+                    current: total_files as u64,
+                    total: total_files as u64,
+                    secondary: Some(InstallProgressSecondary {
+                        current: content_total_bytes,
+                        total: content_total_bytes,
+                    }),
+                }),
+                pack_details.clone(),
+            )
+            .await?;
+    }
+
     if let (Some(reporter), Some(download_metrics)) =
         (reporter.as_ref(), download_metrics.as_ref())
     {
@@ -4941,6 +4970,21 @@ pub(crate) async fn install_local_manifest_files(
     database_result?;
     download_result?;
 
+    reporter
+        .update(
+            InstallPhaseId::DownloadingContent,
+            Some(InstallProgress {
+                current: total_files as u64,
+                total: total_files as u64,
+                secondary: Some(InstallProgressSecondary {
+                    current: content_total_bytes,
+                    total: content_total_bytes,
+                }),
+            }),
+            pack_details.clone(),
+        )
+        .await?;
+
     download_metrics.finish(reporter).await?;
 
     Arc::try_unwrap(content)
@@ -5015,7 +5059,7 @@ pub(crate) async fn update_managed_modpack_with_reporter(
     let game_version = pack_file
         .game_versions
         .iter()
-        .find(|value| loader_type(value).is_none())
+        .find(|value| looks_like_game_version(value))
         .cloned()
         .unwrap_or_else(|| metadata.applied_content_set.game_version.clone());
     let loader = pack_file
@@ -5027,10 +5071,6 @@ pub(crate) async fn update_managed_modpack_with_reporter(
         .or_else(|| {
             Some(metadata.applied_content_set.loader.as_str().to_string())
         });
-    let content_set_loader = loader
-        .as_deref()
-        .map(crate::data::ModLoader::try_from_string)
-        .transpose()?;
     let installed_releases = members
         .iter()
         .filter(|member| {
@@ -5145,6 +5185,23 @@ pub(crate) async fn update_managed_modpack_with_reporter(
         return Ok(result);
     }
 
+    // `install_modpack_with_reporter` resolves the target manifest and writes
+    // the resulting Minecraft/loader metadata before returning. Read that
+    // committed content set so the reconciliation edit cannot overwrite a
+    // newly selected loader version with the pre-update instance metadata.
+    let updated_content_set =
+        crate::state::instances::adapters::sqlite::content_rows::get_applied_content_set(
+            instance_id,
+            &state.pool,
+        )
+        .await?
+        .ok_or_else(|| {
+            ErrorKind::InputError(
+                "Instance has no applied content set after CurseForge update"
+                    .to_string(),
+            )
+        })?;
+
     let expected_keys = expected
         .members
         .iter()
@@ -5196,10 +5253,10 @@ pub(crate) async fn update_managed_modpack_with_reporter(
             }),
             content_set_patch: Some(crate::state::AppliedContentSetPatch {
                 source_kind: Some(ContentSourceKind::CurseForge),
-                game_version: Some(game_version),
+                game_version: Some(updated_content_set.game_version),
                 protocol_version: Some(None),
-                loader: content_set_loader,
-                loader_version: Some(None),
+                loader: Some(updated_content_set.loader),
+                loader_version: Some(updated_content_set.loader_version),
             }),
             ..EditInstance::default()
         },
@@ -5752,13 +5809,20 @@ pub(crate) fn loader_family(loader_id: &str) -> &str {
 }
 
 fn loader_type(loader: &str) -> Option<u32> {
-    match loader {
+    match loader.trim().to_ascii_lowercase().as_str() {
         "forge" | "cleanroom" => Some(1),
         "fabric" => Some(4),
         "quilt" => Some(5),
         "neoforge" => Some(6),
         _ => None,
     }
+}
+
+fn looks_like_game_version(value: &str) -> bool {
+    let value = value.trim();
+    !value.is_empty()
+        && value.as_bytes().first().is_some_and(u8::is_ascii_digit)
+        && loader_type(value).is_none()
 }
 
 fn merge_install_result(
@@ -8915,8 +8979,8 @@ async fn verify_and_record_curseforge_modpack_file(
         .into());
     }
     // Only materialization needs the per-instance lock. Hashing and database
-    // persistence must not hold it, otherwise verification becomes serial and
-    // can block unrelated content operations for the whole hash duration.
+    // persistence run in separate workers so verification does not serialize
+    // unrelated content operations for the whole hash duration.
     let instance_lock = tokio::select! {
         biased;
         _ = task.cancellation.cancelled() => {
@@ -9062,11 +9126,22 @@ async fn persist_curseforge_database_batch(
     // observe whether it committed before deciding to finalize or restore the
     // corresponding files. Dropping a COMMIT future on cancellation leaves
     // the filesystem/database outcome ambiguous.
+    let database_permit = tokio::select! {
+        biased;
+        _ = context.cancellation.cancelled() => {
+            restore_curseforge_materializations(instance_id, batch).await;
+            return Err(ErrorKind::OtherError(
+                "CurseForge modpack database registration canceled".to_string(),
+            ).into());
+        }
+        permit = state.acquire_install_db_permit() => permit?,
+    };
     let write_result: crate::Result<()> =
-        crate::state::instances::commands::record_project_files_with_verified_curseforge_atomic(
+        crate::state::instances::commands::record_project_files_atomic_with_permit(
             instance_id,
             &records,
             &verified_pending,
+            Some(database_permit),
             &state,
         )
         .await;
@@ -9321,26 +9396,22 @@ async fn download_installed_file(
         }
         return Ok(DownloadedCurseForgeFile { relative_path });
     }
-    // Transfers remain concurrent; publishing into an instance is bounded so
-    // SQLite writer transactions cannot stampede each other.
+    // Acquire the writer before the instance lock so a progress checkpoint
+    // cannot leave this materialization holding the lock indefinitely.
+    let database_permit = Some(state.acquire_install_db_permit().await?);
     let _instance_lock = state.lock_instance_content(instance_id).await;
-    let _publish_permit =
-        state.install_db_semaphore.acquire().await.map_err(|_| {
-            ErrorKind::OtherError(
-                "content publish semaphore closed".to_string(),
-            )
-        })?;
     let previous_path =
         crate::state::materialize_project_download(download_path, &full_path)
             .await?;
     crate::util::io::remove_file(download_path).await?;
-    let record_result = record_installed_curseforge_file(
+    let record_result = record_installed_curseforge_file_with_permit(
         instance_id,
         &relative_path,
         &full_path,
         file,
         project_type,
         ownership_kind,
+        database_permit,
         &state,
     )
     .await;
@@ -9499,13 +9570,14 @@ async fn verify_installed_curseforge_file(
     })
 }
 
-async fn record_installed_curseforge_file(
+async fn record_installed_curseforge_file_with_permit(
     instance_id: &str,
     relative_path: &str,
     full_path: &Path,
     file: &CurseForgeFile,
     project_type: ProjectType,
     ownership_kind: crate::state::instances::ContentOwnershipKind,
+    database_permit: Option<tokio::sync::SemaphorePermit<'_>>,
     state: &State,
 ) -> crate::Result<()> {
     let verified =
@@ -9516,34 +9588,47 @@ async fn record_installed_curseforge_file(
                 project_id: CurseForgeProjectId::new(file.mod_id)?,
                 file_id: Some(CurseForgeFileId::new(file.id)?),
             };
-            crate::state::record_project_file_atomic(
+            crate::state::instances::commands::record_project_files_atomic_with_permit(
                 instance_id,
-                relative_path,
-                &verified.sha1,
-                verified.size,
-                project_type,
-                ContentSourceKind::CurseForge,
-                ownership_kind,
-                Some(&provider_ref),
-                true,
-                None,
+                &[crate::state::instances::commands::ProjectFileRecord {
+                    relative_path: relative_path.to_string(),
+                    sha1: verified.sha1,
+                    size: verified.size,
+                    project_type,
+                    source_kind: ContentSourceKind::CurseForge,
+                    ownership_kind,
+                    provider_ref: Some(provider_ref),
+                    origin: true,
+                    known_modrinth_project_id: None,
+                    known_modrinth_version_id: None,
+                }],
+                &[],
+                database_permit,
                 state,
             )
             .await
         }
         CurseForgePendingCompletionProof::AuthoritativeSha1
         | CurseForgePendingCompletionProof::AuthoritativeFingerprint => {
-            crate::state::record_verified_curseforge_project_file_atomic(
+            crate::state::instances::commands::record_project_files_atomic_with_permit(
                 instance_id,
-                relative_path,
-                &verified.sha1,
-                verified.size,
-                project_type,
-                ContentSourceKind::CurseForge,
-                ownership_kind,
-                CurseForgeProjectId::new(file.mod_id)?,
-                CurseForgeFileId::new(file.id)?,
-                true,
+                &[crate::state::instances::commands::ProjectFileRecord {
+                    relative_path: relative_path.to_string(),
+                    sha1: verified.sha1,
+                    size: verified.size,
+                    project_type,
+                    source_kind: ContentSourceKind::CurseForge,
+                    ownership_kind,
+                    provider_ref: Some(ContentProviderRef::CurseForge {
+                        project_id: CurseForgeProjectId::new(file.mod_id)?,
+                        file_id: Some(CurseForgeFileId::new(file.id)?),
+                    }),
+                    origin: true,
+                    known_modrinth_project_id: None,
+                    known_modrinth_version_id: None,
+                }],
+                &[(CurseForgeProjectId::new(file.mod_id)?, CurseForgeFileId::new(file.id)?)],
+                database_permit,
                 state,
             )
             .await
@@ -12359,13 +12444,14 @@ mod tests {
             0,
         );
 
-        record_installed_curseforge_file(
+        record_installed_curseforge_file_with_permit(
             &instance_id,
             relative_path,
             &full_path,
             &file,
             ProjectType::Mod,
             crate::state::instances::ContentOwnershipKind::PackManaged,
+            None,
             &state,
         )
         .await
@@ -12404,13 +12490,14 @@ mod tests {
             compute_fingerprint(bytes) as u64,
         );
 
-        record_installed_curseforge_file(
+        record_installed_curseforge_file_with_permit(
             &instance_id,
             relative_path,
             &full_path,
             &file,
             ProjectType::Mod,
             crate::state::instances::ContentOwnershipKind::PackManaged,
+            None,
             &state,
         )
         .await
@@ -12449,13 +12536,14 @@ mod tests {
             0,
         );
 
-        record_installed_curseforge_file(
+        record_installed_curseforge_file_with_permit(
             &instance_id,
             relative_path,
             &full_path,
             &file,
             ProjectType::Mod,
             crate::state::instances::ContentOwnershipKind::PackManaged,
+            None,
             &state,
         )
         .await
@@ -12834,7 +12922,15 @@ mod tests {
         assert_eq!(loader_family("forge-47.4.0"), "forge");
         assert_eq!(loader_family("fabric-0.16.10"), "fabric");
         assert_eq!(loader_type("cleanroom"), Some(1));
+        assert_eq!(loader_type("Fabric"), Some(4));
         assert_eq!(loader_type("neoforge"), Some(6));
+    }
+
+    #[test]
+    fn curseforge_game_versions_ignore_loader_labels() {
+        assert!(looks_like_game_version("1.21.8"));
+        assert!(!looks_like_game_version("Fabric"));
+        assert!(!looks_like_game_version("forge"));
     }
 
     #[test]

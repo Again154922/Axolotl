@@ -32,8 +32,8 @@ use futures::prelude::*;
 
 use super::direct_link::{DirectLinkedLaunch, is_native_only_library};
 use super::download::{
-    LIBRARIES_MAVEN, legacy_library_download_urls, legacy_library_sha1,
-    minecraft_library_mirrors,
+    LIBRARIES_MAVEN, MinecraftDownloadProgress, legacy_library_download_urls,
+    legacy_library_sha1, minecraft_library_mirrors,
 };
 use super::local_version::LinkedLibrary;
 use crate::instance::QuickPlayType;
@@ -379,12 +379,13 @@ pub(crate) async fn ensure_linked_assets(
     asset_index: &AssetIndex,
     with_legacy: bool,
 ) -> crate::Result<()> {
-    ensure_linked_assets_from(
+    ensure_linked_assets_from_with_progress(
         st,
         direct,
         asset_index,
         MINECRAFT_RESOURCES_BASE,
         with_legacy,
+        None,
     )
     .await
 }
@@ -395,6 +396,25 @@ pub(crate) async fn ensure_linked_assets_from(
     asset_index: &AssetIndex,
     resources_base: &str,
     with_legacy: bool,
+) -> crate::Result<()> {
+    ensure_linked_assets_from_with_progress(
+        st,
+        direct,
+        asset_index,
+        resources_base,
+        with_legacy,
+        None,
+    )
+    .await
+}
+
+async fn ensure_linked_assets_from_with_progress(
+    st: &State,
+    direct: &DirectLinkedLaunch,
+    asset_index: &AssetIndex,
+    resources_base: &str,
+    with_legacy: bool,
+    progress: Option<&MinecraftDownloadProgress>,
 ) -> crate::Result<()> {
     let Some(index_id) = non_empty(&asset_index.id) else {
         return Ok(());
@@ -433,6 +453,9 @@ pub(crate) async fn ensure_linked_assets_from(
                 content: ContentValidation::Json,
                 ..Integrity::default()
             });
+        if let Some(progress) = progress {
+            progress.add_total(asset_index.size as u64).await?;
+        }
         fetch::download_to_path(
             request,
             &index_path,
@@ -447,6 +470,9 @@ pub(crate) async fn ensure_linked_assets_from(
                  {index_url}: {error}"
             ))
         })?;
+        if let Some(progress) = progress {
+            progress.add_bytes(asset_index.size as u64).await?;
+        }
     }
 
     let bytes = match io::read(&index_path).await {
@@ -492,6 +518,11 @@ pub(crate) async fn ensure_linked_assets_from(
             count = missing.len(),
             "Downloading missing Minecraft assets into the linked installation"
         );
+        if let Some(progress) = progress {
+            progress
+                .add_total(missing.iter().map(|(_, size, _)| *size).sum())
+                .await?;
+        }
 
         let limit = download_util::task_concurrency_limit(st)
             .map(|limit| limit.saturating_mul(2))
@@ -521,6 +552,9 @@ pub(crate) async fn ensure_linked_assets_from(
                              {url}: {error}"
                         ))
                     })?;
+                    if let Some(progress) = progress {
+                        progress.add_bytes(size).await?;
+                    }
                     Ok(())
                 },
             )
@@ -540,6 +574,10 @@ pub(crate) async fn ensure_linked_assets_from(
                     io::create_dir_all(parent).await?;
                 }
                 fetch::copy(&object, &legacy, &st.io_semaphore).await?;
+                if let Some(progress) = progress {
+                    progress.add_total(asset.size as u64).await?;
+                    progress.add_bytes(asset.size as u64).await?;
+                }
             }
         }
     }
@@ -620,6 +658,27 @@ pub(crate) async fn ensure_direct_launch_dependencies(
     java_arch: &str,
     minecraft_updated: bool,
 ) -> crate::Result<()> {
+    ensure_direct_launch_dependencies_with_progress(
+        st,
+        direct,
+        libraries,
+        version_info,
+        java_arch,
+        minecraft_updated,
+        None,
+    )
+    .await
+}
+
+pub(crate) async fn ensure_direct_launch_dependencies_with_progress(
+    st: &State,
+    direct: &DirectLinkedLaunch,
+    libraries: &[LinkedLibrary],
+    version_info: &VersionInfo,
+    java_arch: &str,
+    minecraft_updated: bool,
+    progress: Option<&MinecraftDownloadProgress>,
+) -> crate::Result<()> {
     let mut plans = Vec::new();
     if let Some(plan) = linked_client_plan(direct, version_info) {
         plans.push(plan);
@@ -672,11 +731,13 @@ pub(crate) async fn ensure_direct_launch_dependencies(
             .await?;
     }
 
-    ensure_linked_assets(
+    ensure_linked_assets_from_with_progress(
         st,
         direct,
         &version_info.asset_index,
+        MINECRAFT_RESOURCES_BASE,
         version_info.assets == "legacy",
+        progress,
     )
     .await?;
     ensure_linked_log_config(st, direct, version_info.logging.as_ref()).await?;

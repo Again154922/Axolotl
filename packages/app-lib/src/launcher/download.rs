@@ -205,7 +205,7 @@ impl MinecraftDownloadProgress {
         Ok(progress)
     }
 
-    async fn add_total(&self, total: u64) -> crate::Result<()> {
+    pub(crate) async fn add_total(&self, total: u64) -> crate::Result<()> {
         if total == 0 {
             return Ok(());
         }
@@ -215,7 +215,7 @@ impl MinecraftDownloadProgress {
             .await
     }
 
-    async fn add_bytes(&self, bytes: u64) -> crate::Result<()> {
+    pub(crate) async fn add_bytes(&self, bytes: u64) -> crate::Result<()> {
         if bytes == 0 {
             return Ok(());
         }
@@ -320,7 +320,7 @@ impl MinecraftDownloadProgress {
             .fetch_add(result.fallback_count as u64, Ordering::Relaxed);
     }
 
-    async fn finish(&self) -> crate::Result<()> {
+    pub(crate) async fn finish(&self) -> crate::Result<()> {
         // The initial missing-byte estimate can be stale when another install,
         // a local runtime source, or a cache satisfies the file before this
         // task reaches it. A successful Minecraft install is terminal for this
@@ -1028,7 +1028,7 @@ pub async fn download_minecraft(
     minecraft_updated: bool,
     reporter: Option<InstallProgressReporter>,
     phase_details: InstallPhaseDetails,
-) -> crate::Result<()> {
+) -> crate::Result<Option<MinecraftDownloadProgress>> {
     tracing::info!("Downloading Minecraft version {}", version.id);
     let progress = if let Some(reporter) = reporter {
         Some(
@@ -1097,12 +1097,8 @@ pub async fn download_minecraft(
             Ok::<_, crate::Error>(())
         }
     }?;
-    if let Some(progress) = &progress {
-        progress.finish().await?;
-    }
-
     tracing::info!("Done downloading Minecraft!");
-    Ok(())
+    Ok(progress)
 }
 
 #[tracing::instrument(skip_all, fields(version = version.id.as_str(), loader = ?loader))]

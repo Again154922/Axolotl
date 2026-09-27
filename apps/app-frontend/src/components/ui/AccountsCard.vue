@@ -392,6 +392,7 @@ import axolotlLogo from '@/assets/axolotl.png'
 import steveSkinTexture from '@/assets/skins/steve.png?inline'
 import MinecraftLoginModal from '@/components/ui/MinecraftLoginModal.vue'
 import { useNetworkStatus } from '@/composables/useNetworkStatus'
+import { preferredOnlineAccountId } from '@/helpers/account-selection'
 import { compareMinecraftAccounts } from '@/helpers/accounts'
 import { trackEvent } from '@/helpers/analytics'
 import {
@@ -579,17 +580,12 @@ function scheduleHeadRefreshRetry(generation: number, attempt: number) {
 	}, delay)
 }
 
-async function refreshValues(headRefreshAttempt = 0) {
+async function refreshValues(headRefreshAttempt = 0, preferOnlineAccount = false) {
 	clearHeadRefreshRetry()
 	const generation = ++refreshGeneration
 	const selectedUser = await get_default_user(offline.value).catch(handleError)
 	if (generation !== refreshGeneration) return
 
-	defaultUser.value = selectedUser
-	if (offline.value && selectedUser) {
-		await persistDefaultUser(selectedUser)
-		if (generation !== refreshGeneration) return
-	}
 	const userList = await users(offline.value).catch(handleError)
 	if (generation !== refreshGeneration) return
 	// The Rust backend returns a plain array that structurally matches
@@ -600,6 +596,15 @@ async function refreshValues(headRefreshAttempt = 0) {
 		? [...(userList as unknown as MinecraftCredential[])]
 		: []
 	accounts.value.sort(compareMinecraftAccounts)
+	let resolvedSelectedUser = selectedUser
+	if (preferOnlineAccount && selectedUser) {
+		resolvedSelectedUser = preferredOnlineAccountId(selectedUser, accounts.value)
+	}
+	defaultUser.value = resolvedSelectedUser
+	if (resolvedSelectedUser && resolvedSelectedUser !== selectedUser) {
+		await persistDefaultUser(resolvedSelectedUser)
+		if (generation !== refreshGeneration) return
+	}
 	await renderAccountHeads(accounts.value, generation)
 	if (generation !== refreshGeneration) return
 	try {
@@ -615,11 +620,11 @@ async function refreshValues(headRefreshAttempt = 0) {
 					equippedSkin.value.texture_key,
 					headUrl,
 				)
-				if (selectedUser) {
+				if (resolvedSelectedUser) {
 					const selectedAccountSkin = getAccountSkin(
-						accounts.value.find((account) => account.account_id === selectedUser),
+						accounts.value.find((account) => account.account_id === resolvedSelectedUser),
 					)
-					cacheAccountHead(selectedUser, selectedAccountSkin ?? equippedSkin.value, headUrl)
+					cacheAccountHead(resolvedSelectedUser, selectedAccountSkin ?? equippedSkin.value, headUrl)
 				}
 			} catch (error) {
 				console.warn('Failed to get head render for equipped skin:', error)
@@ -664,8 +669,8 @@ defineExpose({
 
 await refreshValues()
 
-watch(offline, async () => {
-	await refreshValues()
+watch(offline, async (isOffline, wasOffline) => {
+	await refreshValues(0, wasOffline === true && !isOffline)
 	notifyAccountChange()
 })
 

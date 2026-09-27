@@ -183,9 +183,42 @@ impl DirectLinkedLaunch {
         else {
             return Ok(None);
         };
-        let Some(mut direct) = Self::from_external_version_dir(&version_dir)?
-        else {
-            return Ok(None);
+        let has_version_json = version_dir
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(Result::ok)
+            .any(|entry| {
+                entry.path().extension().and_then(|ext| ext.to_str())
+                    == Some("json")
+            });
+        let mut direct = match Self::from_external_version_dir(&version_dir) {
+            Ok(Some(direct)) => direct,
+            Ok(None) => return Ok(None),
+            Err(error) if has_version_json => return Err(error),
+            Err(_) => {
+                let Some(version_id) =
+                    version_dir.file_name().and_then(|name| name.to_str())
+                else {
+                    return Ok(None);
+                };
+                let Some(dot_minecraft) =
+                    version_dir.parent().and_then(Path::parent)
+                else {
+                    return Ok(None);
+                };
+                Self {
+                    dot_minecraft: crate::util::io::canonicalize(
+                        dot_minecraft,
+                    )?,
+                    launcher_root: None,
+                    version_id: version_id.to_string(),
+                    version_json: None,
+                    dialect: LinkedLauncherDialect::Generic,
+                    game_dir_mode: Some(game_dir_mode),
+                }
+            }
         };
         direct.game_dir_mode = Some(game_dir_mode);
         Ok(Some(direct))
@@ -1964,6 +1997,47 @@ mod tests {
             )
         );
         assert_eq!(direct.dot_minecraft, root.path().canonicalize().unwrap());
+    }
+
+    #[test]
+    fn external_version_override_can_resolve_before_minecraft_is_installed() {
+        let root = tempfile::tempdir().unwrap();
+        let version_dir = root.path().join("versions").join("New Instance");
+        std::fs::create_dir_all(&version_dir).unwrap();
+        let now = chrono::Utc::now();
+        let instance = Instance {
+            id: "local:test".to_string(),
+            path: "managed".to_string(),
+            applied_content_set_id: None,
+            install_stage: crate::state::InstanceInstallStage::NotInstalled,
+            launcher_feature_version:
+                crate::state::LauncherFeatureVersion::MOST_RECENT,
+            update_channel: crate::state::ReleaseChannel::Release,
+            name: "New Instance".to_string(),
+            icon_path: None,
+            symlink_target: None,
+            linked_launcher: None,
+            linked_launcher_root: None,
+            linked_dot_minecraft: None,
+            linked_version_id: None,
+            linked_version_json_path: None,
+            linked_game_dir_mode: None,
+            game_dir_override: Some(version_dir.to_string_lossy().into_owned()),
+            created: now,
+            modified: now,
+            last_played: None,
+            pinned_at: None,
+            submitted_time_played: 0,
+            recent_time_played: 0,
+        };
+
+        let direct = DirectLinkedLaunch::from_game_dir_override(&instance)
+            .unwrap()
+            .expect("external version directory should be resolvable");
+
+        assert_eq!(direct.version_id, "New Instance");
+        assert_eq!(direct.version_json, None);
+        assert_eq!(direct.version_dir(), version_dir);
     }
 
     #[test]
