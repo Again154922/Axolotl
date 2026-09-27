@@ -38,6 +38,10 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 		changes: {
 			fixed: [
 				{
+					'en-US': 'Fixed screenshots from external instances failing to open in the Screenshot Center.',
+					'zh-CN': '修复外部实例的截图在截图中心无法打开的问题。',
+				},
+				{
 					'en-US':
 						'Tried to fix the issue of repeated infinite loading when searching on the browse page.',
 					'zh-CN': '尝试修复浏览页搜索时反复无限加载的问题。',
