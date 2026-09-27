@@ -5071,14 +5071,6 @@ pub(crate) async fn update_managed_modpack_with_reporter(
         .or_else(|| {
             Some(metadata.applied_content_set.loader.as_str().to_string())
         });
-    let content_set_loader = loader
-        .as_deref()
-        .map(crate::data::ModLoader::try_from_string)
-        .transpose()?;
-    let content_set_loader_version = (content_set_loader
-        == Some(metadata.applied_content_set.loader))
-    .then(|| metadata.applied_content_set.loader_version.clone())
-    .flatten();
     let installed_releases = members
         .iter()
         .filter(|member| {
@@ -5193,6 +5185,23 @@ pub(crate) async fn update_managed_modpack_with_reporter(
         return Ok(result);
     }
 
+    // `install_modpack_with_reporter` resolves the target manifest and writes
+    // the resulting Minecraft/loader metadata before returning. Read that
+    // committed content set so the reconciliation edit cannot overwrite a
+    // newly selected loader version with the pre-update instance metadata.
+    let updated_content_set =
+        crate::state::instances::adapters::sqlite::content_rows::get_applied_content_set(
+            instance_id,
+            &state.pool,
+        )
+        .await?
+        .ok_or_else(|| {
+            ErrorKind::InputError(
+                "Instance has no applied content set after CurseForge update"
+                    .to_string(),
+            )
+        })?;
+
     let expected_keys = expected
         .members
         .iter()
@@ -5244,10 +5253,10 @@ pub(crate) async fn update_managed_modpack_with_reporter(
             }),
             content_set_patch: Some(crate::state::AppliedContentSetPatch {
                 source_kind: Some(ContentSourceKind::CurseForge),
-                game_version: Some(game_version),
+                game_version: Some(updated_content_set.game_version),
                 protocol_version: Some(None),
-                loader: content_set_loader,
-                loader_version: Some(content_set_loader_version),
+                loader: Some(updated_content_set.loader),
+                loader_version: Some(updated_content_set.loader_version),
             }),
             ..EditInstance::default()
         },
