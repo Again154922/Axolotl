@@ -1334,6 +1334,9 @@ fn serialize_screenshot<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     s: theseus::instance::InstanceScreenshot,
 ) -> Result<InstanceScreenshot> {
+    if let Some(parent) = s.path.parent() {
+        crate::api::files::ensure_browsable(app, parent);
+    }
     let mut url = super::utils::tauri_convert_file_src(&s.path)?;
     url.query_pairs_mut()
         .append_pair("revision", &s.modified_at.to_string());
