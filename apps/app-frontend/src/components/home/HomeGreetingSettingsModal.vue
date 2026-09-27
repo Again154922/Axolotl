@@ -227,6 +227,7 @@ defineExpose({ show })
 						:greeting-text="text"
 						:greeting-font="font"
 						:greeting-font-size="fontSize"
+						:editable="false"
 						dashboard-size="2x1"
 					/>
 				</div>

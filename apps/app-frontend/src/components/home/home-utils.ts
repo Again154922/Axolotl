@@ -99,15 +99,33 @@ export function getPlaytimeLevel(seconds: number): number {
 	return 4
 }
 
-export function getActivePlayerName(
+export type ActivePlayerAccount = {
+	id: string
+	name: string
+}
+
+/**
+ * The account the greeting is about: the selected one, but only when it can
+ * carry a profile name. Offline accounts have no name, so they resolve to null
+ * and the greeting falls back to the plain welcome.
+ */
+export function getActivePlayerAccount(
 	selectedUser: string | null | undefined,
 	accounts: readonly MinecraftAccountLike[],
-): string | null {
+): ActivePlayerAccount | null {
 	if (!selectedUser) return null
 	const account = accounts.find(
 		(candidate) =>
 			candidate.account_id === selectedUser &&
 			(candidate.account_type === 'microsoft' || candidate.account_type === 'yggdrasil'),
 	)
-	return account?.profile?.name ?? null
+	const name = account?.profile?.name
+	return name ? { id: selectedUser, name } : null
+}
+
+export function getActivePlayerName(
+	selectedUser: string | null | undefined,
+	accounts: readonly MinecraftAccountLike[],
+): string | null {
+	return getActivePlayerAccount(selectedUser, accounts)?.name ?? null
 }

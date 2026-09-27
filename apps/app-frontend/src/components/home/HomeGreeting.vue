@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { PencilIcon } from '@modrinth/assets'
 import { defineMessages, useVIntl } from '@modrinth/ui'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, inject, onUnmounted, ref, watch } from 'vue'
 
 import {
 	HOME_GREETING_DEFAULT_FONT,
@@ -8,8 +9,10 @@ import {
 	HOME_GREETING_DEFAULT_MODE,
 	type HomeGreetingFont,
 	type HomeGreetingMode,
+	type HomeGreetingOverride,
 	type HomeWidgetSize,
 } from './home-dashboard'
+import { HOME_GREETING_EDITOR_KEY, type HomeGreetingEditorContext } from './home-greeting-editor'
 import { getTimeBucket, stableGreetingIndex } from './home-utils'
 
 const props = withDefaults(
@@ -21,6 +24,13 @@ const props = withDefaults(
 		greetingText?: string
 		greetingFont?: HomeGreetingFont
 		greetingFontSize?: number
+		/** Text this account saved for the greeting. Overrides the provided context. */
+		override?: HomeGreetingOverride | null
+		/**
+		 * Whether the heading opens the editor. Defaults to "when the home page
+		 * provides an editor", so a preview can opt out with `false`.
+		 */
+		editable?: boolean
 	}>(),
 	{
 		playerName: null,
@@ -30,12 +40,60 @@ const props = withDefaults(
 		greetingText: '',
 		greetingFont: HOME_GREETING_DEFAULT_FONT,
 		greetingFontSize: HOME_GREETING_DEFAULT_FONT_SIZE,
+		override: null,
+		editable: undefined,
+	},
+)
+
+const emit = defineEmits<{
+	edit: []
+}>()
+
+const greetingEditor = inject<HomeGreetingEditorContext | null>(HOME_GREETING_EDITOR_KEY, null)
+const editable = computed(
+	() => props.editable ?? (greetingEditor !== null && greetingEditor.canEdit.value),
+)
+const override = computed(() => props.override ?? greetingEditor?.override.value ?? null)
+
+const greetingGroup = ref<HTMLElement | null>(null)
+
+/** The home page owns the editor, so the heading only has to ask for it. */
+function requestEdit() {
+	if (!editable.value) return
+	if (greetingEditor) greetingEditor.open()
+	else emit('edit')
+}
+
+/**
+ * Every way of closing the editor hands the heading's focus back, and that can
+ * land a frame or a transition later. Wait for it briefly and release it,
+ * otherwise `group-focus-within` would keep the lift and the icon on with
+ * nothing left to explain them.
+ */
+function releaseEditorFocus(framesLeft: number) {
+	const active = document.activeElement
+	if (active instanceof HTMLElement && greetingGroup.value?.contains(active)) {
+		active.blur()
+		return
+	}
+	if (framesLeft > 0) requestAnimationFrame(() => releaseEditorFocus(framesLeft - 1))
+}
+
+watch(
+	() => greetingEditor?.editing.value ?? false,
+	(editing) => {
+		if (editing) return
+		requestAnimationFrame(() => releaseEditorFocus(20))
 	},
 )
 
 const { formatMessage, locale } = useVIntl()
 const now = ref(new Date())
 const messages = defineMessages({
+	editGreeting: {
+		id: 'app.home.greeting.edit',
+		defaultMessage: 'Edit greeting',
+	},
 	withPlayer: {
 		id: 'app.home.greeting.with-player',
 		defaultMessage: 'Welcome back, {name}. {greeting}',
@@ -128,9 +186,12 @@ const minimalGreeting = computed(() =>
 	formatMessage(minimalGreetingMessages[getTimeBucket(now.value)]),
 )
 
+/** The name the greeting addresses: the saved nickname wins over the account name. */
+const displayName = computed(() => override.value?.nickname || props.playerName || null)
+
 const automaticWelcome = computed(() =>
-	props.playerName
-		? formatMessage(messages.welcomeWithPlayer, { name: props.playerName })
+	displayName.value
+		? formatMessage(messages.welcomeWithPlayer, { name: displayName.value })
 		: formatMessage(messages.welcome),
 )
 
@@ -143,10 +204,14 @@ const dateLabel = computed(() =>
 )
 
 const heading = computed(() => {
+	// A saved title replaces the whole heading, greeting included.
+	const customTitle = override.value?.title
+	if (customTitle) return customTitle
+
 	if (props.variant === 'minimal') {
-		return props.playerName
+		return displayName.value
 			? formatMessage(messages.minimalWithPlayer, {
-					name: props.playerName,
+					name: displayName.value,
 					greeting: minimalGreeting.value,
 				})
 			: minimalGreeting.value
@@ -201,13 +266,35 @@ onUnmounted(() => window.clearInterval(timer))
 		>
 			{{ dateLabel }}
 		</span>
-		<h1
-			class="m-0 max-w-full break-words font-extrabold text-[var(--color-text-primary)]"
-			:class="dashboardSize ? 'home-greeting-heading' : 'text-2xl'"
-			:style="headingStyle"
-		>
-			{{ heading }}
-		</h1>
+		<div ref="greetingGroup" class="group flex min-w-0 items-center gap-2">
+			<h1
+				class="m-0 max-w-full break-words font-extrabold text-[var(--color-text-primary)]"
+				:class="[
+					dashboardSize ? 'home-greeting-heading' : 'text-2xl',
+					editable
+						? 'cursor-pointer rounded-lg transition-transform duration-150 group-hover:-translate-y-0.5 group-focus-within:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-shadow'
+						: '',
+				]"
+				:style="headingStyle"
+				:role="editable ? 'button' : undefined"
+				:tabindex="editable ? 0 : undefined"
+				:aria-label="editable ? formatMessage(messages.editGreeting) : undefined"
+				@click="requestEdit"
+				@keydown.enter.prevent="requestEdit"
+				@keydown.space.prevent="requestEdit"
+			>
+				{{ heading }}
+			</h1>
+			<button
+				v-if="editable"
+				type="button"
+				class="m-0 shrink-0 cursor-pointer border-0 bg-transparent p-1 text-[var(--color-text-tertiary)] opacity-0 transition-[opacity,color] duration-150 hover:text-[var(--color-text-primary)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-shadow group-hover:opacity-100 group-focus-within:opacity-100"
+				:aria-label="formatMessage(messages.editGreeting)"
+				@click="requestEdit"
+			>
+				<PencilIcon class="size-4" />
+			</button>
+		</div>
 		<div v-if="variant === 'minimal'" class="h-0.5 w-8 rounded-full bg-brand" aria-hidden="true" />
 	</header>
 </template>

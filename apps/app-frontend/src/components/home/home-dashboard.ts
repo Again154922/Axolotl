@@ -13,6 +13,15 @@ export const HOME_GREETING_DEFAULT_FONT = 'sans'
 export const HOME_GREETING_FONT_SIZE_MIN = 16
 export const HOME_GREETING_FONT_SIZE_MAX = 32
 export const HOME_GREETING_DEFAULT_FONT_SIZE = 22
+export const HOME_GREETING_NICKNAME_MAX = 32
+export const HOME_GREETING_TITLE_MAX = 120
+export const HOME_GREETING_OVERRIDE_LIMIT = 64
+/**
+ * Overrides are bound to an account so each one keeps its own text. Before an
+ * account is selected there is nothing to bind to, so that one title lands
+ * under this key instead of being dropped.
+ */
+export const HOME_GREETING_GLOBAL_KEY = 'global'
 
 export type HomeWidgetSize = (typeof HOME_WIDGET_SIZES)[number]
 export type HomeWidgetLayout = (typeof HOME_WIDGET_LAYOUTS)[number]
@@ -37,12 +46,23 @@ export type HomeWidgetTarget = {
 	fallbackLabel: string
 }
 
+/**
+ * What the greeting says for one account: a `nickname` replaces the account
+ * name, a `title` replaces the whole heading. Both are optional and an empty
+ * one means "use the automatic text".
+ */
+export type HomeGreetingOverride = {
+	nickname?: string
+	title?: string
+}
+
 export type HomeWidgetOptions = {
 	recentLimit?: HomeRecentLimit
 	greetingMode?: HomeGreetingMode
 	greetingText?: string
 	greetingFont?: HomeGreetingFont
 	greetingFontSize?: number
+	greetingOverrides?: Record<string, HomeGreetingOverride>
 }
 
 export type HomeWidgetPosition = {
@@ -205,15 +225,52 @@ function normalizeOptions(kind: HomeWidgetKind, value: unknown): HomeWidgetOptio
 		const greetingFontSize = normalizeGreetingFontSize(
 			isRecord(value) ? value.greetingFontSize : undefined,
 		)
+		const greetingOverrides = normalizeGreetingOverrides(
+			isRecord(value) ? value.greetingOverrides : undefined,
+		)
 		return {
 			greetingMode,
 			...(greetingText ? { greetingText } : {}),
 			greetingFont,
 			greetingFontSize,
+			...(greetingOverrides ? { greetingOverrides } : {}),
 		}
 	}
 
 	return undefined
+}
+
+function normalizeGreetingOverride(value: unknown): HomeGreetingOverride | null {
+	if (!isRecord(value)) return null
+
+	const nickname =
+		typeof value.nickname === 'string'
+			? value.nickname.trim().slice(0, HOME_GREETING_NICKNAME_MAX)
+			: ''
+	const title =
+		typeof value.title === 'string' ? value.title.trim().slice(0, HOME_GREETING_TITLE_MAX) : ''
+	if (!nickname && !title) return null
+
+	return {
+		...(nickname ? { nickname } : {}),
+		...(title ? { title } : {}),
+	}
+}
+
+function normalizeGreetingOverrides(
+	value: unknown,
+): Record<string, HomeGreetingOverride> | undefined {
+	if (!isRecord(value)) return undefined
+
+	const overrides: Record<string, HomeGreetingOverride> = {}
+	for (const [accountId, candidate] of Object.entries(value)) {
+		if (Object.keys(overrides).length >= HOME_GREETING_OVERRIDE_LIMIT) break
+		if (!accountId) continue
+		const override = normalizeGreetingOverride(candidate)
+		if (override) overrides[accountId] = override
+	}
+
+	return Object.keys(overrides).length > 0 ? overrides : undefined
 }
 
 function normalizeGreetingFontSize(value: unknown): number {
@@ -373,6 +430,80 @@ export function setHomeGreetingOptions(
 				: widget,
 		),
 	)
+}
+
+/** The text this account saved for the greeting, or null when it uses the automatic one. */
+export function getHomeGreetingOverride(
+	options: HomeWidgetOptions | undefined,
+	accountId: string,
+): HomeGreetingOverride | null {
+	return options?.greetingOverrides?.[accountId] ?? null
+}
+
+export function setHomeGreetingOverride(
+	config: HomeDashboardConfig,
+	id: string,
+	accountId: string,
+	override: HomeGreetingOverride,
+): HomeDashboardConfig {
+	const normalized = normalizeGreetingOverride(override)
+
+	return replaceHomeDashboardWidgets(
+		config,
+		config.widgets.map((widget) => {
+			if (widget.id !== id || widget.kind !== 'greeting') return widget
+
+			const { greetingOverrides: _existing, ...restOptions } = widget.options ?? {}
+			const overrides: Record<string, HomeGreetingOverride> = Object.fromEntries(
+				Object.entries(widget.options?.greetingOverrides ?? {}).filter(
+					([candidateId]) => candidateId !== accountId,
+				),
+			)
+			if (normalized) overrides[accountId] = normalized
+
+			return {
+				...widget,
+				options: {
+					...restOptions,
+					...(Object.keys(overrides).length > 0 ? { greetingOverrides: overrides } : {}),
+				},
+			}
+		}),
+	)
+}
+
+/**
+ * Drops overrides bound to accounts that no longer exist, so a removed account
+ * cannot leave text behind. `HOME_GREETING_GLOBAL_KEY` is always kept.
+ */
+export function pruneHomeGreetingOverrides(
+	config: HomeDashboardConfig,
+	accountIds: readonly string[],
+): HomeDashboardConfig {
+	const known = new Set([...accountIds, HOME_GREETING_GLOBAL_KEY])
+	let changed = false
+
+	const widgets = config.widgets.map((widget) => {
+		const overrides = widget.options?.greetingOverrides
+		if (widget.kind !== 'greeting' || !overrides) return widget
+
+		const kept = Object.fromEntries(
+			Object.entries(overrides).filter(([accountId]) => known.has(accountId)),
+		)
+		if (Object.keys(kept).length === Object.keys(overrides).length) return widget
+
+		changed = true
+		const { greetingOverrides: _existing, ...restOptions } = widget.options ?? {}
+		return {
+			...widget,
+			options: {
+				...restOptions,
+				...(Object.keys(kept).length > 0 ? { greetingOverrides: kept } : {}),
+			},
+		}
+	})
+
+	return changed ? replaceHomeDashboardWidgets(config, widgets) : config
 }
 
 export function moveHomeWidget(

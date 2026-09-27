@@ -7,20 +7,32 @@ import {
 	createHomeDashboardSaveQueue,
 	enableFreeHomeDashboard,
 	findNearestFreeHomeWidgetPosition,
+	getHomeGreetingOverride,
 	getHomeGridColumnCount,
 	getHomeWidgetDimensions,
 	getHomeWidgetSpan,
+	HOME_GREETING_GLOBAL_KEY,
+	HOME_GREETING_NICKNAME_MAX,
+	HOME_GREETING_TITLE_MAX,
 	moveHomeWidget,
 	normalizeHomeDashboard,
 	packHomeWidgets,
+	pruneHomeGreetingOverrides,
 	removeHomeWidget,
 	replaceHomeDashboardWidgets,
 	resizeHomeWidget,
 	setHomeDashboardLayout,
 	setHomeGreetingOptions,
+	setHomeGreetingOverride,
 	setHomeRecentLimit,
 	setHomeWidgetPosition,
 } from './home-dashboard.ts'
+
+function greetingOptionsOf(config: ReturnType<typeof createDefaultHomeDashboard>) {
+	const widget = config.widgets.find((candidate) => candidate.kind === 'greeting')
+	assert.ok(widget, 'the default dashboard has a greeting widget')
+	return { widget, options: widget.options }
+}
 
 test('derives one to four columns from the dashboard container width', () => {
 	assert.equal(getHomeGridColumnCount(0), 1)
@@ -326,4 +338,105 @@ test('accepts and resizes the recent widget to 3-column layouts', () => {
 			?.size,
 		'3x1',
 	)
+})
+
+test('keeps greeting text per account and falls back when none is saved', () => {
+	const config = createDefaultHomeDashboard()
+	const { widget, options } = greetingOptionsOf(config)
+
+	assert.equal(getHomeGreetingOverride(options, 'account-a'), null)
+
+	const saved = setHomeGreetingOverride(config, widget.id, 'account-a', {
+		nickname: '  Alex  ',
+		title: '',
+	})
+	const savedOptions = greetingOptionsOf(saved).options
+
+	assert.deepEqual(getHomeGreetingOverride(savedOptions, 'account-a'), { nickname: 'Alex' })
+	assert.equal(getHomeGreetingOverride(savedOptions, 'account-b'), null)
+	// The nickname is one tab and the title another, so one must not invent the other.
+	assert.equal(getHomeGreetingOverride(savedOptions, 'account-a')?.title, undefined)
+})
+
+test('clears an override when both fields are empty', () => {
+	const config = createDefaultHomeDashboard()
+	const { widget } = greetingOptionsOf(config)
+
+	const saved = setHomeGreetingOverride(config, widget.id, 'account-a', {
+		nickname: 'Alex',
+		title: 'Hello',
+	})
+	const cleared = setHomeGreetingOverride(saved, widget.id, 'account-a', {
+		nickname: '',
+		title: '   ',
+	})
+
+	assert.equal(getHomeGreetingOverride(greetingOptionsOf(cleared).options, 'account-a'), null)
+	assert.equal(greetingOptionsOf(cleared).options?.greetingOverrides, undefined)
+})
+
+test('clamps saved greeting text to the field limits', () => {
+	const config = createDefaultHomeDashboard()
+	const { widget } = greetingOptionsOf(config)
+
+	const saved = setHomeGreetingOverride(config, widget.id, 'account-a', {
+		nickname: 'n'.repeat(HOME_GREETING_NICKNAME_MAX + 20),
+		title: 't'.repeat(HOME_GREETING_TITLE_MAX + 20),
+	})
+	const override = getHomeGreetingOverride(greetingOptionsOf(saved).options, 'account-a')
+
+	assert.equal(override?.nickname?.length, HOME_GREETING_NICKNAME_MAX)
+	assert.equal(override?.title?.length, HOME_GREETING_TITLE_MAX)
+})
+
+test('prunes overrides for accounts that no longer exist', () => {
+	const config = createDefaultHomeDashboard()
+	const { widget } = greetingOptionsOf(config)
+
+	let saved = setHomeGreetingOverride(config, widget.id, HOME_GREETING_GLOBAL_KEY, {
+		nickname: '',
+		title: 'Global title',
+	})
+	saved = setHomeGreetingOverride(saved, widget.id, 'account-a', { nickname: 'Alex', title: '' })
+	saved = setHomeGreetingOverride(saved, widget.id, 'account-b', { nickname: 'Bea', title: '' })
+
+	const pruned = pruneHomeGreetingOverrides(saved, ['account-a'])
+	const options = greetingOptionsOf(pruned).options
+
+	assert.deepEqual(getHomeGreetingOverride(options, 'account-a'), { nickname: 'Alex' })
+	assert.equal(getHomeGreetingOverride(options, 'account-b'), null)
+	// The unbound title was not written by an account, so it stays.
+	assert.deepEqual(getHomeGreetingOverride(options, HOME_GREETING_GLOBAL_KEY), {
+		title: 'Global title',
+	})
+	// An unchanged dashboard is returned as it is, so the caller can skip a write.
+	assert.equal(pruneHomeGreetingOverrides(pruned, ['account-a']), pruned)
+})
+
+test('normalizes stored overrides and drops unusable entries', () => {
+	const normalized = normalizeHomeDashboard({
+		version: 1,
+		layout: 'grid',
+		widgets: [
+			{
+				id: 'greeting',
+				kind: 'greeting',
+				size: '2x1',
+				options: {
+					greetingOverrides: {
+						'account-a': { nickname: '  Alex  ' },
+						'account-b': { nickname: '' },
+						'account-c': 'not-an-object',
+						'account-d': { title: 42 },
+						'account-e': { nickname: 'Bea', title: 'Hello there' },
+					},
+				},
+			},
+		],
+	})!
+
+	assert.deepEqual(greetingOptionsOf(normalized).options?.greetingOverrides, {
+		'account-a': { nickname: 'Alex' },
+		'account-e': { nickname: 'Bea', title: 'Hello there' },
+	})
 })

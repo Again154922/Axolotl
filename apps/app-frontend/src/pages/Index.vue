@@ -15,18 +15,27 @@ import {
 	injectPageContext,
 	useVIntl,
 } from '@modrinth/ui'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, inject, onUnmounted, provide, type Ref, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
 	createDefaultHomeDashboard,
 	createHomeDashboardSaveQueue,
+	getHomeGreetingOverride,
+	HOME_GREETING_GLOBAL_KEY,
 	type HomeDashboardConfig,
 	normalizeHomeDashboard,
+	pruneHomeGreetingOverrides,
+	setHomeGreetingOverride,
 } from '@/components/home/home-dashboard'
-import { getActivePlayerName } from '@/components/home/home-utils'
+import {
+	HOME_GREETING_EDITOR_KEY,
+	type HomeGreetingEditorContext,
+} from '@/components/home/home-greeting-editor'
+import { getActivePlayerAccount } from '@/components/home/home-utils'
 import HomeDailyChallenge from '@/components/home/HomeDailyChallenge.vue'
 import HomeDashboard from '@/components/home/HomeDashboard.vue'
+import HomeGreetingAccountModal from '@/components/home/HomeGreetingAccountModal.vue'
 import HomeInstancePickerModal from '@/components/home/HomeInstancePickerModal.vue'
 import HomeMinecraftNews from '@/components/home/HomeMinecraftNews.vue'
 import HomeMinimal from '@/components/home/HomeMinimal.vue'
@@ -99,10 +108,13 @@ breadcrumbs.setRootContext({ name: formatMessage(messages.home), link: route.pat
 
 const instances = ref<GameInstance[]>([])
 const playerName = ref<string | null>(null)
+const playerAccountId = ref<string | null>(null)
 const dashboardConfig = ref<HomeDashboardConfig | null>(null)
 const dashboard = ref<InstanceType<typeof HomeDashboard>>()
 const dashboardEditing = ref(false)
 const instancePicker = ref<InstanceType<typeof HomeInstancePickerModal>>()
+const greetingAccountModal = ref<InstanceType<typeof HomeGreetingAccountModal>>()
+const greetingEditorOpen = ref(false)
 const isMinimal = computed(() => themeStore.homeLayout === 'minimal')
 const isFreeWidgetLayout = computed(() => dashboardConfig.value?.layout === 'free')
 const switchingLayout = ref(false)
@@ -155,10 +167,28 @@ async function fetchInstances() {
 
 async function fetchPlayerName() {
 	const selectedUser = await get_default_user(offline.value).catch(() => undefined)
-	if (!selectedUser) return
-
 	const accounts = await users(offline.value).catch(() => [])
-	playerName.value = getActivePlayerName(selectedUser, accounts)
+	const account = getActivePlayerAccount(selectedUser, accounts)
+
+	playerName.value = account?.name ?? null
+	playerAccountId.value = account?.id ?? null
+	pruneGreetingOverrides(accounts)
+}
+
+/**
+ * A greeting override is bound to an account id, so removing an account has to
+ * take its text with it -- otherwise a later account that reuses the id would
+ * inherit text it never wrote.
+ */
+function pruneGreetingOverrides(accounts: readonly { account_id?: string }[]) {
+	const config = dashboardConfig.value
+	if (!config) return
+
+	const accountIds = accounts
+		.map((account) => account.account_id)
+		.filter((accountId): accountId is string => !!accountId)
+	const pruned = pruneHomeGreetingOverrides(config, accountIds)
+	if (pruned !== config) updateDashboardConfig(pruned)
 }
 
 async function loadDashboardConfig() {
@@ -187,6 +217,54 @@ function updateDashboardConfig(config: HomeDashboardConfig) {
 	dashboardConfig.value = config
 	void dashboardSaveQueue.enqueue(config, previous)
 }
+
+const greetingWidget = computed(
+	() => dashboardConfig.value?.widgets.find((widget) => widget.kind === 'greeting') ?? null,
+)
+/** Text is bound to the active account, or to the global key before anyone signs in. */
+const greetingEditorAccountId = computed(() => playerAccountId.value ?? HOME_GREETING_GLOBAL_KEY)
+const greetingOverride = computed(() =>
+	getHomeGreetingOverride(greetingWidget.value?.options, greetingEditorAccountId.value),
+)
+
+provide<HomeGreetingEditorContext>(HOME_GREETING_EDITOR_KEY, {
+	accountId: greetingEditorAccountId,
+	accountName: computed(() => playerName.value),
+	override: greetingOverride,
+	canEdit: computed(() => greetingWidget.value !== null),
+	canEditNickname: computed(() => playerAccountId.value !== null),
+	editing: greetingEditorOpen,
+	open: () => {
+		greetingEditorOpen.value = true
+		greetingAccountModal.value?.show(greetingOverride.value)
+	},
+})
+
+function saveGreetingOverride(override: { nickname: string; title: string }) {
+	const config = dashboardConfig.value
+	const widget = greetingWidget.value
+	if (!config || !widget) return
+
+	updateDashboardConfig(
+		setHomeGreetingOverride(config, widget.id, greetingEditorAccountId.value, override),
+	)
+}
+
+/**
+ * The greeting name is read once per page, so it has to follow the account the
+ * sidebar switches to. AccountsCard owns that state and bumps a revision when
+ * it changes; this is the same subscription the skins page uses.
+ */
+const accountsCard = inject<Ref<{ accountChangeRevision?: number } | null> | null>(
+	'accountsCard',
+	null,
+)
+const accountChangeRevision = computed(() => accountsCard?.value?.accountChangeRevision)
+
+watch(accountChangeRevision, (revision, previousRevision) => {
+	if (revision === undefined || previousRevision === undefined) return
+	void fetchPlayerName()
+})
 
 function resetDashboardConfig() {
 	if (!window.confirm(formatMessage(messages.resetWidgets))) return
@@ -269,6 +347,13 @@ onUnmounted(() => {
 		:instances="instances"
 		:selected-instance-id="themeStore.minimalHomeInstanceId"
 		@select="selectMinimalInstance"
+	/>
+	<HomeGreetingAccountModal
+		ref="greetingAccountModal"
+		:account-name="playerName"
+		:can-edit-nickname="playerAccountId !== null"
+		@save="saveGreetingOverride"
+		@closed="greetingEditorOpen = false"
 	/>
 	<div class="min-h-full">
 		<HomeDashboard
