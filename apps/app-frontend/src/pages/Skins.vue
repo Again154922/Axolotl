@@ -1,18 +1,13 @@
 <script setup lang="ts">
-import {
-	CheckIcon,
-	EditIcon,
-	EyeIcon,
-	LogInIcon,
-	PlusIcon,
-	RotateCounterClockwiseIcon,
-	SpinnerIcon,
-} from '@modrinth/assets'
+import { CheckIcon, EditIcon, EyeIcon, LogInIcon, PlusIcon, SpinnerIcon } from '@modrinth/assets'
 import {
 	type ArmorPreviewConfig,
+	ArmorPreviewControls,
 	Button,
+	cloneArmorPreviewConfig,
 	commonMessages,
 	ConfirmModal,
+	createDefaultArmorPreviewConfig,
 	defineMessages,
 	injectNotificationManager,
 	NavTabs,
@@ -30,6 +25,7 @@ import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, watch } 
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
 import type AccountsCard from '@/components/ui/AccountsCard.vue'
+import ArmorTrimDrawer from '@/components/ui/skin/ArmorTrimDrawer.vue'
 import EditSkinModal from '@/components/ui/skin/EditSkinModal.vue'
 import VirtualSkinSectionList from '@/components/ui/skin/VirtualSkinSectionList.vue'
 import { useNetworkStatus } from '@/composables/useNetworkStatus'
@@ -213,9 +209,28 @@ const editSkinModal = useTemplateRef('editSkinModal')
 const addSkinFileInput = useTemplateRef<HTMLInputElement>('addSkinFileInput')
 const skinSectionList = useTemplateRef<VirtualSkinSectionListExpose>('skinSectionList')
 const skinPreviewArea = useTemplateRef<HTMLElement>('skinPreviewArea')
-const armorPreviewConfig = ref<ArmorPreviewConfig>(loadSkinArmorPreview())
+const savedArmorPreview = ref<ArmorPreviewConfig>(loadSkinArmorPreview())
+const armorPreviewConfig = ref<ArmorPreviewConfig>(cloneArmorPreviewConfig(savedArmorPreview.value))
+const isArmorDrawerOpen = ref(false)
 
-watch(armorPreviewConfig, saveSkinArmorPreview, { deep: true })
+function saveArmorPreview() {
+	savedArmorPreview.value = cloneArmorPreviewConfig(armorPreviewConfig.value)
+	saveSkinArmorPreview(savedArmorPreview.value)
+}
+
+function resetArmorPreviewToSaved() {
+	armorPreviewConfig.value = cloneArmorPreviewConfig(savedArmorPreview.value)
+}
+
+function restoreDefaultArmorPreview() {
+	armorPreviewConfig.value = createDefaultArmorPreviewConfig()
+}
+
+function closeArmorDrawer() {
+	// Leaving the drawer drops whatever was not saved on purpose.
+	resetArmorPreviewToSaved()
+	isArmorDrawerOpen.value = false
+}
 
 const { formatMessage } = useVIntl()
 const router = useRouter()
@@ -509,12 +524,6 @@ function changeSkin(newSkin: Skin) {
 	if (isSkinManagementReadOnly.value) return
 
 	selectedSkin.value = newSkin
-}
-
-function resetSelectedSkin() {
-	selectedSkin.value =
-		skins.value.find((skin) => skinsMatch(skin, originalSelectedSkin.value)) ??
-		originalSelectedSkin.value
 }
 
 function removeLocalSkin(deletedSkin: Skin) {
@@ -1062,13 +1071,21 @@ await loadSkins()
 			<h1 class="m-0 text-2xl font-bold flex items-center gap-2">
 				{{ formatMessage(messages.skinSelectorTitle) }}
 			</h1>
+			<!--
+				The preview's height, strictly: the area the app gives the page
+				(100vh less the top bar) minus the title, the action row below it and
+				the page's own padding. It keeps that height whether or not actions are
+				showing -- when one appears the column grows downwards instead, so the
+				model never moves and the actions never sit on the canvas.
+			-->
 			<div
 				ref="skinPreviewArea"
-				class="ml-5 mt-4 flex h-[calc(80vh-1rem)] items-center justify-center max-[700px]:h-[calc(50vh-1rem)]"
+				class="ml-5 mt-4 flex h-[calc(100vh_-_var(--top-bar-height)_-_11rem)] min-h-[14rem] items-center justify-center"
 			>
 				<SkinPreviewRenderer
 					v-model:armor-config="armorPreviewConfig"
 					armor-preview
+					:armor-controls="false"
 					:cape-src="capeTexture"
 					:texture-src="skinTexture || ''"
 					:variant="skinVariant"
@@ -1083,80 +1100,97 @@ await loadSkins()
 							{{ formatMessage(messages.previewingBadge) }}
 						</div>
 					</template>
-					<template #subtitle>
-						<div
-							v-if="hasPendingSkinChange"
-							class="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 px-2"
-						>
-							<button
-								class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 text-[var(--color-text-primary)] shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
-								:disabled="isApplyingSkin || isSkinManagementReadOnly"
-								@click="resetSelectedSkin"
-							>
-								<RotateCounterClockwiseIcon />
-								{{ formatMessage(commonMessages.resetButton) }}
-							</button>
-							<button
-								class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-brand px-4 py-2.5 text-base font-semibold leading-5 text-[rgba(0,0,0,0.9)] shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
-								:disabled="isApplyingSkin || isSkinManagementReadOnly"
-								@click="applySelectedSkin"
-							>
-								<SpinnerIcon v-if="isApplyingSkin" class="animate-spin" />
-								<CheckIcon v-else />
-								{{ formatMessage(messages.applyButton) }}
-							</button>
-						</div>
-						<button
-							v-else
-							class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
-							:disabled="!selectedSkin || isSkinManagementReadOnly"
-							@click="(e: MouseEvent) => selectedSkin && editSkinModal?.show(e, selectedSkin)"
-						>
-							<EditIcon />
-							{{ formatMessage(messages.editSkinButton) }}
-						</button>
-					</template>
 				</SkinPreviewRenderer>
+			</div>
+
+			<!--
+				The preview's actions belong to the column, not to the canvas: in the
+				flow they always get their own height, they never sit on the model, and
+				the preview above them does not move when one of them appears.
+			-->
+			<div class="ml-5 mt-3 flex flex-wrap items-center justify-center gap-2">
+				<template v-if="hasPendingSkinChange">
+					<button
+						class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-brand px-4 py-2.5 text-base font-semibold leading-5 text-[rgba(0,0,0,0.9)] shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
+						:disabled="isApplyingSkin || isSkinManagementReadOnly"
+						@click="applySelectedSkin"
+					>
+						<SpinnerIcon v-if="isApplyingSkin" class="animate-spin" />
+						<CheckIcon v-else />
+						{{ formatMessage(messages.applyButton) }}
+					</button>
+				</template>
+				<button
+					v-else
+					class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
+					:disabled="!selectedSkin || isSkinManagementReadOnly"
+					@click="(e: MouseEvent) => selectedSkin && editSkinModal?.show(e, selectedSkin)"
+				>
+					<EditIcon />
+					{{ formatMessage(messages.editSkinButton) }}
+				</button>
+				<ArmorPreviewControls
+					v-model="armorPreviewConfig"
+					panel="external"
+					:open="isArmorDrawerOpen"
+					@open="isArmorDrawerOpen = true"
+					@close="closeArmorDrawer"
+				/>
 			</div>
 		</div>
 
 		<div class="pt-2">
-			<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<NavTabs
-					:active-index="skinListTab === 'saved' ? 0 : 1"
-					:links="skinListTabLinks"
-					mode="local"
-					@tab-click="
-						(index: number) => {
-							skinListTab = index === 0 ? 'saved' : 'default'
-						}
-					"
+			<Transition name="armor-drawer" mode="out-in">
+				<div v-if="!isArmorDrawerOpen" key="list">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+						<NavTabs
+							:active-index="skinListTab === 'saved' ? 0 : 1"
+							:links="skinListTabLinks"
+							mode="local"
+							@tab-click="
+								(index: number) => {
+									skinListTab = index === 0 ? 'saved' : 'default'
+								}
+							"
+						/>
+						<Button type="colored" color="brand" @click="router.push('/lab/skin-editor')"
+							><PlusIcon />
+							{{ formatMessage(messages.createSkinButton) }}
+						</Button>
+					</div>
+					<!-- The armour drawer replaces the list where it stands, so it covers that area. -->
+					<VirtualSkinSectionList
+						ref="skinSectionList"
+						:active-tab="skinListTab"
+						:saved-skins="savedSkins"
+						:default-skin-sections="defaultSkinSections"
+						:get-baked-skin-textures="getBakedSkinTextures"
+						:is-skin-selected="isSkinSelected"
+						:is-skin-active="isSkinActive"
+						:is-add-skin-button-drag-active="isAddSkinButtonDragActive"
+						:read-only="isSkinManagementReadOnly"
+						@select="changeSkin"
+						@edit="(skin, event) => editSkinModal?.show(event, skin)"
+						@delete="confirmDeleteSkin"
+						@reorder-saved-skins="reorderSavedSkins"
+						@add-skin="openAddSkinFileBrowser"
+						@add-skin-dragenter="onAddSkinDragOver"
+						@add-skin-dragover="onAddSkinDragOver"
+						@add-skin-dragleave="onAddSkinDragLeave"
+						@add-skin-drop="onAddSkinDrop"
+					/>
+				</div>
+				<ArmorTrimDrawer
+					v-else
+					key="drawer"
+					v-model="armorPreviewConfig"
+					:saved="savedArmorPreview"
+					@save="saveArmorPreview"
+					@reset="resetArmorPreviewToSaved"
+					@defaults="restoreDefaultArmorPreview"
+					@close="closeArmorDrawer"
 				/>
-				<Button type="colored" color="brand" @click="router.push('/lab/skin-editor')"
-					><PlusIcon />
-					{{ formatMessage(messages.createSkinButton) }}
-				</Button>
-			</div>
-			<VirtualSkinSectionList
-				ref="skinSectionList"
-				:active-tab="skinListTab"
-				:saved-skins="savedSkins"
-				:default-skin-sections="defaultSkinSections"
-				:get-baked-skin-textures="getBakedSkinTextures"
-				:is-skin-selected="isSkinSelected"
-				:is-skin-active="isSkinActive"
-				:is-add-skin-button-drag-active="isAddSkinButtonDragActive"
-				:read-only="isSkinManagementReadOnly"
-				@select="changeSkin"
-				@edit="(skin, event) => editSkinModal?.show(event, skin)"
-				@delete="confirmDeleteSkin"
-				@reorder-saved-skins="reorderSavedSkins"
-				@add-skin="openAddSkinFileBrowser"
-				@add-skin-dragenter="onAddSkinDragOver"
-				@add-skin-dragover="onAddSkinDragOver"
-				@add-skin-dragleave="onAddSkinDragLeave"
-				@add-skin-drop="onAddSkinDrop"
-			/>
+			</Transition>
 		</div>
 	</div>
 
@@ -1218,5 +1252,19 @@ await loadSkins()
 	@media (max-width: 700px) {
 		grid-template-columns: 1fr;
 	}
+}
+
+// The armour drawer crossfades with the skin list it replaces.
+.armor-drawer-enter-active,
+.armor-drawer-leave-active {
+	transition:
+		opacity 180ms ease,
+		transform 180ms ease;
+}
+
+.armor-drawer-enter-from,
+.armor-drawer-leave-to {
+	opacity: 0;
+	transform: translateY(0.5rem);
 }
 </style>

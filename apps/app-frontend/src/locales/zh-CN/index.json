@@ -10025,6 +10025,27 @@
   "app.skins.apply-button": {
     "message": "应用"
   },
+  "app.skins.armor.close": {
+    "message": "关闭"
+  },
+  "app.skins.armor.description": {
+    "message": "在皮肤上试穿盔甲与纹饰。未保存前不会写入任何内容。"
+  },
+  "app.skins.armor.reset-to-saved": {
+    "message": "重置为已保存"
+  },
+  "app.skins.armor.restore-defaults": {
+    "message": "恢复默认"
+  },
+  "app.skins.armor.save": {
+    "message": "保存"
+  },
+  "app.skins.armor.title": {
+    "message": "盔甲与纹饰"
+  },
+  "app.skins.armor.unsaved": {
+    "message": "有未保存的更改"
+  },
   "app.skins.create-skin": {
     "message": "创建皮肤"
   },

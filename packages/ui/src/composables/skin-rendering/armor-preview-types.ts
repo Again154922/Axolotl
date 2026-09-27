@@ -58,6 +58,8 @@ export interface ArmorPiecePreview {
 
 export type ArmorPreviewConfig = Record<ArmorSlot, ArmorPiecePreview>
 
+const DEFAULT_TRIM_MATERIAL: ArmorTrimMaterial = 'iron'
+
 export function createDefaultArmorPreviewConfig(): ArmorPreviewConfig {
 	return Object.fromEntries(
 		ARMOR_SLOTS.map((slot) => [
@@ -65,9 +67,30 @@ export function createDefaultArmorPreviewConfig(): ArmorPreviewConfig {
 			{
 				material: null,
 				trimPattern: null,
-				trimMaterial: 'iron',
+				trimMaterial: DEFAULT_TRIM_MATERIAL,
 			},
 		]),
+	) as ArmorPreviewConfig
+}
+
+/**
+ * Copies a config piece by piece. `structuredClone` would read better, but a
+ * config that has been through `ref()` or `reactive()` is a proxy and it refuses
+ * to clone one, which is exactly the value a caller holds.
+ */
+export function cloneArmorPreviewConfig(config: ArmorPreviewConfig): ArmorPreviewConfig {
+	return Object.fromEntries(
+		ARMOR_SLOTS.map((slot) => {
+			const piece = config[slot]
+			return [
+				slot,
+				{
+					material: piece?.material ?? null,
+					trimPattern: piece?.trimPattern ?? null,
+					trimMaterial: piece?.trimMaterial ?? DEFAULT_TRIM_MATERIAL,
+				},
+			]
+		}),
 	) as ArmorPreviewConfig
 }
 
