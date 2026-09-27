@@ -11,8 +11,11 @@ import {
 } from 'vue'
 
 import {
+	clampNametagTop,
+	keepsControlsVisible,
 	NAMETAG_HEAD_OFFSET,
 	PREVIEW_CONTROLS_FOOT_OFFSET,
+	PREVIEW_CONTROLS_MIN_PX,
 	resolveOverlayNeeds,
 	resolveOverlaySafePadding,
 	SUBTITLE_CONTROLS_OFFSET,
@@ -117,6 +120,15 @@ export function useSkinPreviewFit({
 		lockFitEnabled.value ? (fitLock.value?.rotation ?? modelRotation.value) : modelRotation.value,
 	)
 
+	const overlayNeeds = computed(() =>
+		resolveOverlayNeeds({
+			nametag: Boolean(nametag.value),
+			hasNametagBadge: hasNametagBadge.value,
+			hasSubtitle: hasSubtitle.value,
+			subtitleWrapped: subtitleWrapped.value,
+		}),
+	)
+
 	const resolvedFitPadding = computed<SkinPreviewFitPadding>(() => {
 		const preset = FRAMING_PRESETS[currentFraming.value].padding
 		const framed = resolveOverlaySafePadding(
@@ -127,12 +139,7 @@ export function useSkinPreviewFit({
 				left: preset.left,
 			},
 			containerSize.value.height,
-			resolveOverlayNeeds({
-				nametag: Boolean(nametag.value),
-				hasNametagBadge: hasNametagBadge.value,
-				hasSubtitle: hasSubtitle.value,
-				subtitleWrapped: subtitleWrapped.value,
-			}),
+			overlayNeeds.value,
 		)
 
 		return { ...framed, ...(fitPadding.value ?? {}) }
@@ -237,6 +244,12 @@ export function useSkinPreviewFit({
 			}
 		}
 
+		// A short preview would clip the controls off the bottom of the frame, so
+		// fall back to the same anchor the unfitted layout uses.
+		if (containerSize.value.height - previewControlsTop.value < PREVIEW_CONTROLS_MIN_PX) {
+			return { bottom: 'calc(15% + 64px)' }
+		}
+
 		return {
 			top: `${previewControlsTop.value}px`,
 		}
@@ -254,8 +267,15 @@ export function useSkinPreviewFit({
 			}
 		}
 
+		const fittedTop = previewControlsTop.value + SUBTITLE_CONTROLS_OFFSET
+		if (!keepsControlsVisible(fittedTop, containerSize.value.height, overlayNeeds.value)) {
+			// The preview is too short to sit the buttons under the model, so put them
+			// at the bottom of the frame rather than let it clip them.
+			return { bottom: '1rem' }
+		}
+
 		return {
-			top: `${previewControlsTop.value + SUBTITLE_CONTROLS_OFFSET}px`,
+			top: `${fittedTop}px`,
 			bottom: '1rem',
 		}
 	})
@@ -278,7 +298,7 @@ export function useSkinPreviewFit({
 			(modelTopY - target[1]) / distance / Math.max(Math.tan(verticalFov / 2), 0.001)
 		const topPercent = ((1 - projectedY) / 2) * 100
 
-		return `${(topPercent / 100) * height - NAMETAG_HEAD_OFFSET}px`
+		return `${clampNametagTop((topPercent / 100) * height - NAMETAG_HEAD_OFFSET)}px`
 	})
 
 	const spotlightY = computed(() => {
