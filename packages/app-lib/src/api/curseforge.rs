@@ -5075,6 +5075,10 @@ pub(crate) async fn update_managed_modpack_with_reporter(
         .as_deref()
         .map(crate::data::ModLoader::try_from_string)
         .transpose()?;
+    let content_set_loader_version = (content_set_loader
+        == Some(metadata.applied_content_set.loader))
+    .then(|| metadata.applied_content_set.loader_version.clone())
+    .flatten();
     let installed_releases = members
         .iter()
         .filter(|member| {
@@ -5243,7 +5247,7 @@ pub(crate) async fn update_managed_modpack_with_reporter(
                 game_version: Some(game_version),
                 protocol_version: Some(None),
                 loader: content_set_loader,
-                loader_version: Some(None),
+                loader_version: Some(content_set_loader_version),
             }),
             ..EditInstance::default()
         },

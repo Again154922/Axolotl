@@ -183,9 +183,20 @@ impl DirectLinkedLaunch {
         else {
             return Ok(None);
         };
+        let has_version_json = version_dir
+            .read_dir()
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(Result::ok)
+            .any(|entry| {
+                entry.path().extension().and_then(|ext| ext.to_str())
+                    == Some("json")
+            });
         let mut direct = match Self::from_external_version_dir(&version_dir) {
             Ok(Some(direct)) => direct,
             Ok(None) => return Ok(None),
+            Err(error) if has_version_json => return Err(error),
             Err(_) => {
                 let Some(version_id) =
                     version_dir.file_name().and_then(|name| name.to_str())
