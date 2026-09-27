@@ -128,24 +128,21 @@
 						><CheckIcon />
 						{{ formatMessage(messages.installedBadge) }}
 					</Button>
-					<ButtonStyled
+					<Button
 						v-else
-						:type="inst.compatible ? 'standard' : 'outlined'"
-						:color="inst.compatible ? 'standard' : 'orange'"
+						v-tooltip="!inst.compatible ? formatMessage(messages.incompatibleTooltip) : undefined"
+						:type="inst.compatible ? 'base' : 'outlined'"
+						:color="inst.compatible ? undefined : 'orange'"
+						:disabled="inst.installing"
+						@click="emit('install', inst)"
 					>
-						<button
-							v-tooltip="!inst.compatible ? formatMessage(messages.incompatibleTooltip) : undefined"
-							:disabled="inst.installing"
-							@click="emit('install', inst)"
-						>
-							<TriangleAlertIcon v-if="!inst.compatible" />
-							{{
-								inst.installing
-									? formatMessage(commonMessages.installingLabel)
-									: formatMessage(messages.installButton)
-							}}
-						</button>
-					</ButtonStyled>
+						<TriangleAlertIcon v-if="!inst.compatible" />
+						{{
+							inst.installing
+								? formatMessage(commonMessages.installingLabel)
+								: formatMessage(messages.installButton)
+						}}
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -274,7 +271,6 @@ import { computed, ref, watch } from 'vue'
 import AutoLink from '#ui/components/base/AutoLink.vue'
 import Avatar from '#ui/components/base/Avatar.vue'
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import Chips from '#ui/components/base/Chips.vue'
 import Combobox, { type ComboboxOption } from '#ui/components/base/Combobox.vue'
 import LoadingIndicator from '#ui/components/base/LoadingIndicator.vue'

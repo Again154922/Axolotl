@@ -177,42 +177,37 @@
 							><PlayIcon />
 							{{ formatMessage(commonMessages.playButton) }}
 						</Button>
-						<div
-							v-else-if="playing === false && loading === false && isServerInstance"
-							class="joined-buttons"
-						>
+						<ButtonGroup v-else-if="playing === false && loading === false && isServerInstance">
 							<Button type="colored" color="brand" size="xl" @click="handlePlayServer()"
 								><PlayIcon />
 								{{ formatMessage(commonMessages.playButton) }}
 							</Button>
-							<ButtonStyled color="brand" size="large">
-								<OverflowMenu
-									:options="[
-										{
-											id: 'join_server',
-											action: () => handlePlayServer(),
-										},
-										{
-											id: 'launch_instance',
-											action: () => startInstance('InstancePage'),
-										},
-									]"
-								>
-									<div class="w-0 text-xl relative top-0.5 right-2.5">
-										<DropdownIcon />
-									</div>
+							<OverflowMenu
+								:options="[
+									{
+										id: 'join_server',
+										action: () => handlePlayServer(),
+									},
+									{
+										id: 'launch_instance',
+										action: () => startInstance('InstancePage'),
+									},
+								]"
+							>
+								<div class="w-0 text-xl relative top-0.5 right-2.5">
+									<DropdownIcon />
+								</div>
 
-									<template #join_server>
-										<PlayIcon />
-										{{ formatMessage(messages.joinServer) }}
-									</template>
-									<template #launch_instance>
-										<PlayIcon />
-										{{ formatMessage(messages.launchInstance) }}
-									</template>
-								</OverflowMenu>
-							</ButtonStyled>
-						</div>
+								<template #join_server>
+									<PlayIcon />
+									{{ formatMessage(messages.joinServer) }}
+								</template>
+								<template #launch_instance>
+									<PlayIcon />
+									{{ formatMessage(messages.launchInstance) }}
+								</template>
+							</OverflowMenu>
+						</ButtonGroup>
 						<Button
 							v-else-if="loading === true && playing === false"
 							type="colored"
@@ -230,49 +225,47 @@
 							@click="settingsModal?.show()"
 							><SettingsIcon />
 						</Button>
-						<ButtonStyled type="transparent" circular size="large">
-							<OverflowMenu
-								:options="[
-									{
-										id: 'open-folder',
-										action: () => {
-											if (instance) showInstanceInFolder(instance.id)
-										},
+						<OverflowMenu
+							:options="[
+								{
+									id: 'open-folder',
+									action: () => {
+										if (instance) showInstanceInFolder(instance.id)
 									},
-									{
-										id: 'export-mrpack',
-										action: () => exportModal?.show(),
-									},
-									{
-										id: 'create-shortcut',
-										action: () => createShortcut(),
-									},
-									...(canUpgradeInstance
-										? [{ id: 'upgrade-instance', action: () => openUpgrade() }]
-										: []),
-								]"
-							>
-								<MoreVerticalIcon />
-								<template #share-instance>
-									<UserPlusIcon /> {{ formatMessage(messages.shareInstance) }}
-								</template>
-								<template #host-a-server>
-									<ServerIcon /> {{ formatMessage(messages.createServer) }}
-								</template>
-								<template #open-folder>
-									<FolderOpenIcon /> {{ formatMessage(commonMessages.openFolderButton) }}
-								</template>
-								<template #export-mrpack>
-									<PackageIcon /> {{ formatMessage(messages.exportModpack) }}
-								</template>
-								<template #create-shortcut>
-									<ExternalIcon /> {{ formatMessage(messages.createShortcut) }}
-								</template>
-								<template #upgrade-instance>
-									<UpdatedIcon /> {{ formatMessage(messages.upgradeInstance) }}
-								</template>
-							</OverflowMenu>
-						</ButtonStyled>
+								},
+								{
+									id: 'export-mrpack',
+									action: () => exportModal?.show(),
+								},
+								{
+									id: 'create-shortcut',
+									action: () => createShortcut(),
+								},
+								...(canUpgradeInstance
+									? [{ id: 'upgrade-instance', action: () => openUpgrade() }]
+									: []),
+							]"
+						>
+							<MoreVerticalIcon />
+							<template #share-instance>
+								<UserPlusIcon /> {{ formatMessage(messages.shareInstance) }}
+							</template>
+							<template #host-a-server>
+								<ServerIcon /> {{ formatMessage(messages.createServer) }}
+							</template>
+							<template #open-folder>
+								<FolderOpenIcon /> {{ formatMessage(commonMessages.openFolderButton) }}
+							</template>
+							<template #export-mrpack>
+								<PackageIcon /> {{ formatMessage(messages.exportModpack) }}
+							</template>
+							<template #create-shortcut>
+								<ExternalIcon /> {{ formatMessage(messages.createShortcut) }}
+							</template>
+							<template #upgrade-instance>
+								<UpdatedIcon /> {{ formatMessage(messages.upgradeInstance) }}
+							</template>
+						</OverflowMenu>
 					</div>
 				</template>
 			</ContentPageHeader>
@@ -382,7 +375,7 @@ import {
 	Avatar,
 	Badge,
 	Button,
-	ButtonStyled,
+	ButtonGroup,
 	commonMessages,
 	ContentPageHeader,
 	defineMessages,

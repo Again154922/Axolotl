@@ -38,17 +38,16 @@
 			class="col-start-3 row-start-1 flex shrink-0 items-center gap-2 self-start"
 		>
 			<slot name="top-right-actions" />
-			<ButtonStyled
+			<IconButton
 				v-if="dismissible"
-				circular
-				type="transparent"
+				label="Dismiss"
+				type="quiet"
 				:color="buttonColors[type]"
-				hover-color-fill="background"
+				interaction="filled"
+				@click="$emit('dismiss')"
 			>
-				<button type="button" aria-label="Dismiss" @click="$emit('dismiss')">
-					<XIcon />
-				</button>
-			</ButtonStyled>
+				<XIcon />
+			</IconButton>
 		</div>
 		<div
 			v-if="progress != null"
@@ -78,7 +77,7 @@ import { computed } from 'vue'
 
 import { useFormatDateTime, useRelativeTime } from '../../composables'
 import { getSeverityIcon } from '../../utils'
-import ButtonStyled from './ButtonStyled.vue'
+import IconButton from './buttons/IconButton.vue'
 
 const props = withDefaults(
 	defineProps<{

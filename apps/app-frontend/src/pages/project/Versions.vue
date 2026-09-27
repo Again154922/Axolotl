@@ -9,73 +9,44 @@
 			:version-link="(version) => buildProjectHref(`/project/${project.id}/version/${version.id}`)"
 		>
 			<template #actions="{ version }">
-				<ButtonStyled
+				<Button
+					v-tooltip="
+						!installed
+							? formatMessage(commonMessages.installButton)
+							: version.id !== installedVersion
+								? formatMessage(commonMessages.switchToVersionButton)
+								: formatMessage(messages.alreadyInstalled)
+					"
 					circular
-					type="transparent"
-					:color="installed && version.id === installedVersion ? 'standard' : 'green'"
+					icon-only
+					type="quiet"
+					:color="installed && version.id === installedVersion ? 'base' : 'green'"
+					:disabled="installing || (installed && version.id === installedVersion)"
+					@click.stop="() => install(version.id)"
 				>
-					<button
-						v-tooltip="
-							!installed
-								? formatMessage(commonMessages.installButton)
-								: version.id !== installedVersion
-									? formatMessage(commonMessages.switchToVersionButton)
-									: formatMessage(messages.alreadyInstalled)
-						"
-						:disabled="installing || (installed && version.id === installedVersion)"
-						@click.stop="() => install(version.id)"
-					>
-						<DownloadIcon v-if="!installed" />
-						<SwapIcon v-else-if="installed && version.id !== installedVersion" />
-						<CheckIcon v-else />
-					</button>
-				</ButtonStyled>
+					<DownloadIcon v-if="!installed" />
+					<SwapIcon v-else-if="installed && version.id !== installedVersion" />
+					<CheckIcon v-else />
+				</Button>
 				<!-- 开服功能暂有问题，隐藏该按钮
-				<ButtonStyled v-if="serverCapable && startServer" circular type="transparent">
-					<button
+				<Button v-if="serverCapable && startServer" circular icon-only type="quiet"
 						v-tooltip="formatMessage(messages.startServer)"
 						@click.stop="() => startServer(version)"
 					>
 						<ServerIcon />
-					</button>
-				</ButtonStyled>
+					</Button>
 				-->
-				<ButtonStyled circular type="transparent">
-					<OverflowMenu
-						v-if="false"
-						:options="[
-							{
-								id: 'install-elsewhere',
-								action: () => {},
-								shown: false && !!instance,
-								color: 'primary',
-								hoverFilled: true,
-							},
-							{
-								id: 'open-in-browser',
-								link: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`,
-							},
-						]"
-						:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-					>
-						<MoreVerticalIcon aria-hidden="true" />
-						<template #install-elsewhere>
-							<DownloadIcon aria-hidden="true" />
-							{{ formatMessage(messages.addToAnotherInstance) }}
-						</template>
-						<template #open-in-browser>
-							<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
-						</template>
-					</OverflowMenu>
-					<a
-						v-else
-						v-tooltip="formatMessage(commonMessages.openInBrowserButton)"
-						:href="`https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`"
-						target="_blank"
-					>
-						<ExternalIcon />
-					</a>
-				</ButtonStyled>
+				<ButtonLink
+					v-tooltip="formatMessage(commonMessages.openInBrowserButton)"
+					:href="`https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`"
+					target="_blank"
+					type="quiet"
+					circular
+					icon-only
+					:label="formatMessage(commonMessages.openInBrowserButton)"
+				>
+					<ExternalIcon />
+				</ButtonLink>
 			</template>
 		</ProjectPageVersions>
 	</div>
@@ -86,16 +57,15 @@ import {
 	CheckIcon,
 	DownloadIcon,
 	ExternalIcon,
-	MoreVerticalIcon,
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used by temporarily commented start-server button
 	ServerIcon,
 } from '@modrinth/assets'
 import {
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,
-	OverflowMenu,
 	ProjectPageVersions,
 	useVIntl,
 } from '@modrinth/ui'

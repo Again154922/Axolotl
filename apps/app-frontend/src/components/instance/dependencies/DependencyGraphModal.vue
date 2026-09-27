@@ -13,7 +13,6 @@ import {
 import {
 	Avatar,
 	Button,
-	ButtonStyled,
 	type ContentItem,
 	defineMessages,
 	DropdownSelect,
@@ -797,16 +796,24 @@ defineExpose({ show, hide, setItems })
 					wrapper-class="min-w-[220px] flex-1"
 				/>
 				<div class="flex items-center gap-1 rounded-xl bg-surface-2 p-1" role="tablist">
-					<ButtonStyled :type="viewMode === 'tree' ? 'chip' : 'transparent'" size="small">
-						<button role="tab" :aria-selected="viewMode === 'tree'" @click="viewMode = 'tree'">
-							<ListIcon class="size-4" /> {{ formatMessage(messages.treeView) }}
-						</button>
-					</ButtonStyled>
-					<ButtonStyled :type="viewMode === 'graph' ? 'chip' : 'transparent'" size="small">
-						<button role="tab" :aria-selected="viewMode === 'graph'" @click="viewMode = 'graph'">
-							<GitGraphIcon class="size-4" /> {{ formatMessage(messages.graphView) }}
-						</button>
-					</ButtonStyled>
+					<Button
+						:type="viewMode === 'tree' ? 'chip' : 'quiet'"
+						size="2xs"
+						role="tab"
+						:aria-selected="viewMode === 'tree'"
+						@click="viewMode = 'tree'"
+					>
+						<ListIcon class="size-4" /> {{ formatMessage(messages.treeView) }}
+					</Button>
+					<Button
+						:type="viewMode === 'graph' ? 'chip' : 'quiet'"
+						size="2xs"
+						role="tab"
+						:aria-selected="viewMode === 'graph'"
+						@click="viewMode = 'graph'"
+					>
+						<GitGraphIcon class="size-4" /> {{ formatMessage(messages.graphView) }}
+					</Button>
 				</div>
 			</div>
 
@@ -863,19 +870,20 @@ defineExpose({ show, hide, setItems })
 					</div>
 					<div v-else-if="viewMode === 'tree'" class="h-full overflow-auto p-4">
 						<div class="mb-3 flex items-center gap-2">
-							<ButtonStyled :type="direction === 'requires' ? 'chip' : 'transparent'" size="small">
-								<button @click="direction = 'requires'">
-									{{ formatMessage(messages.requires) }}
-								</button>
-							</ButtonStyled>
-							<ButtonStyled
-								:type="direction === 'requiredBy' ? 'chip' : 'transparent'"
-								size="small"
+							<Button
+								:type="direction === 'requires' ? 'chip' : 'quiet'"
+								size="2xs"
+								@click="direction = 'requires'"
 							>
-								<button @click="direction = 'requiredBy'">
-									{{ formatMessage(messages.requiredBy) }}
-								</button>
-							</ButtonStyled>
+								{{ formatMessage(messages.requires) }}
+							</Button>
+							<Button
+								:type="direction === 'requiredBy' ? 'chip' : 'quiet'"
+								size="2xs"
+								@click="direction = 'requiredBy'"
+							>
+								{{ formatMessage(messages.requiredBy) }}
+							</Button>
 						</div>
 						<div
 							v-if="!treeHasRows"

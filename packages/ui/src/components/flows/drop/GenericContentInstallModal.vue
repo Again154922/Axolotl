@@ -51,12 +51,10 @@
 						<img v-else :src="inst.iconUrl" alt="" class="size-6 shrink-0 rounded object-cover" />
 					</template>
 					<template #append>
-						<ButtonStyled type="standard" size="small" @click.stop="emit('install', inst.id)">
-							<template #prefix>
-								<DownloadIcon class="size-4" />
-							</template>
+						<Button size="2xs" @click.stop="emit('install', inst.id)">
+							<DownloadIcon class="size-4" />
 							{{ formatMessage(messages.install) }}
-						</ButtonStyled>
+						</Button>
 					</template>
 				</InstanceRowCard>
 			</div>
@@ -73,9 +71,9 @@
 
 		<template #actions>
 			<div class="flex w-full items-center justify-end">
-				<ButtonStyled type="transparent" @click="emit('cancel')">
+				<Button type="quiet" @click="emit('cancel')">
 					{{ formatMessage(messages.cancel) }}
-				</ButtonStyled>
+				</Button>
 			</div>
 		</template>
 	</NewModal>
@@ -91,7 +89,7 @@ import {
 } from '@modrinth/assets'
 import { computed, ref } from 'vue'
 
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import Button from '#ui/components/base/buttons/Button.vue'
 import InstanceRowCard from '#ui/components/base/InstanceRowCard.vue'
 import StyledInput from '#ui/components/base/StyledInput.vue'
 import NewModal from '#ui/components/modal/NewModal.vue'

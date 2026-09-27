@@ -21,7 +21,7 @@ import {
 } from '@modrinth/server'
 import {
 	Accordion,
-	ButtonStyled,
+	Button,
 	defineMessages,
 	DropdownSelect,
 	injectNotificationManager,
@@ -617,16 +617,22 @@ defineExpose({ save, cancel, isDirty })
 				</div>
 			</div>
 			<div class="flex items-center gap-2">
-				<ButtonStyled :type="mode === 'form' ? 'highlight' : 'transparent'" size="small">
-					<button type="button" @click="switchMode('form')">
-						{{ formatMessage(messages.formMode) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled :type="mode === 'text' ? 'highlight' : 'transparent'" size="small">
-					<button type="button" @click="switchMode('text')">
-						{{ formatMessage(messages.textMode) }}
-					</button>
-				</ButtonStyled>
+				<Button
+					:type="mode === 'form' ? 'highlight' : 'quiet'"
+					size="2xs"
+					native-type="button"
+					@click="switchMode('form')"
+				>
+					{{ formatMessage(messages.formMode) }}
+				</Button>
+				<Button
+					:type="mode === 'text' ? 'highlight' : 'quiet'"
+					size="2xs"
+					native-type="button"
+					@click="switchMode('text')"
+				>
+					{{ formatMessage(messages.textMode) }}
+				</Button>
 			</div>
 		</div>
 

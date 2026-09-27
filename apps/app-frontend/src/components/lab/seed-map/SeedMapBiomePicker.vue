@@ -2,7 +2,7 @@
 import { ChevronDownIcon, LayersIcon, SearchIcon } from '@modrinth/assets'
 import {
 	Accordion,
-	ButtonStyled,
+	Button,
 	Checkbox,
 	defineMessages,
 	PopoutMenu,
@@ -193,118 +193,116 @@ function invertBiomes() {
 			<span>{{ formatMessage(messages.biomeHighlight) }}</span>
 			<Toggle v-model="enabledModel" small />
 		</label>
-		<ButtonStyled class="biome-picker-trigger" type="outlined">
-			<PopoutMenu
-				:aria-label="formatMessage(messages.chooseBiome)"
-				dropdown-class="seed-map-biome-popout"
-				:container="props.container"
-				placement="top-start"
-			>
-				<LayersIcon />
-				<span>
-					{{
-						props.highlightedBiomes.length === 0
-							? formatMessage(messages.chooseBiome)
-							: props.highlightedBiomes.length === 1
-								? biomeLabel(props.highlightedBiomes[0])
-								: formatMessage(messages.selectedBiomes, {
-										count: props.highlightedBiomes.length,
-									})
-					}}
-				</span>
-				<ChevronDownIcon />
-				<template #menu>
+		<PopoutMenu
+			class="biome-picker-trigger relative inline-flex h-9 min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid border-surface-5 bg-transparent px-2.5 text-base font-semibold text-[var(--color-text-primary)] transition-[background-color,color,filter,transform] duration-150 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-5"
+			:aria-label="formatMessage(messages.chooseBiome)"
+			dropdown-class="seed-map-biome-popout"
+			:container="props.container"
+			placement="top-start"
+		>
+			<LayersIcon />
+			<span>
+				{{
+					props.highlightedBiomes.length === 0
+						? formatMessage(messages.chooseBiome)
+						: props.highlightedBiomes.length === 1
+							? biomeLabel(props.highlightedBiomes[0])
+							: formatMessage(messages.selectedBiomes, {
+									count: props.highlightedBiomes.length,
+								})
+				}}
+			</span>
+			<ChevronDownIcon />
+			<template #menu>
+				<div
+					class="flex w-[min(30rem,calc(100vw-1.5rem))] max-h-[min(30rem,calc(100dvh-2rem))] min-h-0 flex-col gap-[0.65rem] overflow-hidden"
+				>
 					<div
-						class="flex w-[min(30rem,calc(100vw-1.5rem))] max-h-[min(30rem,calc(100dvh-2rem))] min-h-0 flex-col gap-[0.65rem] overflow-hidden"
+						class="biome-picker-heading flex items-center justify-between gap-3 p-[0.1rem_0.2rem] text-[var(--color-text-primary)] max-sm:flex-col max-sm:items-start"
 					>
-						<div
-							class="biome-picker-heading flex items-center justify-between gap-3 p-[0.1rem_0.2rem] text-[var(--color-text-primary)] max-sm:flex-col max-sm:items-start"
-						>
-							<div>
-								<strong>{{ formatMessage(messages.chooseBiome) }}</strong>
-								<small>
-									{{
-										formatMessage(messages.selectionCount, {
-											selected: props.highlightedBiomes.length,
-											total: allBiomeIds.length,
-										})
-									}}
-								</small>
-							</div>
-							<div class="flex flex-none items-center gap-[0.15rem] max-sm:w-full max-sm:flex-wrap">
-								<ButtonStyled size="small" type="transparent">
-									<button @click="selectAllBiomes">
-										{{ formatMessage(messages.selectAll) }}
-									</button>
-								</ButtonStyled>
-								<ButtonStyled size="small" type="transparent">
-									<button @click="invertBiomes">
-										{{ formatMessage(messages.invert) }}
-									</button>
-								</ButtonStyled>
-								<ButtonStyled size="small" type="transparent">
-									<button :disabled="props.highlightedBiomes.length === 0" @click="clearBiomes">
-										{{ formatMessage(messages.clear) }}
-									</button>
-								</ButtonStyled>
-							</div>
+						<div>
+							<strong>{{ formatMessage(messages.chooseBiome) }}</strong>
+							<small>
+								{{
+									formatMessage(messages.selectionCount, {
+										selected: props.highlightedBiomes.length,
+										total: allBiomeIds.length,
+									})
+								}}
+							</small>
 						</div>
-						<StyledInput
-							v-model="search"
-							:icon="SearchIcon"
-							:placeholder="formatMessage(messages.search)"
-							wrapper-class="biome-picker-search"
-						/>
-						<div class="biome-picker-groups">
-							<Accordion
-								v-for="group in visibleGroups"
-								:key="group.category"
-								class="biome-picker-group"
-								button-class="biome-picker-group-trigger"
-								content-class="biome-picker-group-options"
+						<div class="flex flex-none items-center gap-[0.15rem] max-sm:w-full max-sm:flex-wrap">
+							<Button type="quiet" size="2xs" @click="selectAllBiomes">
+								{{ formatMessage(messages.selectAll) }}
+							</Button>
+							<Button type="quiet" size="2xs" @click="invertBiomes">
+								{{ formatMessage(messages.invert) }}
+							</Button>
+							<Button
+								type="quiet"
+								size="2xs"
+								:disabled="props.highlightedBiomes.length === 0"
+								@click="clearBiomes"
 							>
-								<template #title>
-									<strong>{{ formatMessage(categoryMessages[group.category]) }}</strong>
-									<span
-										class="biome-picker-dimension"
-										:class="{ active: group.dimension === props.dimension }"
-									>
-										{{ formatMessage(dimensionMessages[group.dimension]) }}
-									</span>
-									<small>
-										{{
-											group.biomes.filter((biome) => props.highlightedBiomes.includes(biome.id))
-												.length
-										}}/{{ group.biomes.length }}
-									</small>
-								</template>
-								<div class="grid grid-cols-2 gap-[0.45rem] max-sm:grid-cols-1">
-									<Checkbox
-										v-for="biome in group.biomes"
-										:key="biome.id"
-										:model-value="props.highlightedBiomes.includes(biome.id)"
-										:description="biomeLabel(biome.id)"
-										@update:model-value="toggleBiome(biome.id, $event)"
-									>
-										<img
-											class="biome-picker-icon"
-											:src="biomeImageSource(biome.id)"
-											alt=""
-											aria-hidden="true"
-											:style="{ '--biome-color': biome.color }"
-										/>
-										<span class="biome-picker-option-label">{{ biomeLabel(biome.id) }}</span>
-									</Checkbox>
-								</div>
-							</Accordion>
-							<p v-if="visibleGroups.length === 0" class="biome-picker-empty">
-								{{ formatMessage(messages.noMatches) }}
-							</p>
+								{{ formatMessage(messages.clear) }}
+							</Button>
 						</div>
 					</div>
-				</template>
-			</PopoutMenu>
-		</ButtonStyled>
+					<StyledInput
+						v-model="search"
+						:icon="SearchIcon"
+						:placeholder="formatMessage(messages.search)"
+						wrapper-class="biome-picker-search"
+					/>
+					<div class="biome-picker-groups">
+						<Accordion
+							v-for="group in visibleGroups"
+							:key="group.category"
+							class="biome-picker-group"
+							button-class="biome-picker-group-trigger"
+							content-class="biome-picker-group-options"
+						>
+							<template #title>
+								<strong>{{ formatMessage(categoryMessages[group.category]) }}</strong>
+								<span
+									class="biome-picker-dimension"
+									:class="{ active: group.dimension === props.dimension }"
+								>
+									{{ formatMessage(dimensionMessages[group.dimension]) }}
+								</span>
+								<small>
+									{{
+										group.biomes.filter((biome) => props.highlightedBiomes.includes(biome.id))
+											.length
+									}}/{{ group.biomes.length }}
+								</small>
+							</template>
+							<div class="grid grid-cols-2 gap-[0.45rem] max-sm:grid-cols-1">
+								<Checkbox
+									v-for="biome in group.biomes"
+									:key="biome.id"
+									:model-value="props.highlightedBiomes.includes(biome.id)"
+									:description="biomeLabel(biome.id)"
+									@update:model-value="toggleBiome(biome.id, $event)"
+								>
+									<img
+										class="biome-picker-icon"
+										:src="biomeImageSource(biome.id)"
+										alt=""
+										aria-hidden="true"
+										:style="{ '--biome-color': biome.color }"
+									/>
+									<span class="biome-picker-option-label">{{ biomeLabel(biome.id) }}</span>
+								</Checkbox>
+							</div>
+						</Accordion>
+						<p v-if="visibleGroups.length === 0" class="biome-picker-empty">
+							{{ formatMessage(messages.noMatches) }}
+						</p>
+					</div>
+				</div>
+			</template>
+		</PopoutMenu>
 	</div>
 </template>
 

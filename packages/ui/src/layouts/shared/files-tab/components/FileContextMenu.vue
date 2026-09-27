@@ -48,24 +48,21 @@
 						v-if="'divider' in option && option.divider && option.shown !== false"
 						class="h-px w-full bg-surface-5"
 					/>
-					<ButtonStyled
+					<Button
 						v-else-if="'id' in option && option.shown !== false"
-						type="transparent"
-						:color="option.color"
+						v-tooltip="option.tooltip"
+						type="quiet"
+						:color="option.color === 'standard' ? undefined : option.color"
+						:disabled="option.disabled"
+						class="w-full !justify-start !whitespace-nowrap"
+						role="menuitem"
+						@click="handleOptionClick(option)"
 					>
-						<button
-							v-tooltip="option.tooltip"
-							:disabled="option.disabled"
-							class="w-full !justify-start !whitespace-nowrap"
-							role="menuitem"
-							@click="handleOptionClick(option)"
-						>
-							<slot :name="option.id">
-								<component :is="option.icon" v-if="option.icon" class="size-5" />
-								{{ option.label ?? option.id }}
-							</slot>
-						</button>
-					</ButtonStyled>
+						<slot :name="option.id">
+							<component :is="option.icon" v-if="option.icon" class="size-5" />
+							{{ option.label ?? option.id }}
+						</slot>
+					</Button>
 				</template>
 			</div>
 		</Transition>
@@ -77,7 +74,6 @@ import { ClipboardCopyIcon, FolderOpenIcon } from '@modrinth/assets'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import { useVIntl } from '#ui/composables/i18n'
 import { injectNotificationManager } from '#ui/providers/web-notifications'
 import { commonMessages } from '#ui/utils/common-messages'

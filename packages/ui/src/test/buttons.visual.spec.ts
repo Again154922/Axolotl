@@ -5,10 +5,9 @@ import type { ButtonColor, ButtonSize, ButtonType } from '../components/base/but
 import { assertTokensLoaded, computedToken, mountThemed, THEMES } from './visual-harness'
 
 /**
- * Locks the observable style contract of the button system before the legacy
- * `ButtonStyled` call sites (757 of them) are migrated onto it. A regression
- * here would be a silent visual change — the two generations do not share
- * colour tokens, so nothing else in the toolchain would catch it.
+ * Locks the observable style contract now that every call site uses the current
+ * component contract. A regression here would be a silent visual change that
+ * type checking alone cannot catch.
  */
 
 const TYPES: ButtonType[] = [

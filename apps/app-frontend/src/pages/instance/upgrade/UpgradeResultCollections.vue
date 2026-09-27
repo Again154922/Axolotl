@@ -48,20 +48,17 @@
 						role="group"
 						:aria-label="formatMessage(messages.warningFilters)"
 					>
-						<ButtonStyled
+						<Button
 							v-for="option in warningFilters"
 							:key="option.value"
-							size="small"
-							:type="warningFilter === option.value ? 'standard' : 'outlined'"
-							:color="warningFilter === option.value ? 'brand' : 'standard'"
+							size="2xs"
+							:type="warningFilter === option.value ? 'colored' : 'outlined'"
+							:color="warningFilter === option.value ? 'brand' : undefined"
+							:aria-pressed="warningFilter === option.value"
+							@click="warningFilter = option.value"
 						>
-							<button
-								:aria-pressed="warningFilter === option.value"
-								@click="warningFilter = option.value"
-							>
-								{{ option.label }}
-							</button>
-						</ButtonStyled>
+							{{ option.label }}
+						</Button>
 					</div>
 					<span class="text-sm text-[var(--color-text-tertiary)]">{{
 						warningPaginationLabel
@@ -171,17 +168,17 @@
 						role="group"
 						:aria-label="formatMessage(messages.filters)"
 					>
-						<ButtonStyled
+						<Button
 							v-for="option in filters"
 							:key="option.value"
-							size="small"
-							:type="filter === option.value ? 'standard' : 'outlined'"
-							:color="filter === option.value ? 'brand' : 'standard'"
+							size="2xs"
+							:type="filter === option.value ? 'colored' : 'outlined'"
+							:color="filter === option.value ? 'brand' : undefined"
+							:aria-pressed="filter === option.value"
+							@click="filter = option.value"
 						>
-							<button :aria-pressed="filter === option.value" @click="filter = option.value">
-								{{ option.label }}
-							</button>
-						</ButtonStyled>
+							{{ option.label }}
+						</Button>
 					</div>
 
 					<div v-if="visibleRows.length" class="divide-y divide-divider">
@@ -258,16 +255,7 @@
 
 <script setup lang="ts">
 import { DropdownIcon, ExternalIcon, SearchIcon, TriangleAlertIcon } from '@modrinth/assets'
-import {
-	Accordion,
-	Badge,
-	Button,
-	ButtonStyled,
-	Card,
-	defineMessages,
-	StyledInput,
-	useVIntl,
-} from '@modrinth/ui'
+import { Accordion, Badge, Button, Card, defineMessages, StyledInput, useVIntl } from '@modrinth/ui'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 

@@ -11,16 +11,16 @@
 					><XIcon />
 					{{ formatMessage(commonMessages.cancelButton) }}
 				</Button>
-				<ButtonStyled :color="confirmColor">
-					<button
-						v-tooltip="confirmDisabled ? confirmDisabledTooltip : undefined"
-						:disabled="confirmDisabled"
-						@click="onConfirm"
-					>
-						<component :is="confirmIcon" />
-						{{ confirmLabel }}
-					</button>
-				</ButtonStyled>
+				<Button
+					v-tooltip="confirmDisabled ? confirmDisabledTooltip : undefined"
+					:type="confirmColor === 'standard' ? 'base' : 'colored'"
+					:color="confirmColor === 'standard' ? undefined : confirmColor"
+					:disabled="confirmDisabled"
+					@click="onConfirm"
+				>
+					<component :is="confirmIcon" />
+					{{ confirmLabel }}
+				</Button>
 			</div>
 		</template>
 	</NewModal>
@@ -33,7 +33,6 @@ import { ref } from 'vue'
 import { useVIntl } from '../../composables/i18n'
 import { commonMessages } from '../../utils/common-messages'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import NewModal from './NewModal.vue'
 
 const props = withDefaults(

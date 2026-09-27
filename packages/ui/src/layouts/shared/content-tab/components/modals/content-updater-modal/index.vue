@@ -107,25 +107,20 @@
 						class="absolute bottom-0 left-0 right-0 pointer-events-none flex flex-col items-center justify-end bg-gradient-to-b from-transparent to-bg-raised to-70% pb-3 h-24"
 					>
 						<div class="pointer-events-auto">
-							<ButtonStyled type="transparent" :circular="true">
-								<button
-									class="flex items-center gap-1.5"
-									:aria-label="
-										hideIncompatibleState
-											? formatMessage(messages.showIncompatible)
-											: formatMessage(messages.hideIncompatible)
-									"
-									@click="hideIncompatibleState = !hideIncompatibleState"
-								>
-									<EyeIcon v-if="hideIncompatibleState" class="h-6 w-6" />
-									<EyeOffIcon v-else class="h-6 w-6" />
-									<span class="font-medium">{{
-										hideIncompatibleState
-											? formatMessage(messages.showIncompatible)
-											: formatMessage(messages.hideIncompatible)
-									}}</span>
-								</button>
-							</ButtonStyled>
+							<Button
+								type="quiet"
+								class="flex items-center gap-1.5"
+								:aria-pressed="!hideIncompatibleState"
+								@click="hideIncompatibleState = !hideIncompatibleState"
+							>
+								<EyeIcon v-if="hideIncompatibleState" class="h-6 w-6" />
+								<EyeOffIcon v-else class="h-6 w-6" />
+								<span class="font-medium">{{
+									hideIncompatibleState
+										? formatMessage(messages.showIncompatible)
+										: formatMessage(messages.hideIncompatible)
+								}}</span>
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -233,37 +228,38 @@
 						><XIcon />
 						{{ formatMessage(commonMessages.cancelButton) }}
 					</Button>
-					<ButtonStyled :color="incompatibilityWarningMode ? 'orange' : 'brand'">
-						<button
-							v-tooltip="props.actionDisabled ? props.actionDisabledTooltip : undefined"
-							:disabled="
-								actionLoading ||
-								props.actionDisabled ||
-								!selectedVersion ||
-								(!incompatibilityWarningMode && selectedVersion.id === currentVersionId)
-							"
-							@click="handleUpdate"
-						>
-							<SpinnerIcon v-if="actionLoading" class="size-5 animate-spin" />
-							<DownloadIcon v-else />
-							{{
-								actionLoading
-									? formatMessage(commonMessages.installingLabel)
-									: incompatibilityWarningMode
-										? formatMessage(messages.installAnywayButton)
-										: formatMessage(
-												isDowngrade
-													? messages.downgradeToVersion
-													: switchMode
-														? messages.switchToVersion
-														: messages.updateToVersion,
-												{
-													version: selectedVersion?.version_number ?? '...',
-												},
-											)
-							}}
-						</button>
-					</ButtonStyled>
+					<Button
+						v-tooltip="props.actionDisabled ? props.actionDisabledTooltip : undefined"
+						type="colored"
+						:color="incompatibilityWarningMode ? 'orange' : 'brand'"
+						:disabled="
+							actionLoading ||
+							props.actionDisabled ||
+							!selectedVersion ||
+							(!incompatibilityWarningMode && selectedVersion.id === currentVersionId)
+						"
+						:loading="actionLoading"
+						@click="handleUpdate"
+					>
+						<SpinnerIcon v-if="actionLoading" class="size-5 animate-spin" />
+						<DownloadIcon v-else />
+						{{
+							actionLoading
+								? formatMessage(commonMessages.installingLabel)
+								: incompatibilityWarningMode
+									? formatMessage(messages.installAnywayButton)
+									: formatMessage(
+											isDowngrade
+												? messages.downgradeToVersion
+												: switchMode
+													? messages.switchToVersion
+													: messages.updateToVersion,
+											{
+												version: selectedVersion?.version_number ?? '...',
+											},
+										)
+						}}
+					</Button>
 				</div>
 			</div>
 		</template>
@@ -326,7 +322,6 @@ import { computed, ref, toRef } from 'vue'
 import Admonition from '#ui/components/base/Admonition.vue'
 import Avatar from '#ui/components/base/Avatar.vue'
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import StyledInput from '#ui/components/base/StyledInput.vue'
 import ConfirmModal from '#ui/components/modal/ConfirmModal.vue'
 import NewModal from '#ui/components/modal/NewModal.vue'

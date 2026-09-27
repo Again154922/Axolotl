@@ -151,16 +151,20 @@
 							@click="handleErrorAction(item)"
 							><DownloadIcon /> {{ errorActionLabel || formatMessage(messages.exportErrorLogs) }}
 						</Button>
-						<ButtonStyled
+						<Button
 							v-for="(btn, idx) in item.buttons"
 							:key="idx"
-							:color="btn.color || (idx === 0 ? 'brand' : undefined)"
+							:type="resolvedButtonColor(btn.color, idx) === 'standard' ? 'base' : 'colored'"
+							:color="
+								resolvedButtonColor(btn.color, idx) === 'standard'
+									? undefined
+									: resolvedButtonColor(btn.color, idx)
+							"
+							@click="handleButtonClick(item.id, btn)"
 						>
-							<button @click="handleButtonClick(item.id, btn)">
-								<component :is="btn.icon" v-if="btn.icon" />
-								{{ btn.label }}
-							</button>
-						</ButtonStyled>
+							<component :is="btn.icon" v-if="btn.icon" />
+							{{ btn.label }}
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -189,7 +193,6 @@ import {
 	type PopupNotificationProgressItem,
 } from '../../providers'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import ProgressBar from '../base/ProgressBar.vue'
 import NotificationToast from '../notifications/NotificationToast.vue'
 
@@ -282,6 +285,10 @@ async function handleProgressItemButtonClick(
 	if (!btn.keepOpen) {
 		await progressItem.onDismiss?.()
 	}
+}
+
+function resolvedButtonColor(color: PopupNotificationButton['color'], index: number) {
+	return color ?? (index === 0 ? 'brand' : 'standard')
 }
 
 async function handleButtonClick(id: string | number, btn: PopupNotificationButton) {

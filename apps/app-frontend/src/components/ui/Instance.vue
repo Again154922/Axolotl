@@ -10,7 +10,6 @@ import {
 import {
 	Avatar,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,
@@ -245,21 +244,24 @@ onUnmounted(() => unlisten())
 					disabled
 					><SpinnerIcon class="animate-spin" />
 				</Button>
-				<ButtonStyled v-else :color="first ? 'brand' : 'standard'" circular>
-					<button
-						v-tooltip="
-							offline && !installed
-								? formatMessage(messages.offlineInstalledOnly)
-								: formatMessage(commonMessages.playButton)
-						"
-						:disabled="offline && !installed"
-						@click="(e) => play(e, 'InstanceCard')"
-						@mousehover="checkProcess"
-					>
-						<!-- Translate for optical centering -->
-						<PlayIcon class="translate-x-[1px]" />
-					</button>
-				</ButtonStyled>
+				<Button
+					v-else
+					v-tooltip="
+						offline && !installed
+							? formatMessage(messages.offlineInstalledOnly)
+							: formatMessage(commonMessages.playButton)
+					"
+					:type="first ? 'colored' : 'base'"
+					:color="first ? 'brand' : undefined"
+					circular
+					icon-only
+					:disabled="offline && !installed"
+					@click="(e) => play(e, 'InstanceCard')"
+					@mousehover="checkProcess"
+				>
+					<!-- Translate for optical centering -->
+					<PlayIcon class="translate-x-[1px]" />
+				</Button>
 			</div>
 			<div
 				class="flex items-center col-span-3 gap-1 text-[var(--color-text-tertiary)] font-semibold"

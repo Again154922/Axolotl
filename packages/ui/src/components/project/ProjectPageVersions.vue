@@ -9,9 +9,13 @@
 				@update:query="updateQuery"
 			/>
 
-			<ButtonStyled v-if="openModal" :color="createVersionButtonSecondary ? 'standard' : 'green'">
-				<button @click="openModal"><PlusIcon /> Create version</button>
-			</ButtonStyled>
+			<Button
+				v-if="openModal"
+				:type="createVersionButtonSecondary ? 'base' : 'colored'"
+				:color="createVersionButtonSecondary ? undefined : 'green'"
+				@click="openModal"
+				><PlusIcon /> Create version</Button
+			>
 
 			<Pagination
 				v-if="!openModal"
@@ -433,7 +437,6 @@ import {
 } from '@modrinth/assets'
 import {
 	AutoLink,
-	ButtonStyled,
 	Pagination,
 	SmartClickable,
 	Table,
@@ -452,6 +455,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRelativeTime } from '../../composables'
 import { defineMessages, useVIntl } from '../../composables/i18n'
 import { formatTag } from '../../utils/tag-messages'
+import Button from '../base/buttons/Button.vue'
 import { getEnvironmentTags } from './environments'
 import TagOverflowPopover from './TagOverflowPopover.vue'
 

@@ -2,7 +2,7 @@
 import { DropdownIcon, FolderOpenIcon, PlusIcon } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
+	ButtonGroup,
 	defineMessages,
 	injectNotificationManager,
 	OverflowMenu,
@@ -47,26 +47,25 @@ const handleSearchContent = async () => {
 </script>
 
 <template>
-	<div class="joined-buttons">
+	<ButtonGroup>
 		<Button @click="handleSearchContent"
 			><PlusIcon />
 			{{ formatMessage(messages.installContent) }}
 		</Button>
-		<ButtonStyled>
-			<OverflowMenu
-				:options="[
-					{
-						id: 'from_file',
-						action: handleAddContentFromFile,
-					},
-				]"
-			>
-				<DropdownIcon />
-				<template #from_file>
-					<FolderOpenIcon />
-					<span class="whitespace-nowrap">{{ formatMessage(messages.addFromFile) }}</span>
-				</template>
-			</OverflowMenu>
-		</ButtonStyled>
-	</div>
+		<OverflowMenu
+			class="relative inline-flex h-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-solid border-transparent bg-surface-4 px-0 text-[var(--color-text-primary)] shadow-button transition-[background-color,color,box-shadow,filter,opacity,transform] duration-150 ease-out hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-5"
+			:options="[
+				{
+					id: 'from_file',
+					action: handleAddContentFromFile,
+				},
+			]"
+		>
+			<DropdownIcon />
+			<template #from_file>
+				<FolderOpenIcon />
+				<span class="whitespace-nowrap">{{ formatMessage(messages.addFromFile) }}</span>
+			</template>
+		</OverflowMenu>
+	</ButtonGroup>
 </template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { GameIcon, LeftArrowIcon } from '@modrinth/assets'
-import { ButtonStyled, defineMessages, FormattedTag, useVIntl } from '@modrinth/ui'
+import { ButtonLink, defineMessages, FormattedTag, useVIntl } from '@modrinth/ui'
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import InstanceIcon from '@/components/ui/InstanceIcon.vue'
 
@@ -59,11 +60,9 @@ const messages = defineMessages({
 				</span>
 			</span>
 		</router-link>
-		<ButtonStyled>
-			<router-link :to="instanceLink">
-				<LeftArrowIcon /> {{ formatMessage(messages.backToInstance) }}
-			</router-link>
-		</ButtonStyled>
+		<ButtonLink :as="RouterLink" :to="instanceLink">
+			<LeftArrowIcon /> {{ formatMessage(messages.backToInstance) }}
+		</ButtonLink>
 	</div>
 </template>
 

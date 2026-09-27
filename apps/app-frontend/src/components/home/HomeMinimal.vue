@@ -11,7 +11,6 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	Card,
 	commonMessages,
 	defineMessages,
@@ -326,16 +325,20 @@ onUnmounted(() => {
 								}}
 							</h2>
 						</div>
-						<ButtonStyled color="brand" size="large">
-							<button v-if="instances.length > 0" @click="emit('choose')">
-								<ListIcon aria-hidden="true" />
-								{{ formatMessage(messages.chooseInstance) }}
-							</button>
-							<button v-else @click="emit('create')">
-								<PlusIcon aria-hidden="true" />
-								{{ formatMessage(messages.createInstance) }}
-							</button>
-						</ButtonStyled>
+						<Button
+							type="colored"
+							color="brand"
+							size="xl"
+							@click="instances.length > 0 ? emit('choose') : emit('create')"
+						>
+							<ListIcon v-if="instances.length > 0" aria-hidden="true" />
+							<PlusIcon v-else aria-hidden="true" />
+							{{
+								formatMessage(
+									instances.length > 0 ? messages.chooseInstance : messages.createInstance,
+								)
+							}}
+						</Button>
 					</div>
 				</Card>
 			</template>

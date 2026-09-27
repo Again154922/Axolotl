@@ -29,7 +29,6 @@ import {
 import {
 	Admonition,
 	Button,
-	ButtonStyled,
 	Checkbox,
 	defineMessages,
 	DropdownSelect,
@@ -2366,62 +2365,63 @@ function clampWorldCoordinate(value: number) {
 							@click="randomizeSeed"
 							><RefreshCwIcon />
 						</Button>
-						<ButtonStyled circular type="outlined">
-							<PopoutMenu
-								:aria-label="formatMessage(messages.history)"
-								dropdown-class="seed-map-history-popout"
-								placement="bottom-end"
-							>
-								<HistoryIcon />
-								<template #menu>
-									<div class="seed-history-menu">
-										<div class="seed-history-heading">
-											<strong>{{ formatMessage(messages.history) }}</strong>
-											<ButtonStyled size="small" type="transparent">
-												<button :disabled="historyEntries.length === 0" @click="clearHistory">
-													{{ formatMessage(messages.clearHistory) }}
-												</button>
-											</ButtonStyled>
-										</div>
-										<p v-if="historyEntries.length === 0" class="seed-history-empty">
-											{{ formatMessage(messages.historyEmpty) }}
-										</p>
-										<div v-else class="seed-history-list">
-											<div v-for="entry in historyEntries" :key="entry.id" class="seed-history-row">
-												<button class="seed-history-load" @click="applyHistoryEntry(entry)">
-													<span class="seed-history-seed">{{ entry.seed }}</span>
-													<span class="seed-history-meta">
-														<template v-if="entry.gameVersion">{{ entry.gameVersion }} · </template>
-														<template v-if="entry.edition === 'java-large-biomes'"
-															>{{ formatMessage(messages.javaLargeBiomes) }} · </template
-														>{{ historySourceLabel(entry) }} ·
-														{{ formatRelativeTime(new Date(entry.lastViewedAt).toISOString())
-														}}<span
-															v-if="entry.completedFeatures.length + entry.completedOres.length > 0"
-															class="seed-history-progress"
-															>✓
-															{{
-																entry.completedFeatures.length + entry.completedOres.length
-															}}</span
-														>
-													</span>
-												</button>
-												<ButtonStyled circular size="small" type="transparent">
-													<button
-														v-tooltip="formatMessage(messages.removeHistoryEntry)"
-														class="seed-history-remove"
-														:aria-label="formatMessage(messages.removeHistoryEntry)"
-														@click="removeHistory(entry.id)"
+						<PopoutMenu
+							:aria-label="formatMessage(messages.history)"
+							dropdown-class="seed-map-history-popout"
+							placement="bottom-end"
+						>
+							<HistoryIcon />
+							<template #menu>
+								<div class="seed-history-menu">
+									<div class="seed-history-heading">
+										<strong>{{ formatMessage(messages.history) }}</strong>
+										<Button
+											size="2xs"
+											type="quiet"
+											:disabled="historyEntries.length === 0"
+											@click="clearHistory"
+										>
+											{{ formatMessage(messages.clearHistory) }}
+										</Button>
+									</div>
+									<p v-if="historyEntries.length === 0" class="seed-history-empty">
+										{{ formatMessage(messages.historyEmpty) }}
+									</p>
+									<div v-else class="seed-history-list">
+										<div v-for="entry in historyEntries" :key="entry.id" class="seed-history-row">
+											<button class="seed-history-load" @click="applyHistoryEntry(entry)">
+												<span class="seed-history-seed">{{ entry.seed }}</span>
+												<span class="seed-history-meta">
+													<template v-if="entry.gameVersion">{{ entry.gameVersion }} · </template>
+													<template v-if="entry.edition === 'java-large-biomes'"
+														>{{ formatMessage(messages.javaLargeBiomes) }} · </template
+													>{{ historySourceLabel(entry) }} ·
+													{{ formatRelativeTime(new Date(entry.lastViewedAt).toISOString())
+													}}<span
+														v-if="entry.completedFeatures.length + entry.completedOres.length > 0"
+														class="seed-history-progress"
+														>✓
+														{{ entry.completedFeatures.length + entry.completedOres.length }}</span
 													>
-														<TrashIcon />
-													</button>
-												</ButtonStyled>
-											</div>
+												</span>
+											</button>
+											<Button
+												v-tooltip="formatMessage(messages.removeHistoryEntry)"
+												circular
+												icon-only
+												size="2xs"
+												type="quiet"
+												class="seed-history-remove"
+												:label="formatMessage(messages.removeHistoryEntry)"
+												@click="removeHistory(entry.id)"
+											>
+												<TrashIcon />
+											</Button>
 										</div>
 									</div>
-								</template>
-							</PopoutMenu>
-						</ButtonStyled>
+								</div>
+							</template>
+						</PopoutMenu>
 						<Button
 							v-tooltip="formatMessage(messages.importFromInstance)"
 							type="outlined"
@@ -2441,21 +2441,18 @@ function clampWorldCoordinate(value: number) {
 						role="group"
 						:aria-label="formatMessage(messages.dimension)"
 					>
-						<ButtonStyled
+						<Button
 							v-for="dimension in dimensions"
 							:key="dimension"
-							size="small"
-							:type="workspace.dimension === dimension ? 'standard' : 'transparent'"
-							:color="workspace.dimension === dimension ? 'brand' : 'standard'"
+							size="2xs"
+							:type="workspace.dimension === dimension ? 'colored' : 'quiet'"
+							:color="workspace.dimension === dimension ? 'brand' : undefined"
+							class="dimension-option"
+							:aria-pressed="workspace.dimension === dimension"
+							@click="workspace.dimension = dimension"
 						>
-							<button
-								class="dimension-option"
-								:aria-pressed="workspace.dimension === dimension"
-								@click="workspace.dimension = dimension"
-							>
-								{{ dimensionLabel(dimension) }}
-							</button>
-						</ButtonStyled>
+							{{ dimensionLabel(dimension) }}
+						</Button>
 					</div>
 				</div>
 				<div class="control-group coordinate-group min-w-80">
@@ -2520,32 +2517,26 @@ function clampWorldCoordinate(value: number) {
 						)
 					}}</span>
 					<div class="layer-mode-switch" role="group" :aria-label="formatMessage(messages.layers)">
-						<ButtonStyled
-							size="small"
-							:type="workspace.displayMode === 'structures' ? 'standard' : 'transparent'"
-							:color="workspace.displayMode === 'structures' ? 'brand' : 'standard'"
+						<Button
+							size="2xs"
+							:type="workspace.displayMode === 'structures' ? 'colored' : 'quiet'"
+							:color="workspace.displayMode === 'structures' ? 'brand' : undefined"
+							:aria-pressed="workspace.displayMode === 'structures'"
+							@click="setDisplayMode('structures')"
 						>
-							<button
-								:aria-pressed="workspace.displayMode === 'structures'"
-								@click="setDisplayMode('structures')"
-							>
-								<LandmarkIcon />{{ formatMessage(messages.structures) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled
-							size="small"
-							:type="workspace.displayMode === 'ores' ? 'standard' : 'transparent'"
-							:color="workspace.displayMode === 'ores' ? 'brand' : 'standard'"
+							<LandmarkIcon />{{ formatMessage(messages.structures) }}
+						</Button>
+						<Button
+							v-tooltip="oreModeSupported ? undefined : formatMessage(messages.oresRequireModern)"
+							size="2xs"
+							:type="workspace.displayMode === 'ores' ? 'colored' : 'quiet'"
+							:color="workspace.displayMode === 'ores' ? 'brand' : undefined"
+							:aria-pressed="workspace.displayMode === 'ores'"
+							:disabled="!oreModeSupported"
+							@click="setDisplayMode('ores')"
 						>
-							<button
-								v-tooltip="oreModeSupported ? undefined : formatMessage(messages.oresRequireModern)"
-								:aria-pressed="workspace.displayMode === 'ores'"
-								:disabled="!oreModeSupported"
-								@click="setDisplayMode('ores')"
-							>
-								<PickaxeIcon />{{ formatMessage(messages.ores) }}
-							</button>
-						</ButtonStyled>
+							<PickaxeIcon />{{ formatMessage(messages.ores) }}
+						</Button>
 					</div>
 					<div class="flex items-center gap-1">
 						<Button
@@ -2572,52 +2563,45 @@ function clampWorldCoordinate(value: number) {
 				</div>
 				<div class="layer-options">
 					<template v-if="workspace.displayMode === 'structures'">
-						<ButtonStyled
+						<Button
 							v-for="feature in dimensionFeatures"
 							:key="feature.kind"
-							type="standard"
-							:color="workspace.visibleFeatures.includes(feature.kind) ? 'brand' : 'standard'"
+							v-tooltip="featureTooltip(feature.kind, feature.maxScale)"
+							type="colored"
+							:color="workspace.visibleFeatures.includes(feature.kind) ? 'brand' : undefined"
+							class="layer-option w-10 p-1"
+							:class="{
+								'opacity-[0.68]': tileScale > feature.maxScale,
+								named: showLayerNames,
+							}"
+							:aria-pressed="workspace.visibleFeatures.includes(feature.kind)"
+							@click="toggleFeature(feature.kind)"
 						>
-							<button
-								v-tooltip="featureTooltip(feature.kind, feature.maxScale)"
-								class="layer-option w-10 p-1"
-								:class="{
-									'opacity-[0.68]': tileScale > feature.maxScale,
-									named: showLayerNames,
-								}"
-								:aria-pressed="workspace.visibleFeatures.includes(feature.kind)"
-								@click="toggleFeature(feature.kind)"
-							>
-								<img
-									v-if="featureImageSource(feature.kind)"
-									:src="featureImageSource(feature.kind)"
-									alt=""
-								/><component :is="featureIcons[feature.kind]" v-else /><span
-									v-if="showLayerNames"
-									>{{ featureLabel(feature.kind) }}</span
-								>
-							</button>
-						</ButtonStyled>
+							<img
+								v-if="featureImageSource(feature.kind)"
+								:src="featureImageSource(feature.kind)"
+								alt=""
+							/><component :is="featureIcons[feature.kind]" v-else /><span v-if="showLayerNames">{{
+								featureLabel(feature.kind)
+							}}</span>
+						</Button>
 					</template>
 					<template v-else>
-						<ButtonStyled
+						<Button
 							v-for="ore in dimensionOres"
 							:key="ore.kind"
-							type="standard"
-							:color="workspace.selectedOres.includes(ore.kind) ? 'brand' : 'standard'"
+							v-tooltip="oreLabel(ore.kind)"
+							type="colored"
+							:color="workspace.selectedOres.includes(ore.kind) ? 'brand' : undefined"
+							class="layer-option w-10 p-1"
+							:class="{ named: showLayerNames }"
+							:aria-pressed="workspace.selectedOres.includes(ore.kind)"
+							@click="toggleOre(ore.kind)"
 						>
-							<button
-								v-tooltip="oreLabel(ore.kind)"
-								class="layer-option w-10 p-1"
-								:class="{ named: showLayerNames }"
-								:aria-pressed="workspace.selectedOres.includes(ore.kind)"
-								@click="toggleOre(ore.kind)"
-							>
-								<img :src="ore.image" alt="" /><span v-if="showLayerNames">{{
-									oreLabel(ore.kind)
-								}}</span>
-							</button>
-						</ButtonStyled>
+							<img :src="ore.image" alt="" /><span v-if="showLayerNames">{{
+								oreLabel(ore.kind)
+							}}</span>
+						</Button>
 					</template>
 					<span
 						v-if="workspace.displayMode === 'ores' && dimensionOres.length === 0"
@@ -2625,24 +2609,21 @@ function clampWorldCoordinate(value: number) {
 					>
 						{{ formatMessage(messages.noOresInEnd) }}
 					</span>
-					<ButtonStyled
+					<Button
 						v-if="workspace.dimension === 'overworld'"
-						type="standard"
-						:color="workspace.showSpawn ? 'brand' : 'standard'"
+						v-tooltip="formatMessage(messages.spawnPoint)"
+						type="colored"
+						:color="workspace.showSpawn ? 'brand' : undefined"
+						class="layer-option w-10 p-1"
+						:class="{ named: showLayerNames }"
+						:aria-pressed="workspace.showSpawn"
+						@click="workspace.showSpawn = !workspace.showSpawn"
 					>
-						<button
-							v-tooltip="formatMessage(messages.spawnPoint)"
-							class="layer-option w-10 p-1"
-							:class="{ named: showLayerNames }"
-							:aria-pressed="workspace.showSpawn"
-							@click="workspace.showSpawn = !workspace.showSpawn"
+						<img :src="`${structureAssetRoot}/spawn_point.webp`" alt="" /><span
+							v-if="showLayerNames"
+							>{{ formatMessage(messages.spawnPoint) }}</span
 						>
-							<img :src="`${structureAssetRoot}/spawn_point.webp`" alt="" /><span
-								v-if="showLayerNames"
-								>{{ formatMessage(messages.spawnPoint) }}</span
-							>
-						</button>
-					</ButtonStyled>
+					</Button>
 				</div>
 				<div v-if="layersExpanded" class="layer-expanded-panel">
 					<div class="layer-bulk-actions">
@@ -3051,29 +3032,25 @@ function clampWorldCoordinate(value: number) {
 					<div
 						class="map-bottom-actions max-sm:w-full max-sm:flex-wrap max-sm:justify-start max-sm:ml-0"
 					>
-						<ButtonStyled
-							:type="terrainEnabled ? 'highlight-colored-text' : 'outlined'"
+						<Button
+							:type="terrainEnabled ? 'chip-text' : 'outlined'"
 							color="brand"
-							><button
-								class="map-action"
-								:disabled="!terrainSupported"
-								:aria-pressed="terrainEnabled"
-								@click="terrainEnabled = !terrainEnabled"
-							>
-								<LayersIcon />{{ formatMessage(messages.terrain) }}
-							</button></ButtonStyled
+							class="map-action"
+							:disabled="!terrainSupported"
+							:aria-pressed="terrainEnabled"
+							@click="terrainEnabled = !terrainEnabled"
 						>
-						<ButtonStyled
-							:type="workspace.showGrid ? 'highlight-colored-text' : 'outlined'"
+							<LayersIcon />{{ formatMessage(messages.terrain) }}
+						</Button>
+						<Button
+							:type="workspace.showGrid ? 'chip-text' : 'outlined'"
 							color="brand"
-							><button
-								class="map-action"
-								:aria-pressed="workspace.showGrid"
-								@click="workspace.showGrid = !workspace.showGrid"
-							>
-								<GridIcon />{{ formatMessage(messages.showGrid) }}
-							</button></ButtonStyled
+							class="map-action"
+							:aria-pressed="workspace.showGrid"
+							@click="workspace.showGrid = !workspace.showGrid"
 						>
+							<GridIcon />{{ formatMessage(messages.showGrid) }}
+						</Button>
 						<Button
 							v-if="workspace.displayMode === 'structures'"
 							type="outlined"
@@ -3328,18 +3305,18 @@ function clampWorldCoordinate(value: number) {
 	border-radius: 50%;
 }
 
-.dimension-control :deep(.btn-wrapper > button.dimension-option) {
+.dimension-control > :deep([data-button].dimension-option) {
 	height: 100%;
 	min-width: 5.5rem;
 	justify-content: center;
 	border-radius: 0;
 }
 
-.dimension-control :deep(.btn-wrapper:first-child button) {
+.dimension-control > :deep([data-button].dimension-option:first-child) {
 	border-radius: calc(var(--radius-md) - 1px) 0 0 calc(var(--radius-md) - 1px);
 }
 
-.dimension-control :deep(.btn-wrapper:last-child button) {
+.dimension-control > :deep([data-button].dimension-option:last-child) {
 	border-radius: 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0;
 }
 

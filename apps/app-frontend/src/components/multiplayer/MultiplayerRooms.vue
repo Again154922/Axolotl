@@ -18,7 +18,6 @@ import {
 import {
 	Admonition,
 	Button,
-	ButtonStyled,
 	Card,
 	CopyCode,
 	defineMessages,
@@ -796,26 +795,17 @@ function submitJoin() {
 					</div>
 
 					<div class="flex flex-wrap gap-2">
-						<ButtonStyled color="brand">
-							<button
-								v-if="tabIndex === 0"
-								type="button"
-								:disabled="!canSubmitSession || isActionPending"
-								@click="hostGame"
-							>
-								<PlayIcon />
-								{{ formatMessage(messages.startHosting) }}
-							</button>
-							<button
-								v-else
-								type="button"
-								:disabled="!canSubmitSession || isActionPending"
-								@click="submitJoin"
-							>
-								<LogInIcon />
-								{{ formatMessage(messages.joinRoom) }}
-							</button>
-						</ButtonStyled>
+						<Button
+							type="colored"
+							color="brand"
+							native-type="button"
+							:disabled="!canSubmitSession || isActionPending"
+							@click="tabIndex === 0 ? hostGame() : submitJoin()"
+						>
+							<PlayIcon v-if="tabIndex === 0" />
+							<LogInIcon v-else />
+							{{ formatMessage(tabIndex === 0 ? messages.startHosting : messages.joinRoom) }}
+						</Button>
 					</div>
 				</div>
 			</Card>

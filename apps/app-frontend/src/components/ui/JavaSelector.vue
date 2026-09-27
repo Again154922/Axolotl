@@ -22,33 +22,27 @@
 				"
 				@focusout="emit('commit', props.modelValue)"
 			/>
-			<ButtonStyled
+			<IconButton
+				:label="formatMessage(messages.testInstallation)"
+				:type="!hoveringTest && !testingJava ? 'colored-text' : 'base'"
 				:color="
 					!hoveringTest && !testingJava
 						? testingJavaSuccess === true
 							? 'green'
 							: 'red'
-						: 'standard'
+						: undefined
 				"
-				color-fill="text"
+				class="!shadow-none"
+				:disabled="testingJava || props.disabled"
+				@click="runTest(props.modelValue?.path)"
+				@mouseenter="!props.disabled && (hoveringTest = true)"
+				@mouseleave="hoveringTest = false"
 			>
-				<button
-					class="!shadow-none"
-					:aria-label="formatMessage(messages.testInstallation)"
-					:disabled="testingJava || props.disabled"
-					@click="runTest(props.modelValue?.path)"
-					@mouseenter="!props.disabled && (hoveringTest = true)"
-					@mouseleave="hoveringTest = false"
-				>
-					<SpinnerIcon v-if="testingJava" class="animate-spin h-4 w-4" />
-					<CheckCircleIcon
-						v-else-if="testingJavaSuccess === true && !hoveringTest"
-						class="h-4 w-4"
-					/>
-					<XCircleIcon v-else-if="testingJavaSuccess !== true && !hoveringTest" class="h-4 w-4" />
-					<RefreshCwIcon v-else-if="!props.disabled" class="h-4 w-4" />
-				</button>
-			</ButtonStyled>
+				<SpinnerIcon v-if="testingJava" class="animate-spin h-4 w-4" />
+				<CheckCircleIcon v-else-if="testingJavaSuccess === true && !hoveringTest" class="h-4 w-4" />
+				<XCircleIcon v-else-if="testingJavaSuccess !== true && !hoveringTest" class="h-4 w-4" />
+				<RefreshCwIcon v-else-if="!props.disabled" class="h-4 w-4" />
+			</IconButton>
 		</div>
 		<span class="flex items-center gap-2 m-0">
 			<Button
@@ -97,9 +91,9 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	commonMessages,
 	defineMessages,
+	IconButton,
 	injectNotificationManager,
 	StyledInput,
 	useVIntl,

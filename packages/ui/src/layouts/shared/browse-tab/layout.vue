@@ -4,7 +4,6 @@ import { ArrowUpDownIcon, EyeIcon, SearchIcon, SpinnerIcon } from '@modrinth/ass
 import { computed, ref, toValue } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import DropdownSelect from '#ui/components/base/DropdownSelect.vue'
 import EmptyState from '#ui/components/base/EmptyState.vue'
 import NavTabs from '#ui/components/base/NavTabs.vue'
@@ -233,20 +232,17 @@ const skeletonCount = computed(() => {
 					</Button>
 					<template #menu>
 						<div class="flex w-44 flex-col gap-1 p-1">
-							<ButtonStyled
+							<Button
 								v-for="option in ctx.displayModeOptions.value"
 								:key="option.id"
-								:type="ctx.displayMode.value === option.id ? 'filled' : 'transparent'"
+								:type="ctx.displayMode.value === option.id ? 'base' : 'quiet'"
+								class="flex w-full items-center gap-2 !justify-start text-left"
+								:aria-pressed="ctx.displayMode.value === option.id"
+								@click="ctx.setDisplayMode!(option.id)"
 							>
-								<button
-									class="flex w-full items-center gap-2 !justify-start text-left"
-									:aria-pressed="ctx.displayMode.value === option.id"
-									@click="ctx.setDisplayMode!(option.id)"
-								>
-									<component :is="option.icon" class="h-4 w-4" />
-									<span>{{ option.label }}</span>
-								</button>
-							</ButtonStyled>
+								<component :is="option.icon" class="h-4 w-4" />
+								<span>{{ option.label }}</span>
+							</Button>
 						</div>
 					</template>
 				</PopoutMenu>
@@ -366,27 +362,34 @@ const skeletonCount = computed(() => {
 					>
 						<template v-if="ctx.getCardActions?.(result, ctx.projectType.value)?.length" #actions>
 							<div class="flex gap-2">
-								<ButtonStyled
+								<Button
 									v-for="action in ctx.getCardActions(result, ctx.projectType.value)"
 									:key="action.key"
+									v-tooltip="action.tooltip"
 									:color="action.color"
-									:type="action.type"
-									:size="ctx.effectiveLayout.value === 'compact' ? 'small' : 'standard'"
+									:type="
+										action.type === 'transparent'
+											? 'quiet'
+											: action.type === 'outlined'
+												? 'outlined'
+												: action.color
+													? 'colored'
+													: 'base'
+									"
+									:size="ctx.effectiveLayout.value === 'compact' ? '2xs' : 'md'"
 									:circular="action.circular"
+									:icon-only="action.circular"
+									:label="action.circular ? action.label : undefined"
+									:disabled="action.disabled"
+									@click.stop="action.onClick"
 								>
-									<button
-										v-tooltip="action.tooltip"
-										:disabled="action.disabled"
-										@click.stop="action.onClick"
-									>
-										<component :is="action.icon" :class="action.iconClass" />
-										<template v-if="!action.circular">{{
-											ctx.effectiveLayout.value === 'compact'
-												? (action.compactLabel ?? action.label)
-												: action.label
-										}}</template>
-									</button>
-								</ButtonStyled>
+									<component :is="action.icon" :class="action.iconClass" />
+									<template v-if="!action.circular">{{
+										ctx.effectiveLayout.value === 'compact'
+											? (action.compactLabel ?? action.label)
+											: action.label
+									}}</template>
+								</Button>
 							</div>
 						</template>
 					</ProjectCard>
@@ -445,27 +448,34 @@ const skeletonCount = computed(() => {
 					>
 						<template v-if="ctx.getCardActions?.(result, ctx.projectType.value)?.length" #actions>
 							<div class="flex gap-2">
-								<ButtonStyled
+								<Button
 									v-for="action in ctx.getCardActions(result, ctx.projectType.value)"
 									:key="action.key"
+									v-tooltip="action.tooltip"
 									:color="action.color"
-									:type="action.type"
-									:size="ctx.effectiveLayout.value === 'compact' ? 'small' : 'standard'"
+									:type="
+										action.type === 'transparent'
+											? 'quiet'
+											: action.type === 'outlined'
+												? 'outlined'
+												: action.color
+													? 'colored'
+													: 'base'
+									"
+									:size="ctx.effectiveLayout.value === 'compact' ? '2xs' : 'md'"
 									:circular="action.circular"
+									:icon-only="action.circular"
+									:label="action.circular ? action.label : undefined"
+									:disabled="action.disabled"
+									@click.stop="action.onClick"
 								>
-									<button
-										v-tooltip="action.tooltip"
-										:disabled="action.disabled"
-										@click.stop="action.onClick"
-									>
-										<component :is="action.icon" :class="action.iconClass" />
-										<template v-if="!action.circular">{{
-											ctx.effectiveLayout.value === 'compact'
-												? (action.compactLabel ?? action.label)
-												: action.label
-										}}</template>
-									</button>
-								</ButtonStyled>
+									<component :is="action.icon" :class="action.iconClass" />
+									<template v-if="!action.circular">{{
+										ctx.effectiveLayout.value === 'compact'
+											? (action.compactLabel ?? action.label)
+											: action.label
+									}}</template>
+								</Button>
 							</div>
 						</template>
 					</ProjectCard>

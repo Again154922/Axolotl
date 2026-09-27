@@ -96,17 +96,17 @@
 						><XIcon />
 						{{ formatMessage(commonMessages.closeButton) }}
 					</Button>
-					<ButtonStyled color="brand">
-						<a
-							class="flex-1"
-							href="https://modrinth.com/app"
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							<DownloadIcon />
-							{{ formatMessage(messages.getApp) }}
-						</a>
-					</ButtonStyled>
+					<ButtonLink
+						type="colored"
+						color="brand"
+						class="flex-1"
+						href="https://modrinth.com/app"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						<DownloadIcon />
+						{{ formatMessage(messages.getApp) }}
+					</ButtonLink>
 				</div>
 			</div>
 		</div>
@@ -119,9 +119,10 @@ import { commonMessages } from '@modrinth/ui'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
+import ButtonLink from '#ui/components/base/buttons/ButtonLink.vue'
 
 import { defineMessages, useVIntl } from '../../composables/i18n'
-import { Avatar, ButtonStyled } from '../base'
+import { Avatar } from '../base'
 import ServerOnlinePlayers from '../project/server/ServerOnlinePlayers.vue'
 import ServerRegion from '../project/server/ServerRegion.vue'
 

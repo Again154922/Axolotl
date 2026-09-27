@@ -6,10 +6,6 @@ export { default as Avatar } from './Avatar.vue'
 export { default as Badge } from './Badge.vue'
 export { default as BigOptionButton } from './BigOptionButton.vue'
 export { default as BulletDivider } from './BulletDivider.vue'
-// `Button` is the current button system. The legacy runtime-props component is
-// only reachable as `LegacyButton` so that `import { Button }` can never
-// silently resolve to the generation that ignores `type`/`size`/`interaction`.
-export { default as LegacyButton } from './Button.vue'
 export { default as Button } from './buttons/Button.vue'
 export { default as ButtonGroup } from './buttons/ButtonGroup.vue'
 export { default as ButtonLink } from './buttons/ButtonLink.vue'
@@ -27,7 +23,6 @@ export type {
 	ButtonType,
 	ButtonVisualProps,
 } from './buttons/types'
-export { default as ButtonStyled } from './ButtonStyled.vue'
 export { default as Card } from './Card.vue'
 export { default as Checkbox } from './Checkbox.vue'
 export { default as Chips } from './Chips.vue'

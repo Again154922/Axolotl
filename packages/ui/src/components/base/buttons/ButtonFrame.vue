@@ -15,8 +15,7 @@ const baseClasses = [
 	'relative inline-flex min-w-0 shrink-0 items-center justify-center',
 	// The transparent border is load-bearing, not decorative: it participates in
 	// layout, so an auto-width button is 2px wider than it would be without it.
-	// The legacy `ButtonStyled` drew its ring with a border too, and dropping it
-	// here would silently narrow every migrated text button.
+	// The ring participates in layout; dropping it would silently narrow every text button.
 	'whitespace-nowrap border border-solid border-transparent no-underline',
 	// Interactions
 	'touch-manipulation cursor-pointer select-none transition-[background-color,color,box-shadow,filter,opacity,transform] duration-150 ease-out',
@@ -204,9 +203,9 @@ defineExpose({ element })
 	mask-composite: exclude;
 }
 
-/* The ring is a real border so it occupies layout exactly as the legacy
- * `ButtonStyled` border did. Set here rather than as a utility because it has
- * to beat the transparent border colour in `baseClasses`. */
+/* The ring is a real border so it participates in layout. Set here rather
+ * than as a utility because it has to beat the transparent border colour in
+ * `baseClasses`. */
 .button-frame--outlined {
 	border-color: var(--button-color, var(--surface-5));
 }

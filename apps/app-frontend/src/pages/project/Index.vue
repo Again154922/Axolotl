@@ -128,48 +128,46 @@
 							@click="handleAddServerToInstance"
 							><PlusIcon />
 						</Button>
-						<ButtonStyled size="large" circular type="transparent">
-							<OverflowMenu
-								:tooltip="formatMessage(commonMessages.moreOptionsButton)"
-								:options="[
-									{
-										id: 'open-in-browser',
-										link: `https://modrinth.com/project/${data.slug}`,
-										external: true,
-									},
-									...(mcmodUrl
-										? [
-												{
-													id: 'open-in-mcmod',
-													link: mcmodUrl,
-													external: true,
-												},
-											]
-										: []),
-									{
-										divider: true,
-									},
-									{
-										id: 'report',
-										color: 'red',
-										hoverFilled: true,
-										link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
-									},
-								]"
-								:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-							>
-								<MoreVerticalIcon aria-hidden="true" />
-								<template #open-in-browser>
-									<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
-								</template>
-								<template #open-in-mcmod>
-									<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
-								</template>
-								<template #report>
-									<ReportIcon /> {{ formatMessage(commonMessages.reportButton) }}
-								</template>
-							</OverflowMenu>
-						</ButtonStyled>
+						<OverflowMenu
+							:tooltip="formatMessage(commonMessages.moreOptionsButton)"
+							:options="[
+								{
+									id: 'open-in-browser',
+									link: `https://modrinth.com/project/${data.slug}`,
+									external: true,
+								},
+								...(mcmodUrl
+									? [
+											{
+												id: 'open-in-mcmod',
+												link: mcmodUrl,
+												external: true,
+											},
+										]
+									: []),
+								{
+									divider: true,
+								},
+								{
+									id: 'report',
+									color: 'red',
+									hoverFilled: true,
+									link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
+								},
+							]"
+							:aria-label="formatMessage(commonMessages.moreOptionsButton)"
+						>
+							<MoreVerticalIcon aria-hidden="true" />
+							<template #open-in-browser>
+								<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
+							</template>
+							<template #open-in-mcmod>
+								<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
+							</template>
+							<template #report>
+								<ReportIcon /> {{ formatMessage(commonMessages.reportButton) }}
+							</template>
+						</OverflowMenu>
 					</template>
 					<template v-else #actions>
 						<Button type="quiet" size="xl" :disabled="translationLoading" @click="toggleTranslation"
@@ -219,98 +217,94 @@
 						</Button>
 						<!-- 开服功能暂有问题，隐藏该按钮
 						<Transition name="start-server">
-							<ButtonStyled
+							<Button
 								v-if="serverCapableModpack"
 								key="modpack-start-server"
-								size="large"
+								size="xl"
 								type="outlined"
-							>
-								<button
+
 									v-tooltip="formatMessage(messages.startServer)"
-									type="button"
+									native-type="button"
 									@click="openModpackServerFlow"
 								>
 									<ServerIcon />
 									{{ formatMessage(messages.startServer) }}
-								</button>
-							</ButtonStyled>
+								</Button>
 						</Transition>
 						-->
-						<ButtonStyled size="large" circular type="transparent">
-							<OverflowMenu
-								:tooltip="`More options`"
-								:options="[
-									{
-										id: 'follow',
-										disabled: true,
-										tooltip: 'Coming soon',
-										action: () => {},
-									},
-									...(favoriteSupported
-										? [
-												{
-													id: 'save',
-													disabled: favoritePending,
-													tooltip: formatMessage(
-														favoriteSaved ? messages.removeFromFavorites : messages.addToFavorites,
-													),
-													action: () => void toggleFavorite(),
-												},
-											]
-										: []),
-									...getDependentSearchActions(),
-									{
-										id: 'open-in-browser',
-										link: `https://modrinth.com/${data.project_type}/${data.slug}`,
-										external: true,
-									},
-									...(mcmodUrl
-										? [
-												{
-													id: 'open-in-mcmod',
-													link: mcmodUrl,
-													external: true,
-												},
-											]
-										: []),
-									{
-										divider: true,
-									},
-									{
-										id: 'report',
-										color: 'red',
-										hoverFilled: true,
-										link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
-									},
-								]"
-								:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-							>
-								<MoreVerticalIcon aria-hidden="true" />
-								<template #open-in-browser>
-									<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
-								</template>
-								<template #open-in-mcmod>
-									<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
-								</template>
-								<template #follow>
-									<HeartIcon /> {{ formatMessage(commonMessages.followButton) }}
-								</template>
-								<template v-if="favoriteSupported" #save>
-									<BookmarkFilledIcon v-if="favoriteSaved" class="text-brand" />
-									<BookmarkIcon v-else />
-									{{
-										formatMessage(
-											favoritePending
-												? messages.favoritesLoading
-												: favoriteSaved
-													? messages.removeFromFavorites
-													: messages.addToFavorites,
-										)
-									}}
-								</template>
-								<template #report> <ReportIcon /> Report </template>
-							</OverflowMenu>
-						</ButtonStyled>
+						<OverflowMenu
+							:tooltip="`More options`"
+							:options="[
+								{
+									id: 'follow',
+									disabled: true,
+									tooltip: 'Coming soon',
+									action: () => {},
+								},
+								...(favoriteSupported
+									? [
+											{
+												id: 'save',
+												disabled: favoritePending,
+												tooltip: formatMessage(
+													favoriteSaved ? messages.removeFromFavorites : messages.addToFavorites,
+												),
+												action: () => void toggleFavorite(),
+											},
+										]
+									: []),
+								...getDependentSearchActions(),
+								{
+									id: 'open-in-browser',
+									link: `https://modrinth.com/${data.project_type}/${data.slug}`,
+									external: true,
+								},
+								...(mcmodUrl
+									? [
+											{
+												id: 'open-in-mcmod',
+												link: mcmodUrl,
+												external: true,
+											},
+										]
+									: []),
+								{
+									divider: true,
+								},
+								{
+									id: 'report',
+									color: 'red',
+									hoverFilled: true,
+									link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
+								},
+							]"
+							:aria-label="formatMessage(commonMessages.moreOptionsButton)"
+						>
+							<MoreVerticalIcon aria-hidden="true" />
+							<template #open-in-browser>
+								<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
+							</template>
+							<template #open-in-mcmod>
+								<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
+							</template>
+							<template #follow>
+								<HeartIcon /> {{ formatMessage(commonMessages.followButton) }}
+							</template>
+							<template v-if="favoriteSupported" #save>
+								<BookmarkFilledIcon v-if="favoriteSaved" class="text-brand" />
+								<BookmarkIcon v-else />
+								{{
+									formatMessage(
+										favoritePending
+											? messages.favoritesLoading
+											: favoriteSaved
+												? messages.removeFromFavorites
+												: messages.addToFavorites,
+									)
+								}}
+							</template>
+							<template #report> <ReportIcon /> Report </template>
+						</OverflowMenu>
 					</template>
 				</ProjectHeader>
 				<NavTabs
@@ -423,7 +417,6 @@ import {
 import {
 	BrowseInstallHeader,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	commonProjectSettingsMessages,
 	CreationFlowModal,

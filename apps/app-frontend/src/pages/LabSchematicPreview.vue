@@ -39,7 +39,6 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	defineMessages,
 	EmptyState,
 	injectNotificationManager,
@@ -1590,78 +1589,68 @@ onBeforeUnmount(() => {
 							><RedoIcon />
 						</Button>
 					</div>
-					<ButtonStyled type="outlined">
-						<OverflowMenu
-							class="schematic-command-button min-w-0"
-							:options="openMenuOptions"
-							:aria-label="formatMessage(messages.open)"
-						>
-							<FileArchiveIcon />
-							<span class="schematic-command-label">{{ formatMessage(messages.open) }}</span>
-							<ChevronDownIcon class="schematic-command-chevron" />
-							<template #open-file>
-								<FileArchiveIcon />{{ formatMessage(messages.openFile) }}
-							</template>
-							<template #from-instance>
-								<FolderSearchIcon />{{ formatMessage(messages.fromInstance) }}
-							</template>
-						</OverflowMenu>
-					</ButtonStyled>
-					<ButtonStyled color="brand">
-						<OverflowMenu
-							class="schematic-command-button min-w-0"
-							:options="exportMenuOptions"
-							:aria-label="formatMessage(messages.exportSchematic)"
-						>
-							<SaveIcon />
-							<span class="schematic-command-label">{{
-								formatMessage(messages.exportSchematic)
-							}}</span>
-							<ChevronDownIcon class="schematic-command-chevron" />
-							<template #export-sponge>
-								<FileArchiveIcon />{{ formatMessage(messages.exportSponge) }}
-							</template>
-							<template #export-litematic>
-								<FileArchiveIcon />{{ formatMessage(messages.exportLitematic) }}
-							</template>
-						</OverflowMenu>
-					</ButtonStyled>
-					<ButtonStyled circular type="transparent">
-						<OverflowMenu
-							class="schematic-more-menu"
-							dropdown-class="schematic-more-menu-dropdown"
-							:options="moreMenuOptions"
-							:aria-label="formatMessage(messages.moreActions)"
-							:tooltip="formatMessage(messages.moreActions)"
-						>
-							<MoreHorizontalIcon />
-							<template #schematic-info>
-								<InfoIcon />
-								<span class="schematic-menu-label">{{
-									formatMessage(messages.schematicInfo)
-								}}</span>
-							</template>
-							<template #seamless-glass>
-								<GridIcon />
-								<span class="schematic-menu-label">{{
-									formatMessage(messages.seamlessGlass)
-								}}</span>
-								<span class="schematic-menu-check"><CheckIcon v-if="seamlessGlass" /></span>
-							</template>
-							<template #screenshot>
-								<ImageIcon />
-								<span class="schematic-menu-label">{{ formatMessage(messages.screenshot) }}</span>
-							</template>
-							<template #materials-csv>
-								<DownloadIcon />
-								<span class="schematic-menu-label">{{ formatMessage(messages.materialsCsv) }}</span>
-							</template>
-							<template #reload>
-								<RefreshCwIcon />
-								<span class="schematic-menu-label">{{ formatMessage(messages.reload) }}</span>
-							</template>
-						</OverflowMenu>
-					</ButtonStyled>
+					<OverflowMenu
+						class="schematic-command-button min-w-0"
+						:options="openMenuOptions"
+						:aria-label="formatMessage(messages.open)"
+					>
+						<FileArchiveIcon />
+						<span class="schematic-command-label">{{ formatMessage(messages.open) }}</span>
+						<ChevronDownIcon class="schematic-command-chevron" />
+						<template #open-file>
+							<FileArchiveIcon />{{ formatMessage(messages.openFile) }}
+						</template>
+						<template #from-instance>
+							<FolderSearchIcon />{{ formatMessage(messages.fromInstance) }}
+						</template>
+					</OverflowMenu>
+					<OverflowMenu
+						class="schematic-command-button min-w-0"
+						:options="exportMenuOptions"
+						:aria-label="formatMessage(messages.exportSchematic)"
+					>
+						<SaveIcon />
+						<span class="schematic-command-label">{{
+							formatMessage(messages.exportSchematic)
+						}}</span>
+						<ChevronDownIcon class="schematic-command-chevron" />
+						<template #export-sponge>
+							<FileArchiveIcon />{{ formatMessage(messages.exportSponge) }}
+						</template>
+						<template #export-litematic>
+							<FileArchiveIcon />{{ formatMessage(messages.exportLitematic) }}
+						</template>
+					</OverflowMenu>
+					<OverflowMenu
+						class="schematic-more-menu"
+						dropdown-class="schematic-more-menu-dropdown"
+						:options="moreMenuOptions"
+						:aria-label="formatMessage(messages.moreActions)"
+						:tooltip="formatMessage(messages.moreActions)"
+					>
+						<MoreHorizontalIcon />
+						<template #schematic-info>
+							<InfoIcon />
+							<span class="schematic-menu-label">{{ formatMessage(messages.schematicInfo) }}</span>
+						</template>
+						<template #seamless-glass>
+							<GridIcon />
+							<span class="schematic-menu-label">{{ formatMessage(messages.seamlessGlass) }}</span>
+							<span class="schematic-menu-check"><CheckIcon v-if="seamlessGlass" /></span>
+						</template>
+						<template #screenshot>
+							<ImageIcon />
+							<span class="schematic-menu-label">{{ formatMessage(messages.screenshot) }}</span>
+						</template>
+						<template #materials-csv>
+							<DownloadIcon />
+							<span class="schematic-menu-label">{{ formatMessage(messages.materialsCsv) }}</span>
+						</template>
+						<template #reload>
+							<RefreshCwIcon />
+							<span class="schematic-menu-label">{{ formatMessage(messages.reload) }}</span>
+						</template>
+					</OverflowMenu>
 				</div>
 			</header>
 
@@ -1686,59 +1675,47 @@ onBeforeUnmount(() => {
 						class="schematic-mode-toolbar"
 						:aria-label="formatMessage(messages.workspaceTools)"
 					>
-						<ButtonStyled
-							size="small"
-							:color="workspaceTool === 'select' ? 'brand' : 'standard'"
-							:type="workspaceTool === 'select' ? 'highlight-colored-text' : 'transparent'"
+						<Button
+							size="2xs"
+							:color="workspaceTool === 'select' ? 'brand' : undefined"
+							:type="workspaceTool === 'select' ? 'chip-text' : 'quiet'"
+							native-type="button"
+							:aria-pressed="workspaceTool === 'select'"
+							@click="workspaceTool = 'select'"
 						>
-							<button
-								type="button"
-								:aria-pressed="workspaceTool === 'select'"
-								@click="workspaceTool = 'select'"
-							>
-								<CubeIcon />{{ formatMessage(messages.singleSelect) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled
-							size="small"
-							:color="workspaceTool === 'box' ? 'brand' : 'standard'"
-							:type="workspaceTool === 'box' ? 'highlight-colored-text' : 'transparent'"
+							<CubeIcon />{{ formatMessage(messages.singleSelect) }}
+						</Button>
+						<Button
+							size="2xs"
+							:color="workspaceTool === 'box' ? 'brand' : undefined"
+							:type="workspaceTool === 'box' ? 'chip-text' : 'quiet'"
+							native-type="button"
+							:aria-pressed="workspaceTool === 'box'"
+							@click="workspaceTool = 'box'"
 						>
-							<button
-								type="button"
-								:aria-pressed="workspaceTool === 'box'"
-								@click="workspaceTool = 'box'"
-							>
-								<BoxesIcon />{{ formatMessage(messages.boxSelect) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled
-							size="small"
-							:color="workspaceTool === 'measure' ? 'brand' : 'standard'"
-							:type="workspaceTool === 'measure' ? 'highlight-colored-text' : 'transparent'"
+							<BoxesIcon />{{ formatMessage(messages.boxSelect) }}
+						</Button>
+						<Button
+							size="2xs"
+							:color="workspaceTool === 'measure' ? 'brand' : undefined"
+							:type="workspaceTool === 'measure' ? 'chip-text' : 'quiet'"
+							native-type="button"
+							:aria-pressed="workspaceTool === 'measure'"
+							@click="workspaceTool = 'measure'"
 						>
-							<button
-								type="button"
-								:aria-pressed="workspaceTool === 'measure'"
-								@click="workspaceTool = 'measure'"
-							>
-								<ArrowLeftRightIcon />{{ formatMessage(messages.measure) }}
-							</button>
-						</ButtonStyled>
+							<ArrowLeftRightIcon />{{ formatMessage(messages.measure) }}
+						</Button>
 						<span class="schematic-mode-divider"></span>
-						<ButtonStyled
-							size="small"
-							:color="workspaceTool === 'layer-spacing' ? 'brand' : 'standard'"
-							:type="workspaceTool === 'layer-spacing' ? 'highlight-colored-text' : 'transparent'"
+						<Button
+							size="2xs"
+							:color="workspaceTool === 'layer-spacing' ? 'brand' : undefined"
+							:type="workspaceTool === 'layer-spacing' ? 'chip-text' : 'quiet'"
+							native-type="button"
+							:aria-pressed="workspaceTool === 'layer-spacing'"
+							@click="workspaceTool = 'layer-spacing'"
 						>
-							<button
-								type="button"
-								:aria-pressed="workspaceTool === 'layer-spacing'"
-								@click="workspaceTool = 'layer-spacing'"
-							>
-								<UnfoldVerticalIcon />{{ formatMessage(messages.layerSpacing) }}
-							</button>
-						</ButtonStyled>
+							<UnfoldVerticalIcon />{{ formatMessage(messages.layerSpacing) }}
+						</Button>
 					</nav>
 					<div
 						v-if="viewMode === 'orbit' && workspaceTool === 'layer-spacing'"
@@ -1827,21 +1804,18 @@ onBeforeUnmount(() => {
 						</Button>
 					</div>
 					<div class="schematic-walk-control">
-						<ButtonStyled
-							size="small"
-							:color="viewMode === 'walk' ? 'brand' : 'standard'"
-							:type="viewMode === 'walk' ? 'highlight-colored-text' : 'transparent'"
+						<Button
+							size="2xs"
+							:color="viewMode === 'walk' ? 'brand' : undefined"
+							:type="viewMode === 'walk' ? 'chip-text' : 'quiet'"
+							native-type="button"
+							:aria-pressed="viewMode === 'walk'"
+							:title="`${formatMessage(viewMode === 'walk' ? messages.orbitView : messages.walkView)} (V)`"
+							@click="toggleViewMode"
 						>
-							<button
-								type="button"
-								:aria-pressed="viewMode === 'walk'"
-								:title="`${formatMessage(viewMode === 'walk' ? messages.orbitView : messages.walkView)} (V)`"
-								@click="toggleViewMode"
-							>
-								<MoveIcon />
-								{{ formatMessage(viewMode === 'walk' ? messages.orbitView : messages.walkPreview) }}
-							</button>
-						</ButtonStyled>
+							<MoveIcon />
+							{{ formatMessage(viewMode === 'walk' ? messages.orbitView : messages.walkPreview) }}
+						</Button>
 					</div>
 					<div
 						v-if="viewMode === 'walk' && walkLocked"

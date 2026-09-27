@@ -73,16 +73,16 @@
 			<div class="flex items-center gap-2">
 				<ConsoleFilterPills v-model="activeFilters" @toggle="handleFilterToggle" />
 				<div class="ml-auto flex items-center gap-2">
-					<ButtonStyled type="transparent" :highlighted="wrapLines">
-						<button
-							:aria-pressed="wrapLines"
-							:title="formatMessage(consoleMessages.toggleWrap)"
-							@click="wrapLines = !wrapLines"
-						>
-							<WrapTextIcon />
-							{{ formatMessage(consoleMessages.wrapLabel) }}
-						</button>
-					</ButtonStyled>
+					<Button
+						:type="wrapLines ? 'chip' : 'quiet'"
+						:color="wrapLines ? 'brand' : undefined"
+						:aria-pressed="wrapLines"
+						:title="formatMessage(consoleMessages.toggleWrap)"
+						@click="wrapLines = !wrapLines"
+					>
+						<WrapTextIcon />
+						{{ formatMessage(consoleMessages.wrapLabel) }}
+					</Button>
 					<div class="w-28">
 						<Combobox
 							:model-value="logFontSize"
@@ -197,7 +197,6 @@ import { computed, isRef, nextTick, onBeforeUnmount, ref } from 'vue'
 
 import Admonition from '#ui/components/base/Admonition.vue'
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import type { CollapsibleAdmonitionItem } from '#ui/components/base/CollapsibleAdmonition.vue'
 import CollapsibleAdmonition from '#ui/components/base/CollapsibleAdmonition.vue'
 import type { ComboboxOption } from '#ui/components/base/Combobox.vue'

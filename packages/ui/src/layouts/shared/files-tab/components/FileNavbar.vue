@@ -127,52 +127,50 @@
 					{{ formatMessage(commonMessages.refreshButton) }}
 				</Button>
 
-				<ButtonStyled type="outlined">
-					<OverflowMenu
-						:dropdown-id="`create-new-${baseId}`"
-						position="bottom"
-						direction="left"
-						:aria-label="formatMessage(messages.createNew)"
-						:disabled="disabled"
-						:tooltip="disabled ? disabledTooltip : undefined"
-						class="!h-10 justify-center gap-2"
-						:options="[
-							{ id: 'file', action: () => $emit('create', 'file') },
-							{ id: 'directory', action: () => $emit('create', 'directory') },
-							{ divider: true, shown: showInstallFromUrl ?? false },
-							{ id: 'upload-zip', shown: false, action: () => $emit('uploadZip') },
-							{
-								id: 'install-from-url',
-								shown: showInstallFromUrl ?? false,
-								action: () => $emit('unzipFromUrl', false),
-							},
-							{
-								id: 'install-cf-pack',
-								shown: showInstallFromUrl ?? false,
-								action: () => $emit('unzipFromUrl', true),
-							},
-						]"
-					>
-						<PlusIcon aria-hidden="true" class="h-5 w-5" />
-						<DropdownIcon aria-hidden="true" class="h-5 w-5" />
-						<template #file>
-							<BoxIcon aria-hidden="true" /> {{ formatMessage(messages.newFile) }}
-						</template>
-						<template #directory>
-							<FolderOpenIcon aria-hidden="true" /> {{ formatMessage(messages.newFolder) }}
-						</template>
-						<template #upload-zip>
-							<FileArchiveIcon aria-hidden="true" /> {{ formatMessage(messages.uploadFromZip) }}
-						</template>
-						<template #install-from-url>
-							<LinkIcon aria-hidden="true" /> {{ formatMessage(messages.uploadFromZipUrl) }}
-						</template>
-						<template #install-cf-pack>
-							<CurseForgeIcon aria-hidden="true" />
-							{{ formatMessage(messages.installCurseForgePack) }}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+				<OverflowMenu
+					:dropdown-id="`create-new-${baseId}`"
+					position="bottom"
+					direction="left"
+					:aria-label="formatMessage(messages.createNew)"
+					:disabled="disabled"
+					:tooltip="disabled ? disabledTooltip : undefined"
+					class="!h-10 justify-center gap-2"
+					:options="[
+						{ id: 'file', action: () => $emit('create', 'file') },
+						{ id: 'directory', action: () => $emit('create', 'directory') },
+						{ divider: true, shown: showInstallFromUrl ?? false },
+						{ id: 'upload-zip', shown: false, action: () => $emit('uploadZip') },
+						{
+							id: 'install-from-url',
+							shown: showInstallFromUrl ?? false,
+							action: () => $emit('unzipFromUrl', false),
+						},
+						{
+							id: 'install-cf-pack',
+							shown: showInstallFromUrl ?? false,
+							action: () => $emit('unzipFromUrl', true),
+						},
+					]"
+				>
+					<PlusIcon aria-hidden="true" class="h-5 w-5" />
+					<DropdownIcon aria-hidden="true" class="h-5 w-5" />
+					<template #file>
+						<BoxIcon aria-hidden="true" /> {{ formatMessage(messages.newFile) }}
+					</template>
+					<template #directory>
+						<FolderOpenIcon aria-hidden="true" /> {{ formatMessage(messages.newFolder) }}
+					</template>
+					<template #upload-zip>
+						<FileArchiveIcon aria-hidden="true" /> {{ formatMessage(messages.uploadFromZip) }}
+					</template>
+					<template #install-from-url>
+						<LinkIcon aria-hidden="true" /> {{ formatMessage(messages.uploadFromZipUrl) }}
+					</template>
+					<template #install-cf-pack>
+						<CurseForgeIcon aria-hidden="true" />
+						{{ formatMessage(messages.installCurseForgePack) }}
+					</template>
+				</OverflowMenu>
 			</div>
 
 			<div v-else-if="!isEditingImage" class="flex gap-2">
@@ -186,20 +184,16 @@
 					@click="$emit('share')"
 					><ShareIcon />
 				</Button>
-				<ButtonStyled
-					circular
-					:type="isEditorFindOpen ? 'standard' : 'transparent'"
-					:color="isEditorFindOpen ? 'brand' : 'standard'"
+				<IconButton
+					v-tooltip="formatMessage(messages.findInFile)"
+					:label="formatMessage(messages.findInFile)"
+					:type="isEditorFindOpen ? 'chip' : 'quiet'"
+					:color="isEditorFindOpen ? 'brand' : undefined"
+					:aria-pressed="isEditorFindOpen"
+					@click="$emit('find')"
 				>
-					<button
-						v-tooltip="formatMessage(messages.findInFile)"
-						:aria-label="formatMessage(messages.findInFile)"
-						:aria-pressed="isEditorFindOpen"
-						@click="$emit('find')"
-					>
-						<SearchIcon />
-					</button>
-				</ButtonStyled>
+					<SearchIcon />
+				</IconButton>
 			</div>
 		</div>
 	</header>
@@ -223,7 +217,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import IconButton from '#ui/components/base/buttons/IconButton.vue'
 import OverflowMenu from '#ui/components/base/OverflowMenu.vue'
 import StyledInput from '#ui/components/base/StyledInput.vue'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'

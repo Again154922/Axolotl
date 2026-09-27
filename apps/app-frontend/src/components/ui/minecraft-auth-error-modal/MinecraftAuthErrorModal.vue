@@ -10,7 +10,7 @@ import {
 import {
 	Admonition,
 	Button,
-	ButtonStyled,
+	ButtonLink,
 	Collapsible,
 	defineMessages,
 	NewModal,
@@ -215,11 +215,9 @@ async function copyToClipboard(text: string) {
 
 			<!-- Action buttons -->
 			<div class="flex items-center gap-2">
-				<ButtonStyled>
-					<a :href="AxolotlBrandConfig.supportUrl" class="!w-full" @click="modal?.hide()">
-						<MessagesSquareIcon /> {{ formatMessage(messages.contactSupport) }}
-					</a>
-				</ButtonStyled>
+				<ButtonLink :href="AxolotlBrandConfig.supportUrl" class="!w-full" @click="modal?.hide()">
+					<MessagesSquareIcon /> {{ formatMessage(messages.contactSupport) }}
+				</ButtonLink>
 				<Button
 					type="colored"
 					color="brand"

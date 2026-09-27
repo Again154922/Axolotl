@@ -12,7 +12,7 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
+	ButtonLink,
 	Collapsible,
 	commonMessages,
 	defineMessages,
@@ -480,11 +480,9 @@ async function exportLogs() {
 				</template>
 			</div>
 			<div class="flex items-center gap-2">
-				<ButtonStyled>
-					<a :href="supportLink" @click="errorModal.hide()">
-						<ChatIcon /> {{ formatMessage(messages.getSupport) }}
-					</a>
-				</ButtonStyled>
+				<ButtonLink :href="supportLink" @click="errorModal.hide()">
+					<ChatIcon /> {{ formatMessage(messages.getSupport) }}
+				</ButtonLink>
 				<Button :disabled="exportingLogs" @click="exportLogs"
 					><DownloadIcon /> {{ formatMessage(messages.exportLogs) }}
 				</Button>

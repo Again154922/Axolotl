@@ -1,18 +1,20 @@
 <template>
 	<div data-pyro-telepopover-wrapper class="relative">
-		<button
+		<IconButton
 			ref="triggerRef"
-			class="teleport-overflow-menu-trigger"
+			:label="label"
+			type="quiet"
 			:class="btnClass"
+			:disabled="disabled"
 			:aria-expanded="isOpen"
-			:aria-haspopup="true"
+			aria-haspopup="menu"
 			@mousedown="handleMouseDown"
 			@mouseenter="handleMouseEnter"
 			@mouseleave="handleMouseLeave"
 			@click="toggleMenu"
 		>
-			<slot></slot>
-		</button>
+			<slot />
+		</IconButton>
 		<Teleport to="#teleports">
 			<Transition
 				enter-active-class="transition duration-125 ease-out"
@@ -38,55 +40,52 @@
 						:key="isDivider(option) ? `divider-${index}` : option.id"
 					>
 						<div v-if="isDivider(option)" class="h-px w-full bg-surface-5"></div>
-						<ButtonStyled v-else type="transparent" role="menuitem" :color="option.color">
-							<button
-								v-if="typeof option.action === 'function'"
-								:ref="
-									(el) => {
-										if (el) menuItemsRef[index] = el as HTMLElement
-									}
-								"
-								v-tooltip="option.tooltip"
-								:disabled="option.disabled"
-								class="w-full !justify-start !whitespace-nowrap focus-visible:!outline-none"
-								:aria-selected="index === selectedIndex"
-								:style="index === selectedIndex ? { background: 'var(--surface-4)' } : {}"
-								@click="handleItemClick(option, index)"
-								@focus="selectedIndex = index"
-								@mouseover="handleMouseOver(index)"
-							>
-								<slot :name="option.id">
-									<component :is="option.icon" v-if="option.icon" class="size-5" />
-									{{ option.label ?? option.id }}
-								</slot>
-							</button>
-							<AutoLink
-								v-else-if="typeof option.action === 'string'"
-								:ref="
-									(el) => {
-										if (el) menuItemsRef[index] = el as HTMLElement
-									}
-								"
-								:to="option.action"
-								class="w-full !justify-start !whitespace-nowrap focus-visible:!outline-none"
-								:aria-selected="index === selectedIndex"
-								:style="index === selectedIndex ? { background: 'var(--surface-4)' } : {}"
-								@click="handleItemClick(option, index)"
-								@focus="selectedIndex = index"
-								@mouseover="handleMouseOver(index)"
-							>
-								<slot :name="option.id">
-									<component :is="option.icon" v-if="option.icon" class="size-5" />
-									{{ option.label ?? option.id }}
-								</slot>
-							</AutoLink>
-							<span v-else>
-								<slot :name="option.id">
-									<component :is="option.icon" v-if="option.icon" class="size-5" />
-									{{ option.label ?? option.id }}
-								</slot>
-							</span>
-						</ButtonStyled>
+						<Button
+							v-else-if="typeof option.action === 'function'"
+							:ref="(el) => setMenuItemRef(index, el)"
+							v-tooltip="option.tooltip"
+							type="quiet"
+							:color="normalizedColor(option.color)"
+							:disabled="option.disabled"
+							role="menuitem"
+							class="w-full !justify-start !whitespace-nowrap focus-visible:!outline-none"
+							:aria-selected="index === selectedIndex"
+							:style="index === selectedIndex ? { background: 'var(--surface-4)' } : {}"
+							@click="handleItemClick(option, index)"
+							@focus="selectedIndex = index"
+							@mouseover="handleMouseOver(index)"
+						>
+							<slot :name="option.id">
+								<component :is="option.icon" v-if="option.icon" class="size-5" />
+								{{ option.label ?? option.id }}
+							</slot>
+						</Button>
+						<ButtonLink
+							v-else-if="typeof option.action === 'string'"
+							:ref="(el) => setMenuItemRef(index, el)"
+							:as="AutoLink"
+							:to="option.action"
+							type="quiet"
+							:color="normalizedColor(option.color)"
+							role="menuitem"
+							class="w-full !justify-start !whitespace-nowrap focus-visible:!outline-none"
+							:aria-selected="index === selectedIndex"
+							:style="index === selectedIndex ? { background: 'var(--surface-4)' } : {}"
+							@click="handleItemClick(option, index)"
+							@focus="selectedIndex = index"
+							@mouseover="handleMouseOver(index)"
+						>
+							<slot :name="option.id">
+								<component :is="option.icon" v-if="option.icon" class="size-5" />
+								{{ option.label ?? option.id }}
+							</slot>
+						</ButtonLink>
+						<span v-else role="menuitem">
+							<slot :name="option.id">
+								<component :is="option.icon" v-if="option.icon" class="size-5" />
+								{{ option.label ?? option.id }}
+							</slot>
+						</span>
 					</template>
 				</div>
 			</Transition>
@@ -95,9 +94,14 @@
 </template>
 
 <script setup lang="ts">
-import { AutoLink, ButtonStyled } from '@modrinth/ui'
+import { AutoLink } from '@modrinth/ui'
 import { onClickOutside, useElementHover } from '@vueuse/core'
 import { type Component, computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+
+import Button from './buttons/Button.vue'
+import ButtonLink from './buttons/ButtonLink.vue'
+import IconButton from './buttons/IconButton.vue'
+import type { ButtonColor, ButtonElementHandle } from './buttons/types'
 
 interface Option {
 	id: string
@@ -124,10 +128,14 @@ function isDivider(item: Item): item is Divider {
 const props = withDefaults(
 	defineProps<{
 		options: Item[]
+		label?: string
+		disabled?: boolean
 		hoverable?: boolean
 		btnClass?: string | string[] | Record<string, boolean>
 	}>(),
 	{
+		label: 'More actions',
+		disabled: false,
 		hoverable: false,
 		btnClass: undefined,
 	},
@@ -141,13 +149,23 @@ const emit = defineEmits<{
 const isOpen = ref(false)
 const selectedIndex = ref(-1)
 const menuRef = ref<HTMLElement | null>(null)
-const triggerRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<ButtonElementHandle | null>(null)
+const triggerElement = computed(() => triggerRef.value?.element ?? null)
 const isMouseDown = ref(false)
 const typeAheadBuffer = ref('')
 const typeAheadTimeout = ref<number | null>(null)
 const menuItemsRef = ref<HTMLElement[]>([])
 
-const hoveringTrigger = useElementHover(triggerRef)
+function normalizedColor(color: Option['color']): ButtonColor | undefined {
+	return color === 'standard' ? undefined : color
+}
+
+function setMenuItemRef(index: number, value: unknown) {
+	const component = value as ButtonElementHandle | null
+	if (component?.element) menuItemsRef.value[index] = component.element
+}
+
+const hoveringTrigger = useElementHover(triggerElement)
 const hoveringMenu = useElementHover(menuRef)
 
 const hovering = computed(() => hoveringTrigger.value || hoveringMenu.value)
@@ -160,9 +178,9 @@ const menuStyle = ref({
 const filteredOptions = computed(() => props.options.filter((option) => option.shown !== false))
 
 const calculateMenuPosition = () => {
-	if (!triggerRef.value || !menuRef.value) return { top: '0px', left: '0px' }
+	if (!triggerElement.value || !menuRef.value) return { top: '0px', left: '0px' }
 
-	const triggerRect = triggerRef.value.getBoundingClientRect()
+	const triggerRect = triggerElement.value.getBoundingClientRect()
 	const menuWidth = menuRef.value.offsetWidth
 	const menuHeight = menuRef.value.offsetHeight
 	const margin = 8
@@ -343,7 +361,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 		case 'Escape':
 			event.preventDefault()
 			closeMenu()
-			triggerRef.value?.focus?.()
+			triggerElement.value?.focus?.()
 			break
 		case 'Tab':
 			event.preventDefault()
@@ -402,13 +420,13 @@ const throttle = <T extends unknown[]>(
 const throttledHandleResizeOrScroll = throttle(handleResizeOrScroll, 100)
 
 onMounted(() => {
-	triggerRef.value?.addEventListener('keydown', handleKeydown)
+	triggerElement.value?.addEventListener('keydown', handleKeydown)
 	window.addEventListener('resize', throttledHandleResizeOrScroll)
 	window.addEventListener('scroll', throttledHandleResizeOrScroll)
 })
 
 onUnmounted(() => {
-	triggerRef.value?.removeEventListener('keydown', handleKeydown)
+	triggerElement.value?.removeEventListener('keydown', handleKeydown)
 	window.removeEventListener('resize', throttledHandleResizeOrScroll)
 	window.removeEventListener('scroll', throttledHandleResizeOrScroll)
 	document.removeEventListener('mousemove', handleMouseMove)
@@ -429,7 +447,7 @@ watch(isOpen, (newValue) => {
 })
 
 onClickOutside(menuRef, (event) => {
-	if (!triggerRef.value?.contains(event.target as Node)) {
+	if (!triggerElement.value?.contains(event.target as Node)) {
 		closeMenu()
 	}
 })

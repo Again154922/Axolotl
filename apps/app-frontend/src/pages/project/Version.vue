@@ -33,43 +33,39 @@
 									: formatMessage(commonMessages.installButton)
 					}}
 				</Button>
-				<ButtonStyled type="outlined" circular>
-					<OverflowMenu
-						v-tooltip="formatMessage(commonMessages.moreOptionsButton)"
-						:options="[
-							{
-								id: 'open-in-browser',
-								link: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`,
-								external: true,
-							},
-							{
-								id: 'report',
-								color: 'red',
-								hoverFilled: true,
-								link: `https://modrinth.com/report?item=version&itemID=${version.id}`,
-								external: true,
-							},
-						]"
-						:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-					>
-						<MoreVerticalIcon aria-hidden="true" />
-						<template #open-in-browser>
-							<ExternalIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.openInBrowserButton) }}
-						</template>
-						<template #report>
-							<ReportIcon aria-hidden="true" /> {{ formatMessage(commonMessages.reportButton) }}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+				<OverflowMenu
+					v-tooltip="formatMessage(commonMessages.moreOptionsButton)"
+					:options="[
+						{
+							id: 'open-in-browser',
+							link: `https://modrinth.com/${project.project_type}/${project.slug}/version/${version.id}`,
+							external: true,
+						},
+						{
+							id: 'report',
+							color: 'red',
+							hoverFilled: true,
+							link: `https://modrinth.com/report?item=version&itemID=${version.id}`,
+							external: true,
+						},
+					]"
+					:aria-label="formatMessage(commonMessages.moreOptionsButton)"
+				>
+					<MoreVerticalIcon aria-hidden="true" />
+					<template #open-in-browser>
+						<ExternalIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.openInBrowserButton) }}
+					</template>
+					<template #report>
+						<ReportIcon aria-hidden="true" /> {{ formatMessage(commonMessages.reportButton) }}
+					</template>
+				</OverflowMenu>
 			</template>
 			<template #supplementaryResourceActions="{ file }">
-				<ButtonStyled>
-					<a :href="file.url" :download="file.filename" target="_blank">
-						<DownloadIcon aria-hidden="true" />
-						{{ formatMessage(messages.downloadInBrowser) }}
-					</a>
-				</ButtonStyled>
+				<ButtonLink :href="file.url" :download="file.filename" target="_blank">
+					<DownloadIcon aria-hidden="true" />
+					{{ formatMessage(messages.downloadInBrowser) }}
+				</ButtonLink>
 			</template>
 		</VersionPage>
 	</div>
@@ -87,7 +83,7 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
+	ButtonLink,
 	commonMessages,
 	defineMessages,
 	type DependencyContext,

@@ -188,17 +188,17 @@
 			</div>
 			<div class="ml-auto flex items-center gap-0.5">
 				<div class="mx-1 h-6 w-px bg-surface-5" />
-				<ButtonStyled
-					type="transparent"
+				<Button
+					v-tooltip="busyTooltip"
+					type="quiet"
 					color="red"
-					color-fill="text"
-					hover-color-fill="background"
+					interaction="filled"
+					:disabled="isBusy"
+					@click="showBulkDeleteModal"
 				>
-					<button v-tooltip="busyTooltip" :disabled="isBusy" @click="showBulkDeleteModal">
-						<TrashIcon />
-						<span class="bar-label">{{ formatMessage(commonMessages.deleteLabel) }}</span>
-					</button>
-				</ButtonStyled>
+					<TrashIcon />
+					<span class="bar-label">{{ formatMessage(commonMessages.deleteLabel) }}</span>
+				</Button>
 			</div>
 		</FloatingActionBar>
 	</div>
@@ -219,7 +219,6 @@ import type { Component } from 'vue'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import FloatingActionBar from '#ui/components/base/FloatingActionBar.vue'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { useStickyObserver } from '#ui/composables/sticky-observer'

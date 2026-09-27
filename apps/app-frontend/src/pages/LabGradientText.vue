@@ -17,7 +17,6 @@ import {
 import {
 	Accordion,
 	Button,
-	ButtonStyled,
 	defineMessages,
 	DropdownSelect,
 	injectNotificationManager,
@@ -663,23 +662,21 @@ function formatAdapterName(adapterId: GradientFormatId): string {
 							role="toolbar"
 							:aria-label="formatMessage(messages.inputTitle)"
 						>
-							<ButtonStyled
+							<Button
 								v-for="format in TEXT_FORMATS"
 								:key="format"
 								:highlighted="activeTextFormats.includes(format)"
 								circular
-								size="small"
-								type="transparent"
+								icon-only
+								size="2xs"
+								type="quiet"
+								:title="formatLabel(format)"
+								:label="formatLabel(format)"
+								@mousedown.prevent
+								@click="formatText(format)"
 							>
-								<button
-									:title="formatLabel(format)"
-									:aria-label="formatLabel(format)"
-									@mousedown.prevent
-									@click="formatText(format)"
-								>
-									<component :is="textFormatIcons[format]" />
-								</button>
-							</ButtonStyled>
+								<component :is="textFormatIcons[format]" />
+							</Button>
 						</div>
 					</div>
 					<div

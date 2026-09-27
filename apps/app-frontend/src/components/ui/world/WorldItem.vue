@@ -21,7 +21,7 @@ import {
 import type { MessageDescriptor } from '@modrinth/ui'
 import {
 	Avatar,
-	ButtonStyled,
+	Button,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,
@@ -453,7 +453,7 @@ const messages = defineMessages({
 				</template>
 			</div>
 			<div class="flex gap-1 justify-end smart-clickable:allow-pointer-events">
-				<ButtonStyled
+				<Button
 					v-if="(playingWorld || (locked && playingInstance)) && !startingInstance"
 					color="red"
 					:circular="dashboardDensity === 'compact'"
@@ -464,8 +464,8 @@ const messages = defineMessages({
 							{{ formatMessage(commonMessages.stopButton) }}
 						</span>
 					</button>
-				</ButtonStyled>
-				<ButtonStyled v-else :circular="dashboardDensity === 'compact'">
+				</Button>
+				<Button v-else :circular="dashboardDensity === 'compact'">
 					<button
 						v-tooltip="
 							world.type === 'server'
@@ -498,129 +498,127 @@ const messages = defineMessages({
 							{{ formatMessage(commonMessages.playButton) }}
 						</span>
 					</button>
-				</ButtonStyled>
-				<ButtonStyled circular type="transparent">
-					<OverflowMenu
-						:options="[
-							{
-								id: 'play-instance',
-								shown: !!instanceId,
-								disabled: playingInstance,
-								action: () => emit('play-instance'),
-							},
-							{
-								id: 'open-instance',
-								shown: !!instanceId,
-								action: () => router.push(`/instance/${encodeURIComponent(instanceId)}`),
-							},
-							{
-								id: 'refresh',
-								shown: world.type === 'server',
-								action: () => emit('refresh'),
-							},
-							{
-								id: 'copy-address',
-								shown: world.type === 'server',
-								action: () => copyToClipboard((world as ServerWorld).address),
-							},
-							{
-								id: 'edit',
-								action: () => emit('edit'),
-								shown: !instanceId,
-								disabled: locked || managed,
-								tooltip: locked
-									? formatMessage(messages.worldInUse)
-									: managed
-										? formatMessage(messages.linkedServer)
-										: undefined,
-							},
-							{
-								id: 'open-folder',
-								shown: world.type === 'singleplayer',
-								action: () => (world.type === 'singleplayer' ? emit('open-folder', world) : {}),
-							},
-							{
-								divider: true,
-								shown: !!instanceId,
-							},
-							{
-								id: pinnedToHome ? 'unpin-home' : 'pin-home',
-								shown: !!homePinTarget,
-								action: updateHomePin,
-							},
-							{
-								id: 'create-shortcut',
-								shown: !!shortcutInstanceId,
-								action: () => createShortcut(),
-							},
-							{
-								divider: true,
-								shown: !instanceId,
-							},
-							{
-								id: 'delete',
-								color: 'red',
-								hoverFilled: true,
-								action: () => emit('delete'),
-								shown: !instanceId,
-								disabled: locked || managed,
-								tooltip: locked
-									? formatMessage(messages.worldInUse)
-									: managed
-										? formatMessage(messages.linkedServer)
-										: undefined,
-							},
-						]"
-					>
-						<MoreVerticalIcon aria-hidden="true" />
-						<template #play-instance>
-							<PlayIcon aria-hidden="true" />
-							{{ formatMessage(messages.playInstance) }}
-						</template>
-						<template #open-instance>
-							<EyeIcon aria-hidden="true" />
-							{{ formatMessage(messages.viewInstance) }}
-						</template>
-						<template #edit>
-							<EditIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.editButton) }}
-						</template>
-						<template #open-folder>
-							<FolderOpenIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.openFolderButton) }}
-						</template>
-						<template #copy-address>
-							<ClipboardCopyIcon aria-hidden="true" />
-							{{ formatMessage(messages.copyAddress) }}
-						</template>
-						<template #refresh>
-							<UpdatedIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.refreshButton) }}
-						</template>
-						<template #create-shortcut>
-							<ExternalIcon aria-hidden="true" />
-							{{ formatMessage(messages.createShortcut) }}
-						</template>
-						<template #pin-home>
-							<PinIcon aria-hidden="true" />
-							{{ formatMessage(messages.pinToHome) }}
-						</template>
-						<template #unpin-home>
-							<PinIcon class="rotate-45" aria-hidden="true" />
-							{{ formatMessage(messages.unpinFromHome) }}
-						</template>
-						<template #delete>
-							<TrashIcon aria-hidden="true" />
-							{{
-								formatMessage(
-									world.type === 'server'
-										? commonMessages.removeButton
-										: commonMessages.deleteLabel,
-								)
-							}}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+				</Button>
+				<OverflowMenu
+					type="button"
+					class="relative inline-flex size-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-5"
+					:options="[
+						{
+							id: 'play-instance',
+							shown: !!instanceId,
+							disabled: playingInstance,
+							action: () => emit('play-instance'),
+						},
+						{
+							id: 'open-instance',
+							shown: !!instanceId,
+							action: () => router.push(`/instance/${encodeURIComponent(instanceId)}`),
+						},
+						{
+							id: 'refresh',
+							shown: world.type === 'server',
+							action: () => emit('refresh'),
+						},
+						{
+							id: 'copy-address',
+							shown: world.type === 'server',
+							action: () => copyToClipboard((world as ServerWorld).address),
+						},
+						{
+							id: 'edit',
+							action: () => emit('edit'),
+							shown: !instanceId,
+							disabled: locked || managed,
+							tooltip: locked
+								? formatMessage(messages.worldInUse)
+								: managed
+									? formatMessage(messages.linkedServer)
+									: undefined,
+						},
+						{
+							id: 'open-folder',
+							shown: world.type === 'singleplayer',
+							action: () => (world.type === 'singleplayer' ? emit('open-folder', world) : {}),
+						},
+						{
+							divider: true,
+							shown: !!instanceId,
+						},
+						{
+							id: pinnedToHome ? 'unpin-home' : 'pin-home',
+							shown: !!homePinTarget,
+							action: updateHomePin,
+						},
+						{
+							id: 'create-shortcut',
+							shown: !!shortcutInstanceId,
+							action: () => createShortcut(),
+						},
+						{
+							divider: true,
+							shown: !instanceId,
+						},
+						{
+							id: 'delete',
+							color: 'red',
+							hoverFilled: true,
+							action: () => emit('delete'),
+							shown: !instanceId,
+							disabled: locked || managed,
+							tooltip: locked
+								? formatMessage(messages.worldInUse)
+								: managed
+									? formatMessage(messages.linkedServer)
+									: undefined,
+						},
+					]"
+				>
+					<MoreVerticalIcon aria-hidden="true" />
+					<template #play-instance>
+						<PlayIcon aria-hidden="true" />
+						{{ formatMessage(messages.playInstance) }}
+					</template>
+					<template #open-instance>
+						<EyeIcon aria-hidden="true" />
+						{{ formatMessage(messages.viewInstance) }}
+					</template>
+					<template #edit>
+						<EditIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.editButton) }}
+					</template>
+					<template #open-folder>
+						<FolderOpenIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.openFolderButton) }}
+					</template>
+					<template #copy-address>
+						<ClipboardCopyIcon aria-hidden="true" />
+						{{ formatMessage(messages.copyAddress) }}
+					</template>
+					<template #refresh>
+						<UpdatedIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.refreshButton) }}
+					</template>
+					<template #create-shortcut>
+						<ExternalIcon aria-hidden="true" />
+						{{ formatMessage(messages.createShortcut) }}
+					</template>
+					<template #pin-home>
+						<PinIcon aria-hidden="true" />
+						{{ formatMessage(messages.pinToHome) }}
+					</template>
+					<template #unpin-home>
+						<PinIcon class="rotate-45" aria-hidden="true" />
+						{{ formatMessage(messages.unpinFromHome) }}
+					</template>
+					<template #delete>
+						<TrashIcon aria-hidden="true" />
+						{{
+							formatMessage(
+								world.type === 'server' ? commonMessages.removeButton : commonMessages.deleteLabel,
+							)
+						}}
+					</template>
+				</OverflowMenu>
 			</div>
 		</div>
 	</SmartClickable>

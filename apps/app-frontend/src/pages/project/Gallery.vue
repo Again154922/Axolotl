@@ -9,7 +9,7 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
+	ButtonLink,
 	commonMessages,
 	commonProjectSettingsMessages,
 	defineMessages,
@@ -296,16 +296,14 @@ onUnmounted(() => {
 						<ExpandIcon v-else />
 						{{ formatMessage(zoomedIn ? screenshotMessages.zoomOut : screenshotMessages.zoomIn) }}
 					</Button>
-					<ButtonStyled>
-						<a
-							target="_blank"
-							rel="noreferrer"
-							:href="selectedGalleryItem.image.raw_url ?? selectedGalleryItem.image.url"
-						>
-							<ExternalIcon />
-							{{ formatMessage(commonMessages.openInBrowserButton) }}
-						</a>
-					</ButtonStyled>
+					<ButtonLink
+						target="_blank"
+						rel="noreferrer"
+						:href="selectedGalleryItem.image.raw_url ?? selectedGalleryItem.image.url"
+					>
+						<ExternalIcon />
+						{{ formatMessage(commonMessages.openInBrowserButton) }}
+					</ButtonLink>
 				</div>
 			</div>
 		</template>

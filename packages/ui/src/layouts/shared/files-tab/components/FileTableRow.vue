@@ -56,40 +56,38 @@
 					{{ formatMessage(commonMessages.actionsLabel) }}
 				</span>
 				<div class="col-start-1 row-start-1 flex justify-end">
-					<ButtonStyled circular type="transparent">
-						<TeleportOverflowMenu :options="menuOptions">
-							<MoreHorizontalIcon class="h-5 w-5 bg-transparent" />
-							<template #copy-filename
-								><ClipboardCopyIcon />
-								{{ formatMessage(commonMessages.copyFilenameButton) }}</template
-							>
-							<template #copy-full-path
-								><ClipboardCopyIcon />
-								{{ formatMessage(commonMessages.copyFullPathButton) }}</template
-							>
-							<template #open-in-folder
-								><FolderOpenIcon /> {{ formatMessage(commonMessages.openInFolderButton) }}</template
-							>
-							<template #extract
-								><PackageOpenIcon /> {{ formatMessage(commonMessages.extractButton) }}</template
-							>
-							<template #rename
-								><EditIcon /> {{ formatMessage(commonMessages.renameButton) }}</template
-							>
-							<template #move
-								><RightArrowIcon /> {{ formatMessage(commonMessages.moveButton) }}</template
-							>
-							<template #download
-								><DownloadIcon />
-								{{
-									ctx.downloadButtonLabel ?? formatMessage(commonMessages.downloadButton)
-								}}</template
-							>
-							<template #delete
-								><TrashIcon /> {{ formatMessage(commonMessages.deleteLabel) }}</template
-							>
-						</TeleportOverflowMenu>
-					</ButtonStyled>
+					<TeleportOverflowMenu :options="menuOptions">
+						<MoreHorizontalIcon class="h-5 w-5 bg-transparent" />
+						<template #copy-filename
+							><ClipboardCopyIcon />
+							{{ formatMessage(commonMessages.copyFilenameButton) }}</template
+						>
+						<template #copy-full-path
+							><ClipboardCopyIcon />
+							{{ formatMessage(commonMessages.copyFullPathButton) }}</template
+						>
+						<template #open-in-folder
+							><FolderOpenIcon /> {{ formatMessage(commonMessages.openInFolderButton) }}</template
+						>
+						<template #extract
+							><PackageOpenIcon /> {{ formatMessage(commonMessages.extractButton) }}</template
+						>
+						<template #rename
+							><EditIcon /> {{ formatMessage(commonMessages.renameButton) }}</template
+						>
+						<template #move
+							><RightArrowIcon /> {{ formatMessage(commonMessages.moveButton) }}</template
+						>
+						<template #download
+							><DownloadIcon />
+							{{
+								ctx.downloadButtonLabel ?? formatMessage(commonMessages.downloadButton)
+							}}</template
+						>
+						<template #delete
+							><TrashIcon /> {{ formatMessage(commonMessages.deleteLabel) }}</template
+						>
+					</TeleportOverflowMenu>
 				</div>
 			</div>
 		</div>
@@ -115,7 +113,6 @@ import {
 } from '@modrinth/assets'
 import { computed, ref } from 'vue'
 
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import Checkbox from '#ui/components/base/Checkbox.vue'
 import TeleportOverflowMenu from '#ui/components/base/TeleportOverflowMenu.vue'
 import { useFormatBytes } from '#ui/composables'

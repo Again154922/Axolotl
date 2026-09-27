@@ -85,20 +85,16 @@
 						{{ formatMessage(messages.modifiers) }}
 					</span>
 					<div class="flex flex-wrap gap-2">
-						<ButtonStyled
+						<Button
 							v-for="modifier in modifierOptions"
 							:key="modifier.field"
-							size="small"
+							size="2xs"
 							:type="modifierState[modifier.field] ? 'highlight' : 'outlined'"
+							:aria-pressed="modifierState[modifier.field]"
+							@click="modifierState[modifier.field] = !modifierState[modifier.field]"
 						>
-							<button
-								type="button"
-								:aria-pressed="modifierState[modifier.field]"
-								@click="modifierState[modifier.field] = !modifierState[modifier.field]"
-							>
-								{{ modifier.label }}
-							</button>
-						</ButtonStyled>
+							{{ modifier.label }}
+						</Button>
 					</div>
 				</div>
 
@@ -161,7 +157,6 @@ import {
 } from '../../utils/keybinding'
 import { KEYBINDING_CATALOG } from '../../utils/keybinding-catalog'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import KeybindingChips from '../base/KeybindingChips.vue'
 import KeybindingChoiceTree from './KeybindingChoiceTree.vue'
 import NewModal from './NewModal.vue'

@@ -213,15 +213,16 @@
 								</span>
 							</div>
 							<div class="flex items-center gap-1.5">
-								<ButtonStyled v-if="rule.canResetToDefault" type="transparent" size="small">
-									<button
-										v-tooltip="formatMessage(messages.resetRuleToDefault)"
-										:disabled="readonly"
-										@click="resetRuleToDefault(rule.key, rule.defaultValue)"
-									>
-										<UndoIcon />
-									</button>
-								</ButtonStyled>
+								<Button
+									v-if="rule.canResetToDefault"
+									v-tooltip="formatMessage(messages.resetRuleToDefault)"
+									type="quiet"
+									size="2xs"
+									:disabled="readonly"
+									@click="resetRuleToDefault(rule.key, rule.defaultValue)"
+								>
+									<UndoIcon />
+								</Button>
 								<DropdownSelect
 									v-if="rule.widget === 'boolean'"
 									v-model="form.rules[rule.key]"
@@ -279,7 +280,6 @@ import {
 	Admonition,
 	Avatar,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	defineMessages,
 	DropdownSelect,

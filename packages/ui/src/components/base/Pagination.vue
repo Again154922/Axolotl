@@ -1,19 +1,26 @@
 <template>
 	<div v-if="count > 1" class="flex items-center gap-1" :class="{ 'opacity-60': loading }">
-		<ButtonStyled v-if="page > 1" circular type="transparent">
-			<a
-				v-if="linkFunction"
-				aria-label="Previous Page"
-				:href="linkFunction(page - 1)"
-				:aria-disabled="loading"
-				@click.prevent="!loading && switchPage(page - 1)"
-			>
-				<ChevronLeftIcon />
-			</a>
-			<button v-else aria-label="Previous Page" :disabled="loading" @click="switchPage(page - 1)">
-				<ChevronLeftIcon />
-			</button>
-		</ButtonStyled>
+		<ButtonLink
+			v-if="page > 1 && linkFunction"
+			type="quiet"
+			circular
+			icon-only
+			label="Previous Page"
+			:href="linkFunction(page - 1)"
+			:disabled="loading"
+			@click.prevent="!loading && switchPage(page - 1)"
+		>
+			<ChevronLeftIcon />
+		</ButtonLink>
+		<IconButton
+			v-else-if="page > 1"
+			label="Previous Page"
+			type="quiet"
+			:disabled="loading"
+			@click="switchPage(page - 1)"
+		>
+			<ChevronLeftIcon />
+		</IconButton>
 		<div
 			v-for="(item, index) in pages"
 			:key="'page-' + item + '-' + index"
@@ -62,46 +69,52 @@
 					<SpinnerIcon class="size-4 animate-spin" />
 				</span>
 			</template>
-			<ButtonStyled
+			<ButtonLink
+				v-else-if="linkFunction"
+				circular
+				:type="page === item ? 'highlight' : 'quiet'"
+				:color="page === item ? 'brand' : undefined"
+				:href="linkFunction(item)"
+				:disabled="loading"
+				:aria-current="page === item ? 'page' : undefined"
+				@click.prevent="!loading && page !== item ? switchPage(item) : null"
+			>
+				{{ item }}
+			</ButtonLink>
+			<Button
 				v-else
 				circular
-				:color="page === item ? 'brand' : 'standard'"
-				:type="page === item ? 'highlight' : 'transparent'"
+				:type="page === item ? 'highlight' : 'quiet'"
+				:color="page === item ? 'brand' : undefined"
+				:disabled="loading"
+				:aria-current="page === item ? 'page' : undefined"
+				@click="page !== item ? switchPage(item) : null"
 			>
-				<a
-					v-if="linkFunction"
-					:href="linkFunction(item)"
-					:class="page === item ? '!text-brand' : ''"
-					:aria-disabled="loading"
-					@click.prevent="!loading && page !== item ? switchPage(item) : null"
-				>
-					{{ item }}
-				</a>
-				<button
-					v-else
-					:class="page === item ? '!text-brand' : ''"
-					:disabled="loading"
-					@click="page !== item ? switchPage(item) : null"
-				>
-					{{ item }}
-				</button>
-			</ButtonStyled>
+				{{ item }}
+			</Button>
 		</div>
 
-		<ButtonStyled v-if="page !== pages[pages.length - 1]" circular type="transparent">
-			<a
-				v-if="linkFunction"
-				aria-label="Next Page"
-				:href="linkFunction(page + 1)"
-				:aria-disabled="loading"
-				@click.prevent="!loading && switchPage(page + 1)"
-			>
-				<ChevronRightIcon />
-			</a>
-			<button v-else aria-label="Next Page" :disabled="loading" @click="switchPage(page + 1)">
-				<ChevronRightIcon />
-			</button>
-		</ButtonStyled>
+		<ButtonLink
+			v-if="page !== pages[pages.length - 1] && linkFunction"
+			type="quiet"
+			circular
+			icon-only
+			label="Next Page"
+			:href="linkFunction(page + 1)"
+			:disabled="loading"
+			@click.prevent="!loading && switchPage(page + 1)"
+		>
+			<ChevronRightIcon />
+		</ButtonLink>
+		<IconButton
+			v-else-if="page !== pages[pages.length - 1]"
+			label="Next Page"
+			type="quiet"
+			:disabled="loading"
+			@click="switchPage(page + 1)"
+		>
+			<ChevronRightIcon />
+		</IconButton>
 	</div>
 </template>
 <script setup lang="ts">
@@ -114,7 +127,9 @@ import {
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { defineMessages, useVIntl } from '../../composables/i18n'
-import ButtonStyled from './ButtonStyled.vue'
+import Button from './buttons/Button.vue'
+import ButtonLink from './buttons/ButtonLink.vue'
+import IconButton from './buttons/IconButton.vue'
 
 const emit = defineEmits<{
 	'switch-page': [page: number]

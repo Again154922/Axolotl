@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-	ButtonStyled,
+	Button,
 	defineMessages,
 	injectNotificationManager,
 	LoadingIndicator,
@@ -187,9 +187,9 @@ onUnmounted(() => {
 			<p class="m-0 max-w-md text-[var(--color-text-tertiary)]">
 				{{ formatMessage(messages.loadErrorDescription) }}
 			</p>
-			<ButtonStyled color="brand" @click="reloadEditor">
+			<Button type="colored" color="brand" @click="reloadEditor">
 				{{ formatMessage(messages.retry) }}
-			</ButtonStyled>
+			</Button>
 		</div>
 		<iframe
 			v-if="editorUrl"

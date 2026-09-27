@@ -7,14 +7,7 @@ import {
 	ServerIcon,
 	SpinnerIcon,
 } from '@modrinth/assets'
-import {
-	Button,
-	ButtonStyled,
-	defineMessages,
-	EmptyState,
-	PopoutMenu,
-	useVIntl,
-} from '@modrinth/ui'
+import { Button, defineMessages, EmptyState, PopoutMenu, useVIntl } from '@modrinth/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import type { ComponentExposed } from 'vue-component-type-helpers'
 import { useRouter } from 'vue-router'
@@ -110,21 +103,17 @@ async function toggleRunning(server: ServerView) {
 					</Button>
 					<template #menu>
 						<div class="flex w-44 flex-col gap-1 p-1">
-							<ButtonStyled
+							<Button
 								v-for="option in displayModeOptions"
 								:key="option.id"
-								:type="displayMode === option.id ? 'filled' : 'transparent'"
+								:type="displayMode === option.id ? 'base' : 'quiet'"
+								class="flex w-full items-center gap-2 !justify-start text-left"
+								:aria-pressed="displayMode === option.id"
+								@click="setDisplayMode(option.id)"
 							>
-								<button
-									type="button"
-									class="flex w-full items-center gap-2 !justify-start text-left"
-									:aria-pressed="displayMode === option.id"
-									@click="setDisplayMode(option.id)"
-								>
-									<component :is="option.icon" class="size-4" />
-									{{ option.label }}
-								</button>
-							</ButtonStyled>
+								<component :is="option.icon" class="size-4" />
+								{{ option.label }}
+							</Button>
 						</div>
 					</template>
 				</PopoutMenu>

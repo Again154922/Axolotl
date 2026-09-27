@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MoreVerticalIcon, PinIcon } from '@modrinth/assets'
-import { ButtonStyled, defineMessages, OverflowMenu, useVIntl } from '@modrinth/ui'
+import { defineMessages, OverflowMenu, useVIntl } from '@modrinth/ui'
 import { computed } from 'vue'
 
 import Instance from '@/components/ui/Instance.vue'
@@ -50,18 +50,17 @@ const menuOptions = computed(() => [
 			:first="layout === 'spotlight'"
 		/>
 		<div class="home-instance-menu" @click.stop>
-			<ButtonStyled circular size="small" type="transparent">
-				<OverflowMenu
-					:options="menuOptions"
-					:tooltip="formatMessage(pinned ? messages.unpin : messages.pin)"
-				>
-					<MoreVerticalIcon />
-					<template #pin><PinIcon /> {{ formatMessage(messages.pin) }}</template>
-					<template #unpin>
-						<PinIcon class="rotate-45" /> {{ formatMessage(messages.unpin) }}
-					</template>
-				</OverflowMenu>
-			</ButtonStyled>
+			<OverflowMenu
+				class="relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+				:options="menuOptions"
+				:tooltip="formatMessage(pinned ? messages.unpin : messages.pin)"
+			>
+				<MoreVerticalIcon />
+				<template #pin><PinIcon /> {{ formatMessage(messages.pin) }}</template>
+				<template #unpin>
+					<PinIcon class="rotate-45" /> {{ formatMessage(messages.unpin) }}
+				</template>
+			</OverflowMenu>
 		</div>
 	</div>
 </template>

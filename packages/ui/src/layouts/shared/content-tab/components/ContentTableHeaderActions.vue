@@ -11,7 +11,7 @@ import {
 } from '@modrinth/assets'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import IconButton from '#ui/components/base/buttons/IconButton.vue'
 import PopoutMenu from '#ui/components/base/PopoutMenu.vue'
 
 import type { ContentSortMode } from '../composables'
@@ -64,24 +64,21 @@ const emit = defineEmits<{
 			</Button>
 			<template #menu>
 				<div class="flex w-56 flex-col gap-1 p-1" role="menu" :aria-label="props.viewOptionsLabel">
-					<ButtonStyled
+					<Button
 						v-for="option in props.sortOptions"
 						:key="option.id"
-						:type="props.sortMode === option.id ? 'filled' : 'transparent'"
+						:type="props.sortMode === option.id ? 'base' : 'quiet'"
+						class="flex w-full items-center gap-2 !justify-start text-left"
+						role="menuitemradio"
+						:aria-checked="props.sortMode === option.id"
+						@click="emit('selectSort', option.id)"
 					>
-						<button
-							class="flex w-full items-center gap-2 !justify-start text-left"
-							role="menuitemradio"
-							:aria-checked="props.sortMode === option.id"
-							@click="emit('selectSort', option.id)"
-						>
-							<CheckIcon
-								class="size-4 shrink-0"
-								:class="props.sortMode === option.id ? 'opacity-100' : 'opacity-0'"
-							/>
-							<span>{{ option.label }}</span>
-						</button>
-					</ButtonStyled>
+						<CheckIcon
+							class="size-4 shrink-0"
+							:class="props.sortMode === option.id ? 'opacity-100' : 'opacity-0'"
+						/>
+						<span>{{ option.label }}</span>
+					</Button>
 					<div class="my-1 h-px bg-surface-5" />
 					<Button
 						type="quiet"
@@ -94,35 +91,28 @@ const emit = defineEmits<{
 			</template>
 		</PopoutMenu>
 
-		<ButtonStyled
-			circular
-			:type="props.pinned ? 'chip' : 'transparent'"
-			:color="props.pinned ? 'brand' : 'standard'"
+		<IconButton
+			v-tooltip="props.pinTooltip"
+			:label="props.pinTooltip"
+			:type="props.pinned ? 'chip' : 'quiet'"
+			:color="props.pinned ? 'brand' : undefined"
+			:aria-pressed="props.pinned"
+			@click="emit('togglePin')"
 		>
-			<button
-				v-tooltip="props.pinTooltip"
-				:aria-label="props.pinTooltip"
-				@click="emit('togglePin')"
-			>
-				<PinIcon />
-			</button>
-		</ButtonStyled>
+			<PinIcon />
+		</IconButton>
 
-		<ButtonStyled
+		<IconButton
 			v-if="props.hasBulkUpdateSupport && props.hasOutdatedProjects"
-			circular
+			v-tooltip="props.bulkUpdateTooltip"
+			:label="props.bulkUpdateTooltip ?? 'Update all'"
 			color="green"
-			type="transparent"
-			color-fill="text"
-			hover-color-fill="background"
+			type="quiet"
+			interaction="filled"
+			:disabled="props.isBulkOperating"
+			@click="emit('updateAll')"
 		>
-			<button
-				v-tooltip="props.bulkUpdateTooltip"
-				:disabled="props.isBulkOperating"
-				@click="emit('updateAll')"
-			>
-				<DownloadIcon />
-			</button>
-		</ButtonStyled>
+			<DownloadIcon />
+		</IconButton>
 	</div>
 </template>

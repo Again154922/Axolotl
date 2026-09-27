@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FolderOpenIcon, LeftArrowIcon, SparklesIcon } from '@modrinth/assets'
-import { BigOptionButton, defineMessages, LegacyButton as Button, useVIntl } from '@modrinth/ui'
+import { BigOptionButton, Button, defineMessages, useVIntl } from '@modrinth/ui'
 import { inject } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -116,7 +116,7 @@ function handleImportExisting() {
 				</RouterLink>
 			</p>
 
-			<Button transparent class="self-start" @click="navigateBack">
+			<Button type="quiet" class="self-start" @click="navigateBack">
 				<LeftArrowIcon class="size-4" stroke-width="2" />
 				{{ formatMessage(messages.back) }}
 			</Button>

@@ -6,13 +6,12 @@
 			v-tooltip="isDisabled(item) ? getDisabledTooltip(item) : undefined"
 			role="radio"
 			:aria-checked="selected === item"
+			:data-state="selected === item ? 'checked' : 'unchecked'"
+			:type="selected === item ? 'chip' : 'base'"
+			v-bind="selected === item ? { color: 'brand' as const } : {}"
+			:size="size === 'small' ? 'sm' : 'md'"
 			:disabled="isDisabled(item)"
-			class="btn !brightness-100 hover:!brightness-125"
-			:class="{
-				selected: selected === item,
-				capitalize: capitalize,
-				'!px-2.5 !py-1.5': size === 'small',
-			}"
+			:class="{ capitalize }"
 			@click="toggleItem(item)"
 		>
 			<CheckIcon v-if="selected === item && !hideCheckmarkIcon" />
@@ -24,7 +23,7 @@
 <script setup lang="ts" generic="T">
 import { CheckIcon } from '@modrinth/assets'
 
-import Button from './Button.vue'
+import Button from './buttons/Button.vue'
 
 const props = withDefaults(
 	defineProps<{
@@ -74,28 +73,8 @@ function toggleItem(item: T) {
 }
 </script>
 
-<style lang="scss" scoped>
-.chips {
-	.btn {
-		border: 1px solid transparent;
-		&.capitalize {
-			text-transform: capitalize;
-		}
-
-		svg {
-			width: 1em;
-			height: 1em;
-		}
-
-		&:focus-visible {
-			outline: 0.25rem solid var(--color-focus-ring);
-		}
-	}
-
-	.selected {
-		color: var(--color-brand);
-		background-color: var(--color-brand-highlight);
-		border: 1px solid var(--color-brand);
-	}
+<style scoped>
+.capitalize {
+	text-transform: capitalize;
 }
 </style>

@@ -12,7 +12,6 @@ import {
 import {
 	Avatar,
 	Button,
-	ButtonStyled,
 	defineMessages,
 	injectNotificationManager,
 	OverflowMenu,
@@ -276,23 +275,22 @@ async function unpinLocalServer(serverId: string) {
 								/>
 								<PlayIcon v-else />
 							</Button>
-							<ButtonStyled circular size="small" type="transparent" class="home-server-menu">
-								<OverflowMenu
-									:options="[
-										{
-											id: 'unpin',
-											action: () => unpinServer(server.world),
-										},
-									]"
-									:tooltip="formatMessage(messages.moreOptions)"
-								>
-									<MoreVerticalIcon />
-									<template #unpin>
-										<PinIcon class="rotate-45" aria-hidden="true" />
-										{{ formatMessage(messages.unpin) }}
-									</template>
-								</OverflowMenu>
-							</ButtonStyled>
+							<OverflowMenu
+								class="home-server-menu relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+								:options="[
+									{
+										id: 'unpin',
+										action: () => unpinServer(server.world),
+									},
+								]"
+								:tooltip="formatMessage(messages.moreOptions)"
+							>
+								<MoreVerticalIcon />
+								<template #unpin>
+									<PinIcon class="rotate-45" aria-hidden="true" />
+									{{ formatMessage(messages.unpin) }}
+								</template>
+							</OverflowMenu>
 						</div>
 					</div>
 				</SmartClickable>
@@ -352,18 +350,17 @@ async function unpinLocalServer(serverId: string) {
 								><StopCircleIcon v-if="server.running" />
 								<PlayIcon v-else />
 							</Button>
-							<ButtonStyled circular size="small" type="transparent" class="home-server-menu">
-								<OverflowMenu
-									:options="[{ id: 'unpin', action: () => unpinLocalServer(server.id) }]"
-									:tooltip="formatMessage(messages.moreOptions)"
-								>
-									<MoreVerticalIcon />
-									<template #unpin>
-										<PinIcon class="rotate-45" aria-hidden="true" />
-										{{ formatMessage(messages.unpin) }}
-									</template>
-								</OverflowMenu>
-							</ButtonStyled>
+							<OverflowMenu
+								class="home-server-menu relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+								:options="[{ id: 'unpin', action: () => unpinLocalServer(server.id) }]"
+								:tooltip="formatMessage(messages.moreOptions)"
+							>
+								<MoreVerticalIcon />
+								<template #unpin>
+									<PinIcon class="rotate-45" aria-hidden="true" />
+									{{ formatMessage(messages.unpin) }}
+								</template>
+							</OverflowMenu>
 						</div>
 					</div>
 				</SmartClickable>

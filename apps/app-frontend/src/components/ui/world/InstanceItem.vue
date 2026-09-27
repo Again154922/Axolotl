@@ -9,7 +9,7 @@ import {
 } from '@modrinth/assets'
 import {
 	Avatar,
-	ButtonStyled,
+	Button,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,
@@ -231,19 +231,15 @@ onUnmounted(() => {
 				</div>
 			</div>
 			<div class="flex gap-1 justify-end smart-clickable:allow-pointer-events">
-				<ButtonStyled
-					v-if="isPlaying && !loading"
-					color="red"
-					:circular="dashboardDensity === 'compact'"
-				>
+				<Button v-if="isPlaying && !loading" color="red" :circular="dashboardDensity === 'compact'">
 					<button @click="stop">
 						<StopCircleIcon aria-hidden="true" />
 						<span v-if="dashboardDensity !== 'compact'">
 							{{ formatMessage(commonMessages.stopButton) }}
 						</span>
 					</button>
-				</ButtonStyled>
-				<ButtonStyled v-else :circular="dashboardDensity === 'compact'">
+				</Button>
+				<Button v-else :circular="dashboardDensity === 'compact'">
 					<button
 						v-tooltip="isPlaying ? formatMessage(messages.alreadyOpen) : null"
 						:disabled="isPlaying || loading"
@@ -255,32 +251,32 @@ onUnmounted(() => {
 							{{ formatMessage(commonMessages.playButton) }}
 						</span>
 					</button>
-				</ButtonStyled>
-				<ButtonStyled circular type="transparent">
-					<OverflowMenu
-						:options="[
-							{
-								id: 'open-instance',
-								shown: !!instance.id,
-								action: () => router.push(encodeURI(`/instance/${instance.id}`)),
-							},
-							{
-								id: 'open-folder',
-								action: () => showInstanceInFolder(instance.id),
-							},
-						]"
-					>
-						<MoreVerticalIcon aria-hidden="true" />
-						<template #open-instance>
-							<EyeIcon aria-hidden="true" />
-							{{ formatMessage(messages.viewInstance) }}
-						</template>
-						<template #open-folder>
-							<FolderOpenIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.openFolderButton) }}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+				</Button>
+				<OverflowMenu
+					type="button"
+					class="relative inline-flex size-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-5"
+					:options="[
+						{
+							id: 'open-instance',
+							shown: !!instance.id,
+							action: () => router.push(encodeURI(`/instance/${instance.id}`)),
+						},
+						{
+							id: 'open-folder',
+							action: () => showInstanceInFolder(instance.id),
+						},
+					]"
+				>
+					<MoreVerticalIcon aria-hidden="true" />
+					<template #open-instance>
+						<EyeIcon aria-hidden="true" />
+						{{ formatMessage(messages.viewInstance) }}
+					</template>
+					<template #open-folder>
+						<FolderOpenIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.openFolderButton) }}
+					</template>
+				</OverflowMenu>
 			</div>
 		</div>
 	</SmartClickable>

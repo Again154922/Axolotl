@@ -10,41 +10,42 @@
 		<slot></slot>
 		<template #menu>
 			<slot name="menu-header" />
-			<template v-for="(option, index) in options.filter((x) => x.shown === undefined || x.shown)">
-				<div
-					v-if="isDivider(option)"
-					:key="`divider-${index}`"
-					class="h-px mx-[0.625rem] my-2 bg-surface-5"
-				></div>
+			<template
+				v-for="(option, index) in options.filter((x) => x.shown === undefined || x.shown)"
+				:key="isDivider(option) ? `divider-${index}` : `option-${option.id}`"
+			>
+				<div v-if="isDivider(option)" class="h-px mx-[0.625rem] my-2 bg-surface-5"></div>
+				<ButtonLink
+					v-else-if="option.link"
+					v-tooltip="option.tooltip"
+					:as="isInternalLink(option.link) ? RouterLink : 'a'"
+					:to="isInternalLink(option.link) ? option.link : undefined"
+					:href="isInternalLink(option.link) ? undefined : option.link"
+					type="quiet"
+					:color="normalizedColor(option.color)"
+					:interaction="normalizedInteraction(option)"
+					:download="option.download || undefined"
+					:target="option.external ? '_blank' : '_self'"
+					:disabled="option.disabled"
+					:class="optionClasses(option)"
+					@click="handleLinkClick(option, $event)"
+				>
+					<template v-if="!$slots[option.id]">
+						<component :is="option.icon" v-if="option.icon" class="size-5" />
+						{{ option.id }}
+					</template>
+					<slot :name="option.id"></slot>
+					<ExternalIcon v-if="option.external" class="!size-3" />
+				</ButtonLink>
 				<Button
 					v-else
-					:key="`option-${option.id}`"
 					v-tooltip="option.tooltip"
-					:color="option.color ? option.color : 'default'"
-					:hover-filled="option.hoverFilled"
-					:hover-filled-only="option.hoverFilledOnly"
-					transparent
-					:action="
-						option.action
-							? (event: MouseEvent) => {
-									option.action?.(event)
-									if (!option.remainOnClick) {
-										close()
-									}
-								}
-							: undefined
-					"
-					:link="option.link ? option.link : undefined"
-					:download="option.download ? option.download : undefined"
-					:external="option.external ? option.external : false"
+					type="quiet"
+					:color="normalizedColor(option.color)"
+					:interaction="normalizedInteraction(option)"
 					:disabled="option.disabled"
-					@click="
-						() => {
-							if (option.link && !option.remainOnClick) {
-								close()
-							}
-						}
-					"
+					:class="optionClasses(option)"
+					@click="option.action ? handleActionClick(option, $event) : undefined"
 				>
 					<template v-if="!$slots[option.id]">
 						<component :is="option.icon" v-if="option.icon" class="size-5" />
@@ -58,9 +59,13 @@
 </template>
 
 <script setup lang="ts">
+import ExternalIcon from '@modrinth/assets/icons/external.svg?component'
 import { type Component, type Ref, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
-import Button from './Button.vue'
+import Button from './buttons/Button.vue'
+import ButtonLink from './buttons/ButtonLink.vue'
+import type { ButtonColor, ButtonInteraction } from './buttons/types'
 import PopoutMenu from './PopoutMenu.vue'
 
 interface BaseOption {
@@ -71,6 +76,18 @@ interface Divider extends BaseOption {
 	divider?: boolean
 }
 
+type LegacyColor =
+	| 'default'
+	| 'primary'
+	| 'danger'
+	| 'secondary'
+	| 'highlight'
+	| 'red'
+	| 'orange'
+	| 'green'
+	| 'blue'
+	| 'purple'
+
 interface Item extends BaseOption {
 	id: string
 	icon?: Component
@@ -78,16 +95,7 @@ interface Item extends BaseOption {
 	link?: string
 	download?: string
 	external?: boolean
-	color?:
-		| 'primary'
-		| 'danger'
-		| 'secondary'
-		| 'highlight'
-		| 'red'
-		| 'orange'
-		| 'green'
-		| 'blue'
-		| 'purple'
+	color?: LegacyColor
 	hoverFilled?: boolean
 	hoverFilledOnly?: boolean
 	remainOnClick?: boolean
@@ -132,17 +140,54 @@ function isDivider(option: BaseOption): option is Divider {
 	return 'divider' in option
 }
 
+function isInternalLink(link: string): boolean {
+	return link.startsWith('/')
+}
+
+function normalizedColor(color: LegacyColor | undefined): ButtonColor | undefined {
+	switch (color) {
+		case 'primary':
+		case 'secondary':
+			return 'brand'
+		case 'danger':
+			return 'red'
+		case 'highlight':
+			return 'orange'
+		case 'red':
+		case 'orange':
+		case 'green':
+		case 'blue':
+		case 'purple':
+			return color
+		default:
+			return undefined
+	}
+}
+
+function normalizedInteraction(option: Item): ButtonInteraction {
+	return (option.hoverFilled || option.hoverFilledOnly) && normalizedColor(option.color)
+		? 'filled'
+		: 'surface'
+}
+
+function optionClasses(option: Item): string[] {
+	return [
+		'w-full !justify-start',
+		option.hoverFilledOnly
+			? '[&:not(:hover):not(:focus-visible)]:!text-[var(--color-text-default)]'
+			: '',
+	]
+}
+
+function handleActionClick(option: Item, event: MouseEvent) {
+	option.action?.(event)
+	if (!option.remainOnClick) close()
+}
+
+function handleLinkClick(option: Item, event: MouseEvent) {
+	option.action?.(event)
+	if (!option.remainOnClick) close()
+}
+
 defineExpose({ open, close })
 </script>
-
-<style lang="scss" scoped>
-.btn {
-	white-space: nowrap;
-	width: 100%;
-	box-shadow: none;
-	--text-color: var(--color-text-default);
-	--background-color: transparent;
-	justify-content: flex-start;
-	padding: 0.55rem 0.625rem;
-}
-</style>

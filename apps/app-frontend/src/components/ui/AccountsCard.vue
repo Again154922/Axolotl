@@ -271,15 +271,17 @@
 							savedLogin.api_root
 						}}</span>
 					</button>
-					<ButtonStyled circular color="red" color-fill="none" hover-color-fill="background">
-						<button
-							v-tooltip="formatMessage(messages.removeSavedLogin)"
-							:disabled="loginDisabled"
-							@click="removeSavedYggdrasilLogin(savedLogin)"
-						>
-							<TrashIcon />
-						</button>
-					</ButtonStyled>
+					<IconButton
+						v-tooltip="formatMessage(messages.removeSavedLogin)"
+						:label="formatMessage(messages.removeSavedLogin)"
+						type="quiet"
+						color="red"
+						interaction="filled"
+						:disabled="loginDisabled"
+						@click="removeSavedYggdrasilLogin(savedLogin)"
+					>
+						<TrashIcon />
+					</IconButton>
 				</div>
 			</div>
 			<Button class="w-full" :disabled="loginDisabled" @click="useLittleSkinPreset()"
@@ -371,10 +373,10 @@ import {
 	Admonition,
 	Avatar,
 	Button,
-	ButtonStyled,
 	Checkbox,
 	commonMessages,
 	defineMessages,
+	IconButton,
 	injectNotificationManager,
 	NewModal,
 	StyledInput,

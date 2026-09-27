@@ -1,0 +1,45 @@
+import { readdir, readFile } from 'node:fs/promises'
+import path from 'node:path'
+
+const ROOTS = ['packages/ui/src', 'apps/app-frontend/src', 'apps/website/src']
+const RETIRED = [
+	{ pattern: /\bButtonStyled\b/, reason: 'use Button, IconButton or ButtonLink' },
+	{ pattern: /\bLegacyButton\b/, reason: 'use Button, IconButton or ButtonLink' },
+	{ pattern: /\b(?:hover-)?color-fill\s*=/, reason: 'use the quiet-button interaction prop' },
+	{ pattern: /\bhighlighted-style\s*=/, reason: 'use semantic selected state and ARIA' },
+	{ pattern: /\bbtn-wrapper\b/, reason: 'the descendant-search wrapper was removed' },
+	{ pattern: /\bjoined-buttons\b/, reason: 'use ButtonGroup' },
+]
+
+async function* walk(directory) {
+	for (const entry of await readdir(directory, { withFileTypes: true })) {
+		if (/^(?:node_modules|dist|\.nuxt|\.output|__screenshots__)$/.test(entry.name)) continue
+		const entryPath = path.join(directory, entry.name)
+		if (entry.isDirectory()) yield* walk(entryPath)
+		else if (/\.(?:vue|ts|js|mjs|scss|css)$/.test(entry.name)) yield entryPath
+	}
+}
+
+const violations = []
+for (const root of ROOTS) {
+	for await (const file of walk(root)) {
+		const lines = (await readFile(file, 'utf8')).split(/\r?\n/)
+		for (const [index, line] of lines.entries()) {
+			for (const retired of RETIRED) {
+				if (retired.pattern.test(line)) {
+					violations.push(`${file}:${index + 1}: ${retired.reason}\n  ${line.trim()}`)
+				}
+			}
+		}
+	}
+}
+
+if (violations.length > 0) {
+	console.error(
+		`Axolotl retired UI check failed: ${violations.length} retired button API reference(s).\n` +
+			violations.join('\n'),
+	)
+	process.exit(1)
+}
+
+console.log('Axolotl retired UI check passed.')

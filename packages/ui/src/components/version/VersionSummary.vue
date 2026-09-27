@@ -13,17 +13,17 @@
 				{{ version.name }}
 			</p>
 		</div>
-		<ButtonStyled color="brand">
-			<a
-				:href="downloadUrl"
-				:download="primaryFilename"
-				class="min-w-0"
-				@click="emit('onDownload')"
-			>
-				<DownloadIcon aria-hidden="true" />
-				{{ formatMessage(commonMessages.downloadButton) }}
-			</a>
-		</ButtonStyled>
+		<ButtonLink
+			type="colored"
+			color="brand"
+			:href="downloadUrl"
+			:download="primaryFilename"
+			class="min-w-0"
+			@click="emit('onDownload')"
+		>
+			<DownloadIcon aria-hidden="true" />
+			{{ formatMessage(commonMessages.downloadButton) }}
+		</ButtonLink>
 		<Button
 			circular
 			icon-only
@@ -43,10 +43,11 @@ import type { Version, VersionFile } from '@modrinth/utils'
 import { computed } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
+import ButtonLink from '#ui/components/base/buttons/ButtonLink.vue'
 import { commonMessages } from '#ui/utils/common-messages'
 
 import { defineMessages, useVIntl } from '../../composables/i18n'
-import { ButtonStyled, VersionChannelIndicator } from '../index'
+import { VersionChannelIndicator } from '../index'
 
 const { formatMessage } = useVIntl()
 

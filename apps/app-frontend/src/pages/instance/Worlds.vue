@@ -81,12 +81,10 @@
 						{{ option.label }}
 					</button>
 				</div>
-				<ButtonStyled type="transparent" hover-color-fill="none">
-					<button :disabled="refreshingAll" @click="refreshAllWorlds">
-						<RefreshCwIcon :class="refreshingAll ? 'animate-spin' : ''" />
-						{{ formatMessage(commonMessages.refreshButton) }}
-					</button>
-				</ButtonStyled>
+				<Button type="quiet" interaction="none" :disabled="refreshingAll" @click="refreshAllWorlds">
+					<RefreshCwIcon :class="refreshingAll ? 'animate-spin' : ''" />
+					{{ formatMessage(commonMessages.refreshButton) }}
+				</Button>
 			</div>
 			<div class="flex flex-col w-full gap-2">
 				<WorldItem
@@ -172,7 +170,6 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	commonMessages,
 	defineMessages,
 	EmptyState,

@@ -23,7 +23,7 @@ import AutoLink from '#ui/components/base/AutoLink.vue'
 import Avatar from '#ui/components/base/Avatar.vue'
 import BulletDivider from '#ui/components/base/BulletDivider.vue'
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import IconButton from '#ui/components/base/buttons/IconButton.vue'
 import Checkbox from '#ui/components/base/Checkbox.vue'
 import MinecraftFormattedText from '#ui/components/base/MinecraftFormattedText.vue'
 import type { Option as OverflowMenuOption } from '#ui/components/base/OverflowMenu.vue'
@@ -419,26 +419,22 @@ const deleteHovered = ref(false)
 
 		<div v-if="!hideActions" class="flex min-w-[160px] shrink-0 items-center justify-end gap-2">
 			<template v-if="groupKind !== 'world'">
-				<ButtonStyled
+				<IconButton
 					v-if="hasUpdate"
-					circular
-					type="transparent"
+					v-tooltip="
+						isDisabled && disabledTooltip
+							? disabledTooltip
+							: formatMessage(commonMessages.updateAvailableLabel)
+					"
+					:label="formatMessage(commonMessages.updateAvailableLabel)"
+					type="quiet"
 					color="green"
-					color-fill="text"
-					hover-color-fill="background"
+					interaction="filled"
+					:disabled="isDisabled"
+					@click.stop="emit('update')"
 				>
-					<button
-						v-tooltip="
-							isDisabled && disabledTooltip
-								? disabledTooltip
-								: formatMessage(commonMessages.updateAvailableLabel)
-						"
-						:disabled="isDisabled"
-						@click.stop="emit('update')"
-					>
-						<DownloadIcon class="size-5" />
-					</button>
-				</ButtonStyled>
+					<DownloadIcon class="size-5" />
+				</IconButton>
 				<Button
 					v-else-if="groupSwitchVersion"
 					v-tooltip="formatMessage(commonMessages.switchVersionButton)"
@@ -697,26 +693,22 @@ const deleteHovered = ref(false)
 				v-if="hasUpdateListener || hasSwitchVersionListener"
 				class="flex w-8 items-center justify-center"
 			>
-				<ButtonStyled
+				<IconButton
 					v-if="hasUpdate"
-					circular
-					type="transparent"
+					v-tooltip="
+						isDisabled && disabledTooltip
+							? disabledTooltip
+							: formatMessage(commonMessages.updateAvailableLabel)
+					"
+					:label="formatMessage(commonMessages.updateAvailableLabel)"
+					type="quiet"
 					color="green"
-					color-fill="text"
-					hover-color-fill="background"
+					interaction="filled"
+					:disabled="isDisabled"
+					@click.stop="emit('update')"
 				>
-					<button
-						v-tooltip="
-							isDisabled && disabledTooltip
-								? disabledTooltip
-								: formatMessage(commonMessages.updateAvailableLabel)
-						"
-						:disabled="isDisabled"
-						@click.stop="emit('update')"
-					>
-						<DownloadIcon class="size-5" />
-					</button>
-				</ButtonStyled>
+					<DownloadIcon class="size-5" />
+				</IconButton>
 				<Button
 					v-else-if="hasSwitchVersionListener && version && !hideSwitchVersion"
 					v-tooltip="
@@ -792,15 +784,13 @@ const deleteHovered = ref(false)
 
 			<slot name="additionalButtonsRight" />
 
-			<ButtonStyled circular type="transparent">
-				<TeleportOverflowMenu
-					v-if="overflowOptions?.length"
-					:options="overflowOptions"
-					:disabled="isDisabled"
-				>
-					<MoreVerticalIcon class="size-5" />
-				</TeleportOverflowMenu>
-			</ButtonStyled>
+			<TeleportOverflowMenu
+				v-if="overflowOptions?.length"
+				:options="overflowOptions"
+				:disabled="isDisabled"
+			>
+				<MoreVerticalIcon class="size-5" />
+			</TeleportOverflowMenu>
 		</div>
 	</div>
 </template>

@@ -140,16 +140,20 @@
 					v-if="type === 'instance-download' && actions?.length"
 					class="col-start-1 col-end-3 row-start-3 mt-2 flex min-w-0 flex-wrap items-center gap-2"
 				>
-					<ButtonStyled
+					<Button
 						v-for="(action, index) in actions"
 						:key="index"
-						:color="action.color || (index === 0 ? 'brand' : undefined)"
+						:type="resolvedButtonColor(action.color, index) === 'standard' ? 'base' : 'colored'"
+						:color="
+							resolvedButtonColor(action.color, index) === 'standard'
+								? undefined
+								: resolvedButtonColor(action.color, index)
+						"
+						@click="$emit('action', index)"
 					>
-						<button class="!shadow-none" @click="$emit('action', index)">
-							<component :is="action.icon" v-if="action.icon" />
-							{{ action.label }}
-						</button>
-					</ButtonStyled>
+						<component :is="action.icon" v-if="action.icon" />
+						{{ action.label }}
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -182,7 +186,6 @@ import type { PopupNotificationButton, PopupNotificationProgressType } from '../
 import { truncatedTooltip } from '../../utils/truncate'
 import Avatar from '../base/Avatar.vue'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 
 type NotificationToastType =
 	'friend-request' | 'server-invite' | 'instance-invite' | 'instance-download' | 'instance-ready'
@@ -225,6 +228,10 @@ defineEmits<{
 	'open-actor': []
 	'open-instance': []
 }>()
+
+function resolvedButtonColor(color: PopupNotificationButton['color'], index: number) {
+	return color ?? (index === 0 ? 'brand' : 'standard')
+}
 
 const isInviteNotification = computed(
 	() =>

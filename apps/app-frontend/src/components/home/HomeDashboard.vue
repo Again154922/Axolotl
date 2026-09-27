@@ -13,7 +13,6 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	defineMessages,
 	injectNotificationManager,
 	OverflowMenu,
@@ -592,44 +591,41 @@ defineExpose({ openWidgetPicker, setLayout })
 							</button>
 							<span class="home-widget-size-label">{{ widget.size }}</span>
 							<div class="home-widget-options">
-								<ButtonStyled circular size="small" type="transparent">
-									<OverflowMenu
-										:options="widgetOptions(widget, index)"
-										:tooltip="formatMessage(messages.options)"
+								<OverflowMenu
+									class="relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+									:options="widgetOptions(widget, index)"
+									:tooltip="formatMessage(messages.options)"
+								>
+									<MoreVerticalIcon />
+									<template #greeting-settings>
+										<PencilIcon /> {{ formatMessage(messages.greetingSettings) }}
+									</template>
+									<template
+										v-for="limit in HOME_RECENT_LIMIT_OPTIONS"
+										#[`recent-limit-${limit}`]
+										:key="`recent-limit-${limit}`"
 									>
-										<MoreVerticalIcon />
-										<template #greeting-settings>
-											<PencilIcon /> {{ formatMessage(messages.greetingSettings) }}
-										</template>
-										<template
-											v-for="limit in HOME_RECENT_LIMIT_OPTIONS"
-											#[`recent-limit-${limit}`]
-											:key="`recent-limit-${limit}`"
-										>
-											<ListIcon />
-											{{ formatMessage(messages.recentItems, { count: limit }) }}
-										</template>
-										<template
-											v-for="size in HOME_WIDGET_SIZE_OPTIONS[widget.kind]"
-											#[`size-${size}`]
-											:key="size"
-										>
-											<ExpandIcon /> {{ formatMessage(messages.size, { size }) }}
-										</template>
-										<template #move-earlier>
-											<ChevronUpIcon /> {{ formatMessage(messages.moveEarlier) }}
-										</template>
-										<template #move-later>
-											<ChevronDownIcon /> {{ formatMessage(messages.moveLater) }}
-										</template>
-										<template #replace>
-											<RefreshCwIcon /> {{ formatMessage(messages.replace) }}
-										</template>
-										<template #remove>
-											<TrashIcon /> {{ formatMessage(messages.remove) }}
-										</template>
-									</OverflowMenu>
-								</ButtonStyled>
+										<ListIcon />
+										{{ formatMessage(messages.recentItems, { count: limit }) }}
+									</template>
+									<template
+										v-for="size in HOME_WIDGET_SIZE_OPTIONS[widget.kind]"
+										#[`size-${size}`]
+										:key="size"
+									>
+										<ExpandIcon /> {{ formatMessage(messages.size, { size }) }}
+									</template>
+									<template #move-earlier>
+										<ChevronUpIcon /> {{ formatMessage(messages.moveEarlier) }}
+									</template>
+									<template #move-later>
+										<ChevronDownIcon /> {{ formatMessage(messages.moveLater) }}
+									</template>
+									<template #replace>
+										<RefreshCwIcon /> {{ formatMessage(messages.replace) }}
+									</template>
+									<template #remove> <TrashIcon /> {{ formatMessage(messages.remove) }} </template>
+								</OverflowMenu>
 							</div>
 						</div>
 						<div class="home-widget-content min-w-0 min-h-0 flex-1 overflow-hidden p-4">
