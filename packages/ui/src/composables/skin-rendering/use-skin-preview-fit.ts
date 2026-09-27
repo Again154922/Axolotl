@@ -10,6 +10,13 @@ import {
 	watch,
 } from 'vue'
 
+import {
+	NAMETAG_HEAD_OFFSET,
+	PREVIEW_CONTROLS_FOOT_OFFSET,
+	resolveOverlayNeeds,
+	resolveOverlaySafePadding,
+	SUBTITLE_CONTROLS_OFFSET,
+} from './skin-preview-overlay-space'
 import type {
 	SkinPreviewFitLock,
 	SkinPreviewFitPadding,
@@ -32,10 +39,6 @@ const FRAMING_PRESETS = {
 	SkinPreviewFraming,
 	{ fov: number; zoom: number; padding: SkinPreviewFitPadding }
 >
-
-const PREVIEW_CONTROLS_FOOT_OFFSET = 64
-const SUBTITLE_CONTROLS_OFFSET = 48
-const NAMETAG_HEAD_OFFSET = 16
 
 function cloneModelTuple(tuple: SkinPreviewTuple): SkinPreviewTuple {
 	return [tuple[0], tuple[1], tuple[2]]
@@ -116,14 +119,23 @@ export function useSkinPreviewFit({
 
 	const resolvedFitPadding = computed<SkinPreviewFitPadding>(() => {
 		const preset = FRAMING_PRESETS[currentFraming.value].padding
+		const framed = resolveOverlaySafePadding(
+			{
+				top: Math.max(preset.top, hasNametagBadge.value ? 0.28 : nametag.value ? 0.2 : 0),
+				right: preset.right,
+				bottom: Math.max(preset.bottom, hasSubtitle.value ? 0.28 : preset.bottom),
+				left: preset.left,
+			},
+			containerSize.value.height,
+			resolveOverlayNeeds({
+				nametag: Boolean(nametag.value),
+				hasNametagBadge: hasNametagBadge.value,
+				hasSubtitle: hasSubtitle.value,
+				subtitleWrapped: subtitleWrapped.value,
+			}),
+		)
 
-		return {
-			top: Math.max(preset.top, hasNametagBadge.value ? 0.28 : nametag.value ? 0.2 : 0),
-			right: preset.right,
-			bottom: Math.max(preset.bottom, hasSubtitle.value ? 0.28 : preset.bottom),
-			left: preset.left,
-			...(fitPadding.value ?? {}),
-		}
+		return { ...framed, ...(fitPadding.value ?? {}) }
 	})
 	const fitResolvedPadding = computed(() =>
 		lockFitEnabled.value
