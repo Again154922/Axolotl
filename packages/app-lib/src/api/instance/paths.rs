@@ -188,6 +188,19 @@ mod tests {
             get_full_path(&isolated.id).await.unwrap(),
             io::canonicalize(&isolated_dir).unwrap()
         );
+        let launch_context =
+            crate::state::instances::commands::get_instance_launch_context(
+                &isolated.id,
+                &state.pool,
+            )
+            .await
+            .unwrap()
+            .expect("instance created by the install flow should be queryable");
+        assert_eq!(launch_context.instance.id, isolated.id);
+        assert_eq!(
+            launch_context.instance.game_dir_override,
+            Some(isolated_dir.to_string_lossy().into_owned())
+        );
 
         let shared = crate::state::instances::commands::create_instance(
             CreateInstance {
