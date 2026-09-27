@@ -3664,14 +3664,6 @@ function clampWorldCoordinate(value: number) {
 }
 
 .map-status > button {
-	display: inline-flex;
-	width: 1.5rem;
-	height: 1.5rem;
-	align-items: center;
-	justify-content: center;
-	border: 0;
-	background: transparent;
-	padding: 0;
 	color: var(--color-text-secondary);
 }
 
