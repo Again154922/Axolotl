@@ -244,6 +244,7 @@ export function useSkinPreviewFit({
 
 		return {
 			top: `${previewControlsTop.value + SUBTITLE_CONTROLS_OFFSET}px`,
+			bottom: '1rem',
 		}
 	})
 
