@@ -10,8 +10,8 @@ import {
 import {
 	Button,
 	Checkbox,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	injectNotificationManager,
 	type MessageDescriptor,
 	NewModal,
@@ -1251,12 +1251,15 @@ function slotEditorSlots(type: RecipeType): RecipeSlot[] {
 			<div class="recipe-header-actions">
 				<div class="recipe-version-control">
 					<span class="recipe-field-label">{{ formatMessage(messages.version) }}</span>
-					<DropdownSelect
+					<Combobox
 						v-model="store.selectedVersion"
-						:options="JAVA_VERSIONS.map((version) => version.id)"
-						:display-name="versionLabel"
-						name="Minecraft version"
-						:max-visible-options="9"
+						:options="
+							JAVA_VERSIONS.map((version) => ({
+								value: version.id,
+								label: versionLabel(version.id),
+							}))
+						"
+						:max-height="405"
 						class="recipe-version-dropdown"
 					/>
 				</div>
@@ -1341,11 +1344,9 @@ function slotEditorSlots(type: RecipeType): RecipeSlot[] {
 					<div class="recipe-option-grid">
 						<div class="recipe-field">
 							<span class="recipe-field-label">{{ formatMessage(messages.recipeType) }}</span>
-							<DropdownSelect
+							<Combobox
 								:model-value="currentRecipe?.recipeType"
-								:options="availableTypes"
-								:display-name="recipeTypeLabel"
-								name="Recipe type"
+								:options="availableTypes.map((value) => ({ value, label: recipeTypeLabel(value) }))"
 								class="w-full"
 								@update:model-value="setRecipeType(String($event) as RecipeType)"
 							/>
@@ -1360,22 +1361,19 @@ function slotEditorSlots(type: RecipeType): RecipeSlot[] {
 						</div>
 						<div v-if="showCategory" class="recipe-field">
 							<span class="recipe-field-label">{{ formatMessage(messages.category) }}</span>
-							<DropdownSelect
+							<Combobox
 								v-model="currentRecipe.category"
-								:options="categoryOptions"
-								:display-name="categoryLabel"
-								name="Recipe category"
-								:default-value="''"
+								:options="categoryOptions.map((value) => ({ value, label: categoryLabel(value) }))"
 								class="w-full"
 							/>
 						</div>
 						<div class="recipe-field">
 							<span class="recipe-field-label">{{ formatMessage(messages.fileName) }}</span>
-							<DropdownSelect
+							<Combobox
 								v-model="currentRecipe.nameMode"
-								:options="['auto', 'manual']"
-								:display-name="nameModeLabel"
-								name="File name mode"
+								:options="
+									['auto', 'manual'].map((value) => ({ value, label: nameModeLabel(value) }))
+								"
 								class="w-full"
 							/>
 						</div>
@@ -1818,24 +1816,8 @@ function slotEditorSlots(type: RecipeType): RecipeSlot[] {
 	z-index: 2;
 }
 
-.recipe-version-control :deep(.animated-dropdown) {
+.recipe-version-control :deep([data-combobox]) {
 	width: min(20rem, 30vw);
-}
-
-.recipe-version-control :deep(.options-wrapper) {
-	overflow: hidden;
-}
-
-.recipe-version-control :deep(.options) {
-	z-index: 30;
-}
-
-.recipe-generator-page :deep(.options-wrapper.down) {
-	border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
-.recipe-generator-page :deep(.options) {
-	border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .recipe-resource-state {
@@ -2080,34 +2062,8 @@ function slotEditorSlots(type: RecipeType): RecipeSlot[] {
 	z-index: 2;
 }
 
-.recipe-field :deep(.animated-dropdown),
-.recipe-field :deep(.relative) {
+.recipe-field :deep([data-combobox]) {
 	width: 100%;
-}
-
-.recipe-field :deep(.options-wrapper) {
-	overflow: hidden;
-}
-
-.recipe-field :deep(.options) {
-	z-index: 30;
-}
-
-.recipe-generator-page :deep(.options-enter-active),
-.recipe-generator-page :deep(.options-leave-active) {
-	transition: opacity 0.15s ease !important;
-}
-
-.recipe-generator-page :deep(.options-enter-from),
-.recipe-generator-page :deep(.options-leave-to) {
-	opacity: 0 !important;
-	transform: none !important;
-}
-
-.recipe-generator-page :deep(.options-enter-to),
-.recipe-generator-page :deep(.options-leave-from) {
-	opacity: 1 !important;
-	transform: none !important;
 }
 
 .recipe-toggle-row {
@@ -2396,8 +2352,7 @@ function slotEditorSlots(type: RecipeType): RecipeSlot[] {
 	}
 
 	.recipe-version-control,
-	.recipe-version-control :deep(.animated-dropdown),
-	.recipe-version-control :deep(.options-wrapper) {
+	.recipe-version-control :deep([data-combobox]) {
 		width: 100%;
 	}
 

@@ -6,8 +6,8 @@ import {
 	type ComboboxOption,
 	defineMessages,
 	IconButton,
-	Input,
 	Slider,
+	StyledInput,
 	truncatedTooltip,
 	useVIntl,
 } from '@modrinth/ui'
@@ -348,7 +348,7 @@ function updateValue(value: string | number | boolean | undefined) {
 				@update:model-value="updateValue"
 			/>
 
-			<Input
+			<StyledInput
 				v-else
 				:model-value="inputValue"
 				:type="isNumber ? 'number' : 'text'"

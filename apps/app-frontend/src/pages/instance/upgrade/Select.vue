@@ -33,12 +33,11 @@
 				>
 					{{ formatMessage(messages.loadingVersions) }}
 				</div>
-				<DropdownSelect
+				<Combobox
 					v-else-if="targetVersions.length"
 					v-model="selectedGameVersion"
 					class="max-w-full"
-					:name="formatMessage(messages.targetVersionInput)"
-					:options="targetVersions"
+					:options="targetVersions.map((value) => ({ value, label: value }))"
 					:disabled="flow.busy.value"
 				/>
 				<p v-else class="m-0 text-sm text-[var(--color-text-tertiary)]">
@@ -48,14 +47,13 @@
 					<label class="mb-2 mt-4 block text-sm font-medium text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.fabricVersion) }}
 					</label>
-					<DropdownSelect
+					<Combobox
 						v-model="selectedFabricVersion"
 						class="max-w-full"
-						:name="formatMessage(messages.fabricVersion)"
-						:options="fabricLoaderOptions"
-						:display-name="fabricLoaderOptionLabel"
+						:options="
+							fabricLoaderOptions.map((value) => ({ value, label: fabricLoaderOptionLabel(value) }))
+						"
 						:disabled="flow.busy.value"
-						auto-placement
 					/>
 					<p
 						v-if="
@@ -130,8 +128,8 @@ import { SpinnerIcon } from '@modrinth/assets'
 import {
 	Admonition,
 	Card,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	formatLoaderLabel,
 	loaderVersionsForGameVersion,
 	scopedLoaderMetadataQueryKey,

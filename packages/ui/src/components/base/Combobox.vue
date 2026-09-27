@@ -1,5 +1,5 @@
 <template>
-	<div ref="containerRef" class="relative inline-block w-full">
+	<div ref="containerRef" data-combobox class="relative inline-block w-full">
 		<!-- Searchable mode: input trigger -->
 		<div v-if="searchable" class="relative w-full rounded-xl bg-surface-4">
 			<!--

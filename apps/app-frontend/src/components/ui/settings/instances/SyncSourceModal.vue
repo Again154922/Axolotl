@@ -6,8 +6,8 @@ import {
 	CheckCircleButton,
 	commonMessages,
 	defineMessages,
-	Input,
 	NewModal,
+	StyledInput,
 	useVIntl,
 } from '@modrinth/ui'
 import { computed, ref, useTemplateRef } from 'vue'
@@ -108,7 +108,7 @@ defineExpose({ show, hide })
 		</p>
 
 		<div class="flex h-[400px] flex-col gap-3 overflow-y-auto bg-surface-2 px-6 py-4">
-			<Input
+			<StyledInput
 				v-model="search"
 				:icon="SearchIcon"
 				type="search"

@@ -3,8 +3,8 @@ import { ChevronRightIcon, SearchIcon, StarIcon } from '@modrinth/assets'
 import {
 	Button,
 	Card,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	EmptyState,
 	StyledInput,
 	TagItem,
@@ -233,18 +233,16 @@ function favoriteFilterLabel(value: LabFavoriteFilter) {
 				clearable
 				wrapper-class="min-w-[14rem] flex-1"
 			/>
-			<DropdownSelect
+			<Combobox
 				v-model="category"
-				:options="categoryOptions"
-				:display-name="categoryLabel"
-				name="Lab category"
+				:options="categoryOptions.map((value) => ({ value, label: categoryLabel(value) }))"
 				class="w-48 max-[576px]:w-full"
 			/>
-			<DropdownSelect
+			<Combobox
 				v-model="favoriteFilter"
-				:options="favoriteFilterOptions"
-				:display-name="favoriteFilterLabel"
-				name="Lab favorite filter"
+				:options="
+					favoriteFilterOptions.map((value) => ({ value, label: favoriteFilterLabel(value) }))
+				"
 				class="w-48 max-[576px]:w-full"
 			/>
 		</div>

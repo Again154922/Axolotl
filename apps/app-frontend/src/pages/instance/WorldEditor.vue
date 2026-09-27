@@ -99,11 +99,9 @@
 					<span class="font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.gameModeLabel) }}
 					</span>
-					<DropdownSelect
+					<Combobox
 						v-model="form.gameMode"
-						name="world-game-mode"
-						:options="GAME_MODE_OPTIONS"
-						:display-name="gameModeLabel"
+						:options="GAME_MODE_OPTIONS.map((value) => ({ value, label: gameModeLabel(value) }))"
 						:disabled="readonly"
 					/>
 				</div>
@@ -117,11 +115,9 @@
 							{{ formatMessage(messages.difficultyLockedHint) }}
 						</span>
 					</span>
-					<DropdownSelect
+					<Combobox
 						v-model="form.difficulty"
-						name="world-difficulty"
-						:options="DIFFICULTY_OPTIONS"
-						:display-name="difficultyLabel"
+						:options="DIFFICULTY_OPTIONS.map((value) => ({ value, label: difficultyLabel(value) }))"
 						:disabled="readonly"
 					/>
 				</div>
@@ -129,11 +125,9 @@
 					<span class="font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.allowCommandsLabel) }}
 					</span>
-					<DropdownSelect
+					<Combobox
 						v-model="form.allowCommands"
-						name="world-allow-commands"
-						:options="BOOLEAN_OPTIONS"
-						:display-name="booleanLabel"
+						:options="BOOLEAN_OPTIONS.map((value) => ({ value, label: booleanLabel(value) }))"
 						:disabled="readonly"
 					/>
 				</div>
@@ -223,15 +217,13 @@
 								>
 									<UndoIcon />
 								</Button>
-								<DropdownSelect
+								<Combobox
 									v-if="rule.widget === 'boolean'"
 									v-model="form.rules[rule.key]"
-									:name="`gamerule-${rule.key}`"
 									class="!w-36"
-									:options="BOOLEAN_OPTIONS"
-									:display-name="booleanLabel"
+									:options="BOOLEAN_OPTIONS.map((value) => ({ value, label: booleanLabel(value) }))"
 									:disabled="readonly"
-									render-up
+									force-direction="up"
 								/>
 								<StyledInput
 									v-else
@@ -280,9 +272,9 @@ import {
 	Admonition,
 	Avatar,
 	Button,
+	Combobox,
 	commonMessages,
 	defineMessages,
-	DropdownSelect,
 	EmptyState,
 	GAME_MODES,
 	injectNotificationManager,

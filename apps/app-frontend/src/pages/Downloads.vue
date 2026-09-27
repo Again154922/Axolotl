@@ -23,20 +23,18 @@
 				clearable
 				wrapper-class="flex-1 min-w-0"
 			/>
-			<DropdownSelect
+			<Combobox
 				v-model="provider"
 				class="!w-44"
-				name="download-provider"
-				:options="providerOptions"
-				:display-name="providerFilterLabel"
+				:options="providerOptions.map((value) => ({ value, label: providerFilterLabel(value) }))"
 			/>
-			<DropdownSelect
+			<Combobox
 				v-if="tab === 'history'"
 				v-model="historyStatus"
 				class="!w-44"
-				name="download-status"
-				:options="historyStatusOptions"
-				:display-name="historyStatusLabel"
+				:options="
+					historyStatusOptions.map((value) => ({ value, label: historyStatusLabel(value) }))
+				"
 			/>
 			<Button
 				v-if="tab === 'history' && historyJobs.length"
@@ -468,9 +466,9 @@ import {
 	BulletDivider,
 	Button,
 	Card,
+	Combobox,
 	ConfirmModal,
 	defineMessages,
-	DropdownSelect,
 	EmptyState,
 	injectNotificationManager,
 	type MessageDescriptor,

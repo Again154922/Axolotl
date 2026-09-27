@@ -19,8 +19,8 @@ import {
 	defineMessages,
 	FilterPills,
 	injectNotificationManager,
-	Input,
 	NewModal,
+	StyledInput,
 	Table,
 	type TableColumn,
 	TeleportOverflowMenu,
@@ -308,7 +308,7 @@ defineExpose({ show })
 			<div
 				class="flex shrink-0 flex-col gap-4 border-0 border-b border-solid border-surface-4 px-6 py-4"
 			>
-				<Input
+				<StyledInput
 					v-model="serverSearch"
 					:icon="SearchIcon"
 					type="search"
@@ -447,11 +447,11 @@ defineExpose({ show })
 		<div v-if="editedServer" class="flex flex-col gap-4">
 			<label class="flex flex-col gap-2 font-semibold text-[var(--color-text-primary)]">
 				{{ formatMessage(messages.serverName) }}
-				<Input v-model="editedServer.name" autocomplete="off" wrapper-class="w-full" />
+				<StyledInput v-model="editedServer.name" autocomplete="off" wrapper-class="w-full" />
 			</label>
 			<label class="flex flex-col gap-2 font-semibold text-[var(--color-text-primary)]">
 				{{ formatMessage(messages.serverAddress) }}
-				<Input v-model="editedServer.address" autocomplete="off" wrapper-class="w-full" />
+				<StyledInput v-model="editedServer.address" autocomplete="off" wrapper-class="w-full" />
 			</label>
 		</div>
 		<template #actions>

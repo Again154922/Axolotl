@@ -13,9 +13,9 @@ import {
 import {
 	Avatar,
 	Button,
+	Combobox,
 	type ContentItem,
 	defineMessages,
-	DropdownSelect,
 	MinecraftFormattedText,
 	NewModal,
 	StyledInput,
@@ -820,29 +820,20 @@ defineExpose({ show, hide, setItems })
 			<div
 				class="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-surface-4 px-6 py-3"
 			>
-				<DropdownSelect
+				<Combobox
 					v-model="typeFilter"
 					class="!w-44"
-					name="dependency-type"
-					:options="typeOptions"
-					:display-name="typeFilterLabel"
-					auto-placement
+					:options="typeOptions.map((value) => ({ value, label: typeFilterLabel(value) }))"
 				/>
-				<DropdownSelect
+				<Combobox
 					v-model="sourceFilter"
 					class="!w-44"
-					name="dependency-source"
-					:options="sourceOptions"
-					:display-name="sourceFilterLabel"
-					auto-placement
+					:options="sourceOptions.map((value) => ({ value, label: sourceFilterLabel(value) }))"
 				/>
-				<DropdownSelect
+				<Combobox
 					v-model="statusFilter"
 					class="!w-44"
-					name="dependency-status"
-					:options="statusOptions"
-					:display-name="statusFilterLabel"
-					auto-placement
+					:options="statusOptions.map((value) => ({ value, label: statusFilterLabel(value) }))"
 				/>
 				<div
 					v-if="viewMode === 'tree'"

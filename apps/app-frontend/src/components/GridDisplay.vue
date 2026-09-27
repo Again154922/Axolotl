@@ -23,9 +23,9 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
+	Combobox,
 	commonMessages,
 	defineMessages,
-	DropdownSelect,
 	FloatingActionBar,
 	formatLoader,
 	injectNotificationManager,
@@ -829,21 +829,25 @@ async function handleInstanceDragEnd(event: {
 			</Button>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
-			<DropdownSelect
-				v-slot="{ selected }"
+			<Combobox
 				v-model="state.sortBy"
 				v-tooltip="{ content: formatMessage(messages.sortBy), triggers: ['hover'] }"
 				class="!w-auto"
-				name="Sort Dropdown"
-				:options="['Name', 'Last played', 'Date created', 'Date modified', 'Game version']"
-				:display-name="formatOption"
+				:options="
+					['Name', 'Last played', 'Date created', 'Date modified', 'Game version'].map((value) => ({
+						value,
+						label: formatOption(value),
+					}))
+				"
 				:placeholder="formatMessage(messages.select)"
 			>
-				<div class="flex items-center gap-1">
-					<ArrowUpDownIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
-					<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selected }}</span>
-				</div>
-			</DropdownSelect>
+				<template #selected="{ label: selectedLabel }">
+					<div class="flex items-center gap-1">
+						<ArrowUpDownIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
+						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selectedLabel }}</span>
+					</div>
+				</template>
+			</Combobox>
 			<button
 				v-tooltip="{ content: sortDirectionLabel, triggers: ['hover'] }"
 				type="button"
@@ -856,20 +860,24 @@ async function handleInstanceDragEnd(event: {
 				<SortDescIcon v-else class="size-5" />
 			</button>
 			<div class="mx-2 h-6 w-px bg-surface-5" />
-			<DropdownSelect
-				v-slot="{ selected }"
+			<Combobox
 				v-model="state.group"
 				v-tooltip="{ content: formatMessage(messages.groupBy), triggers: ['hover'] }"
-				name="Group Dropdown"
-				:options="['Group', 'Loader', 'Game version', 'None']"
-				:display-name="formatOption"
+				:options="
+					['Group', 'Loader', 'Game version', 'None'].map((value) => ({
+						value,
+						label: formatOption(value),
+					}))
+				"
 				:placeholder="formatMessage(messages.select)"
 			>
-				<div class="flex items-center gap-1">
-					<LayersIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
-					<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selected }}</span>
-				</div>
-			</DropdownSelect>
+				<template #selected="{ label: selectedLabel }">
+					<div class="flex items-center gap-1">
+						<LayersIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
+						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selectedLabel }}</span>
+					</div>
+				</template>
+			</Combobox>
 			<PopoutMenu :tooltip="formatMessage(messages.view)" placement="bottom-end">
 				<Button circular icon-only :aria-label="formatMessage(messages.view)"
 					><component :is="currentDisplayMode?.icon" />

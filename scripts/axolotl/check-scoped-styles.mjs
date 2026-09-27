@@ -55,16 +55,6 @@ function allow(group, entries) {
 // checked against the template, not the selector.
 allow('styles-its-own-element', [
 	[
-		'packages/ui/src/components/base/DropdownSelect.vue',
-		'.animated-dropdown .options .option > label',
-		'the per-option label is written here (DropdownSelect.vue:62)',
-	],
-	[
-		'packages/ui/src/components/base/DropdownSelect.vue',
-		'.animated-dropdown .options .option input',
-		'the per-option radio input is written here (DropdownSelect.vue:55)',
-	],
-	[
 		'packages/ui/src/components/base/FileInput.vue',
 		'label',
 		"FileInput's own root element is that label (FileInput.vue:2)",

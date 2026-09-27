@@ -21,7 +21,7 @@ import {
 	commonMessages,
 	defineMessages,
 	FloatingActionBar,
-	Input,
+	StyledInput,
 	TabbedModal,
 	type TabbedModalTab,
 	useVIntl,
@@ -364,7 +364,7 @@ defineExpose({ show, hide })
 	>
 		<template #sidebar-header>
 			<div class="pb-4">
-				<Input
+				<StyledInput
 					v-model="search"
 					:icon="SearchIcon"
 					type="search"

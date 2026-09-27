@@ -22,8 +22,8 @@ import {
 import {
 	Accordion,
 	Button,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	injectNotificationManager,
 	type MessageDescriptor,
 	StyledInput,
@@ -707,11 +707,10 @@ defineExpose({ save, cancel, isDirty })
 									@update:model-value="setFieldValue(item.key, $event)"
 								/>
 
-								<DropdownSelect
+								<Combobox
 									v-else-if="item.field.kind === 'enum'"
 									:model-value="item.value"
-									:options="item.field.options ?? []"
-									:name="`server-prop-${item.key}`"
+									:options="(item.field.options ?? []).map((value) => ({ value, label: value }))"
 									class="!w-full"
 									@update:model-value="setFieldValue(item.key, $event)"
 								/>

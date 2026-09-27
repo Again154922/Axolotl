@@ -192,12 +192,15 @@
 						>
 							{{ formatMessage(messages.choice) }}
 						</label>
-						<DropdownSelect
+						<Combobox
 							class="!w-full max-w-full min-w-0"
 							:model-value="draftChoice(item.contentId)"
-							:name="`custom-${item.contentId}`"
-							:options="constraintOptions(item)"
-							:display-name="(value) => constraintOptionLabel(item, String(value))"
+							:options="
+								constraintOptions(item).map((value) => ({
+									value,
+									label: constraintOptionLabel(item, value),
+								}))
+							"
 							:disabled="requestBusy"
 							@update:model-value="setDraftChoice(item, String($event))"
 						/>
@@ -283,7 +286,7 @@ import {
 	SparklesIcon,
 	SpinnerIcon,
 } from '@modrinth/assets'
-import { Admonition, Avatar, Button, defineMessages, DropdownSelect, useVIntl } from '@modrinth/ui'
+import { Admonition, Avatar, Button, Combobox, defineMessages, useVIntl } from '@modrinth/ui'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'

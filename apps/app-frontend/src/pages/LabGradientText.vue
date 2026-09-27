@@ -17,8 +17,8 @@ import {
 import {
 	Accordion,
 	Button,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	injectNotificationManager,
 	StyledInput,
 	useVIntl,
@@ -633,11 +633,14 @@ function formatAdapterName(adapterId: GradientFormatId): string {
 			>
 				<div class="lab-format-control">
 					<span>{{ formatMessage(messages.formatTitle) }}</span>
-					<DropdownSelect
+					<Combobox
 						v-model="adapterId"
-						:options="gradientFormatAdapters.map((adapter) => adapter.id)"
-						:display-name="formatAdapter"
-						name="Gradient output format"
+						:options="
+							gradientFormatAdapters.map((adapter) => ({
+								value: adapter.id,
+								label: formatAdapter(adapter.id),
+							}))
+						"
 						class="max-w-[21rem] max-[680px]:max-w-none"
 					/>
 				</div>
@@ -1037,16 +1040,8 @@ function formatAdapterName(adapterId: GradientFormatId): string {
 	font-weight: 700;
 }
 
-.lab-format-control :deep(.animated-dropdown) {
+.lab-format-control :deep([data-combobox]) {
 	width: min(21rem, 50vw);
-}
-
-.lab-format-control :deep(.options) {
-	scrollbar-width: none;
-}
-
-.lab-format-control :deep(.options::-webkit-scrollbar) {
-	display: none;
 }
 
 .lab-color-rail {
@@ -1238,7 +1233,7 @@ function formatAdapterName(adapterId: GradientFormatId): string {
 		width: 100%;
 	}
 
-	.lab-format-control :deep(.animated-dropdown) {
+	.lab-format-control :deep([data-combobox]) {
 		width: 100%;
 	}
 }

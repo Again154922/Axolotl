@@ -30,8 +30,8 @@ import {
 	Admonition,
 	Button,
 	Checkbox,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	injectNotificationManager,
 	type MessageDescriptor,
 	PopoutMenu,
@@ -2329,21 +2329,18 @@ function clampWorldCoordinate(value: number) {
 				<div class="control-group seed-map-edition">
 					<span class="control-label">{{ formatMessage(messages.edition) }}</span>
 					<div class="seed-map-dropdown min-w-0">
-						<DropdownSelect
+						<Combobox
 							v-model="workspace.edition"
-							:options="editionOptions"
-							:display-name="editionLabel"
-							name="Seed map edition"
+							:options="editionOptions.map((value) => ({ value, label: editionLabel(value) }))"
 						/>
 					</div>
 				</div>
 				<div class="control-group seed-map-version">
 					<span class="control-label">{{ formatMessage(messages.gameVersion) }}</span>
 					<div class="seed-map-dropdown min-w-0">
-						<DropdownSelect
+						<Combobox
 							v-model="workspace.gameVersion"
-							:options="availableVersions"
-							name="Seed map version"
+							:options="availableVersions.map((value) => ({ value, label: value }))"
 						/>
 					</div>
 				</div>
@@ -2477,11 +2474,9 @@ function clampWorldCoordinate(value: number) {
 				>
 					<span class="control-label">{{ formatMessage(messages.depth) }}</span>
 					<div class="seed-map-dropdown min-w-0">
-						<DropdownSelect
+						<Combobox
 							:model-value="workspace.elevation as SeedMapElevation"
-							:options="elevationOptions"
-							:display-name="elevationLabel"
-							name="Seed map elevation"
+							:options="elevationOptions.map((value) => ({ value, label: elevationLabel(value) }))"
 							@update:model-value="setElevation"
 						/>
 					</div>
@@ -3130,7 +3125,7 @@ function clampWorldCoordinate(value: number) {
 	line-height: 1;
 }
 
-:deep(.seed-map-dropdown .animated-dropdown) {
+:deep(.seed-map-dropdown [data-combobox]) {
 	width: 100%;
 	max-width: none;
 }

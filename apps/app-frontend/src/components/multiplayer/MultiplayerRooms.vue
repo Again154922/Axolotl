@@ -19,9 +19,9 @@ import {
 	Admonition,
 	Button,
 	Card,
+	Combobox,
 	CopyCode,
 	defineMessages,
-	DropdownSelect,
 	NavTabs,
 	PopoutMenu,
 	ProgressBar,
@@ -1222,12 +1222,12 @@ function submitJoin() {
 							<span class="font-semibold text-[var(--color-text-primary)]">{{
 								formatMessage(messages.localPort)
 							}}</span>
-							<DropdownSelect
+							<Combobox
 								v-model="selectedInstanceId"
 								class="!w-full"
-								:options="detectedPortOptions"
-								:display-name="detectedPortLabel"
-								name="RedStone local port source"
+								:options="
+									detectedPortOptions.map((value) => ({ value, label: detectedPortLabel(value) }))
+								"
 							/>
 						</div>
 
@@ -1235,12 +1235,10 @@ function submitJoin() {
 							<span class="font-semibold text-[var(--color-text-primary)]">{{
 								formatMessage(messages.node)
 							}}</span>
-							<DropdownSelect
+							<Combobox
 								v-model="selectedNodeName"
 								class="!w-full"
-								:options="nodeOptions"
-								:display-name="nodeOptionLabel"
-								name="RedStone relay node"
+								:options="nodeOptions.map((value) => ({ value, label: nodeOptionLabel(value) }))"
 							/>
 						</div>
 

@@ -10,11 +10,11 @@ import GitGraphIcon from '@modrinth/assets/icons/git-graph.svg?component'
 import IssuesIcon from '@modrinth/assets/icons/issues.svg?component'
 import SearchIcon from '@modrinth/assets/icons/search.svg?component'
 import TrashIcon from '@modrinth/assets/icons/trash.svg?component'
+import { Combobox, type ComboboxOption } from '@modrinth/ui'
 import Accordion from '@modrinth/ui/src/components/base/Accordion.vue'
 import Avatar from '@modrinth/ui/src/components/base/Avatar.vue'
 import Button from '@modrinth/ui/src/components/base/buttons/Button.vue'
 import Checkbox from '@modrinth/ui/src/components/base/Checkbox.vue'
-import DropdownSelect from '@modrinth/ui/src/components/base/DropdownSelect.vue'
 import IntlFormatted from '@modrinth/ui/src/components/base/IntlFormatted.vue'
 import { defineMessages, useVIntl } from '@modrinth/ui/src/composables/i18n.ts'
 
@@ -34,7 +34,6 @@ interface UpdateServerDownloadMetadata {
 
 type OSType = 'Mac' | 'Windows' | 'Linux' | null
 type ReleaseChannel = 'release' | 'beta'
-const releaseChannelOptions: ReleaseChannel[] = ['release', 'beta']
 
 const downloadWindows = ref<HTMLAnchorElement | null>(null)
 const downloadMac = ref<HTMLAnchorElement | null>(null)
@@ -687,6 +686,17 @@ const messages = defineMessages({
 	},
 })
 
+const releaseChannelComboboxOptions = computed<ComboboxOption<ReleaseChannel>[]>(() => [
+	{
+		value: 'release',
+		label: formatMessage(messages.downloadChannelRelease),
+	},
+	{
+		value: 'beta',
+		label: formatMessage(messages.downloadChannelBeta),
+	},
+])
+
 const config = useRuntimeConfig()
 const siteUrl = config.public.siteUrl
 const canonicalUrl = `${siteUrl}/`
@@ -1115,21 +1125,12 @@ useHead(() => ({
 				<label id="download-channel-label" for="download-channel">
 					{{ formatMessage(messages.downloadChannelLabel) }}
 				</label>
-				<DropdownSelect
+				<Combobox
 					id="download-channel"
 					v-model="releaseChannel"
-					:options="releaseChannelOptions"
-					name="download-channel"
-					:display-name="
-						(channel) =>
-							formatMessage(
-								channel === 'release'
-									? messages.downloadChannelRelease
-									: messages.downloadChannelBeta,
-							)
-					"
+					class="w-full max-w-80"
+					:options="releaseChannelComboboxOptions"
 					aria-labelledby="download-channel-label"
-					auto-placement
 				/>
 				<div class="download-channel-version" aria-live="polite">
 					<span v-if="latestVersion">
@@ -1897,10 +1898,6 @@ useHead(() => ({
 			color: var(--color-contrast);
 		}
 
-		:deep(.animated-dropdown) {
-			width: min(20rem, 100%);
-		}
-
 		p {
 			margin: 0;
 			color: var(--color-secondary);
@@ -1993,30 +1990,6 @@ useHead(() => ({
 					font-size: var(--font-size-sm);
 					text-align: center;
 					cursor: default;
-				}
-			}
-
-			:deep(.animated-dropdown) {
-				color: var(--color-brand);
-				width: 16rem;
-				white-space: nowrap;
-
-				.selected {
-					border: 1px solid var(--color-brand);
-					background-color: var(--color-accent-contrast);
-				}
-
-				.options {
-					border: 1px solid var(--color-brand);
-					border-radius: 0 0 var(--radius-md) var(--radius-md);
-				}
-
-				.option {
-					background-color: var(--color-accent-contrast);
-				}
-
-				.selected-option {
-					background-color: var(--color-brand);
 				}
 			}
 		}

@@ -4,7 +4,7 @@ import { ArrowUpDownIcon, EyeIcon, SearchIcon, SpinnerIcon } from '@modrinth/ass
 import { computed, ref, toValue } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import DropdownSelect from '#ui/components/base/DropdownSelect.vue'
+import Combobox, { type ComboboxOption } from '#ui/components/base/Combobox.vue'
 import EmptyState from '#ui/components/base/EmptyState.vue'
 import NavTabs from '#ui/components/base/NavTabs.vue'
 import Pagination from '#ui/components/base/Pagination.vue'
@@ -107,13 +107,18 @@ function formatSortType(sortType: SortType): string {
 	return message ? formatMessage(message) : sortType.display
 }
 
-function formatSortTypeName(name: string): string {
-	const sortType = ctx.effectiveSortTypes.value.find((st) => st.name === name)
-	return sortType ? formatSortType(sortType) : name
-}
+const sortTypeOptions = computed<ComboboxOption<string>[]>(() =>
+	ctx.effectiveSortTypes.value.map((sortType) => ({
+		value: sortType.name,
+		label: formatSortType(sortType),
+	})),
+)
 
-const sortTypeNames = computed<string[]>(() =>
-	ctx.effectiveSortTypes.value.map((sortType) => sortType.name),
+const maxResultsOptions = computed<ComboboxOption<number>[]>(() =>
+	maxResultsValues.value.map((value) => ({
+		value,
+		label: String(value),
+	})),
 )
 
 const currentSortTypeName = computed<string>({
@@ -186,35 +191,35 @@ const skeletonCount = computed(() => {
 			</div>
 
 			<div class="flex flex-wrap items-center gap-2">
-				<DropdownSelect
-					v-slot="{ selected }"
+				<Combobox
 					v-model="currentSortTypeName"
 					v-tooltip="{ content: formatMessage(commonMessages.sortByLabel), triggers: ['hover'] }"
 					class="!w-auto"
-					name="Sort Dropdown"
-					:options="sortTypeNames"
-					:display-name="(name: string) => formatSortTypeName(name)"
+					:options="sortTypeOptions"
+					trigger-class="!min-h-10"
 				>
-					<div class="flex items-center gap-1">
+					<template #prefix>
 						<ArrowUpDownIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
-						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selected }}</span>
-					</div>
-				</DropdownSelect>
+					</template>
+					<template #selected="{ label }">
+						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ label }}</span>
+					</template>
+				</Combobox>
 
-				<DropdownSelect
-					v-slot="{ selected }"
+				<Combobox
 					v-model="ctx.maxResults.value"
 					v-tooltip="{ content: formatMessage(messages.viewPrefix), triggers: ['hover'] }"
 					class="!w-auto"
-					name="View Dropdown"
-					:options="maxResultsValues"
-					:display-name="(n: number) => String(n)"
+					:options="maxResultsOptions"
+					trigger-class="!min-h-10"
 				>
-					<div class="flex items-center gap-1">
+					<template #prefix>
 						<EyeIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
-						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selected }}</span>
-					</div>
-				</DropdownSelect>
+					</template>
+					<template #selected="{ label }">
+						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ label }}</span>
+					</template>
+				</Combobox>
 
 				<div v-if="ctx.filtersMenuOpen && !ctx.filtersMenuOpen.value" class="lg:hidden">
 					<Button @click="ctx.filtersMenuOpen.value = true"
