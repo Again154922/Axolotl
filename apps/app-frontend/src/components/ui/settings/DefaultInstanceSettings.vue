@@ -13,6 +13,22 @@ import SharedLogsSettings from './SharedLogsSettings.vue'
 const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
+	windowBehaviorSectionTitle: {
+		id: 'app.settings.defaults.sections.window-behavior',
+		defaultMessage: 'Window behavior',
+	},
+	environmentSectionTitle: {
+		id: 'app.settings.defaults.sections.environment',
+		defaultMessage: 'Environment variables',
+	},
+	launchHooksSectionTitle: {
+		id: 'app.settings.defaults.sections.launch-hooks',
+		defaultMessage: 'Launch hooks',
+	},
+	afterLaunchSectionTitle: {
+		id: 'app.settings.defaults.sections.after-launch',
+		defaultMessage: 'After launch behavior',
+	},
 	fullscreen: { id: 'app.settings.defaults.fullscreen', defaultMessage: 'Fullscreen' },
 	fullscreenDescription: {
 		id: 'app.settings.defaults.fullscreen-description',
@@ -165,13 +181,12 @@ watch(
 
 <template>
 	<div class="flex flex-col gap-6">
-		<SettingsSection>
+		<SettingsSection
+			:title="formatMessage(messages.windowBehaviorSectionTitle)"
+			title-id="settings-target-defaults-window"
+		>
 			<SettingsRow>
-				<template #label>
-					<span id="settings-target-defaults-window" tabindex="-1">
-						{{ formatMessage(messages.fullscreen) }}
-					</span>
-				</template>
+				<template #label>{{ formatMessage(messages.fullscreen) }}</template>
 				<template #description>{{ formatMessage(messages.fullscreenDescription) }}</template>
 				<template #control><Toggle id="fullscreen" v-model="settings.force_fullscreen" /></template>
 			</SettingsRow>
@@ -256,13 +271,12 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection>
+		<SettingsSection
+			:title="formatMessage(messages.environmentSectionTitle)"
+			title-id="settings-target-defaults-environment"
+		>
 			<SettingsRow stacked>
-				<template #label>
-					<span id="settings-target-defaults-environment" tabindex="-1">
-						{{ formatMessage(messages.environmentVariables) }}
-					</span>
-				</template>
+				<template #label>{{ formatMessage(messages.environmentVariables) }}</template>
 				<template #control>
 					<StyledInput
 						id="env-vars"
@@ -276,13 +290,12 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection>
+		<SettingsSection
+			:title="formatMessage(messages.launchHooksSectionTitle)"
+			title-id="settings-target-defaults-launch-hooks"
+		>
 			<SettingsRow stacked>
-				<template #label>
-					<span id="settings-target-defaults-launch-hooks" tabindex="-1">
-						{{ formatMessage(messages.preLaunchHook) }}
-					</span>
-				</template>
+				<template #label>{{ formatMessage(messages.preLaunchHook) }}</template>
 				<template #description>{{ formatMessage(messages.preLaunchDescription) }}</template>
 				<template #control>
 					<StyledInput
@@ -325,7 +338,10 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection>
+		<SettingsSection
+			:title="formatMessage(messages.afterLaunchSectionTitle)"
+			title-id="settings-target-defaults-after-launch"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-launch-lightweight-mode" tabindex="-1">

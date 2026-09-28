@@ -10054,5 +10054,47 @@
   },
   "app.instance.dependencies.zoom-out": {
     "message": "縮小"
+  },
+  "app.appearance-settings.sections.advanced-interface": {
+    "message": "進階介面"
+  },
+  "app.appearance-settings.sections.content-behavior": {
+    "message": "內容行為"
+  },
+  "app.appearance-settings.sections.home-navigation": {
+    "message": "首頁與導覽"
+  },
+  "app.settings.defaults.sections.after-launch": {
+    "message": "啟動後行為"
+  },
+  "app.settings.defaults.sections.environment": {
+    "message": "環境變數"
+  },
+  "app.settings.defaults.sections.launch-hooks": {
+    "message": "啟動掛鉤"
+  },
+  "app.settings.defaults.sections.window-behavior": {
+    "message": "視窗行為"
+  },
+  "app.settings.developer.feature-flags-section-title": {
+    "message": "功能旗標"
+  },
+  "app.settings.privacy.section-title": {
+    "message": "隱私與資料分享"
+  },
+  "app.settings.resources.sections.data-storage": {
+    "message": "資料目錄與快取"
+  },
+  "app.settings.resources.sections.download-behavior": {
+    "message": "下載行為"
+  },
+  "app.settings.resources.sections.missing-content": {
+    "message": "缺少的內容"
+  },
+  "app.settings.resources.sections.network-authentication": {
+    "message": "網路驗證"
+  },
+  "app.translation-settings.display-section-title": {
+    "message": "翻譯顯示"
   }
 }

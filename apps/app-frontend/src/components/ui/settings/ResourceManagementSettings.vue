@@ -111,6 +111,22 @@ async function testProxy() {
 }
 
 const messages = defineMessages({
+	dataStorageSectionTitle: {
+		id: 'app.settings.resources.sections.data-storage',
+		defaultMessage: 'Data directories & cache',
+	},
+	downloadBehaviorSectionTitle: {
+		id: 'app.settings.resources.sections.download-behavior',
+		defaultMessage: 'Download behavior',
+	},
+	networkAuthSectionTitle: {
+		id: 'app.settings.resources.sections.network-authentication',
+		defaultMessage: 'Network authentication',
+	},
+	missingContentSectionTitle: {
+		id: 'app.settings.resources.sections.missing-content',
+		defaultMessage: 'Missing content',
+	},
 	selectDirectory: {
 		id: 'app.settings.resources.select-directory',
 		defaultMessage: 'Select a new app directory',
@@ -765,7 +781,11 @@ function validateMinecraftDirectory(value) {
 			@proceed="purgeCache"
 		/>
 
-		<SettingsSection v-if="props.scope === 'storage-backups'">
+		<SettingsSection
+			v-if="props.scope === 'storage-backups'"
+			:title="formatMessage(messages.dataStorageSectionTitle)"
+			title-id="settings-target-resources-data-storage"
+		>
 			<SettingsRow stacked>
 				<template #label>
 					<span id="settings-target-storage-app-directory" tabindex="-1">
@@ -939,7 +959,11 @@ function validateMinecraftDirectory(value) {
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'content-downloads'">
+		<SettingsSection
+			v-if="props.scope === 'content-downloads'"
+			:title="formatMessage(messages.downloadBehaviorSectionTitle)"
+			title-id="settings-target-resources-download-behavior"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-resources-download-engine" tabindex="-1">
@@ -1004,7 +1028,11 @@ function validateMinecraftDirectory(value) {
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'network-multiplayer'">
+		<SettingsSection
+			v-if="props.scope === 'network-multiplayer'"
+			:title="formatMessage(messages.networkAuthSectionTitle)"
+			title-id="settings-target-resources-network-auth"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-network-mojang-auth-source" tabindex="-1">
@@ -1101,7 +1129,11 @@ function validateMinecraftDirectory(value) {
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'content-downloads'">
+		<SettingsSection
+			v-if="props.scope === 'content-downloads'"
+			:title="formatMessage(messages.missingContentSectionTitle)"
+			title-id="settings-target-resources-missing-content"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-resources-missing-content-import" tabindex="-1">

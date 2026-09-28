@@ -12889,5 +12889,47 @@
   },
   "unknown-pack-warning-modal.warning.title": {
     "message": "未知文件警告"
+  },
+  "app.appearance-settings.sections.advanced-interface": {
+    "message": "高级界面"
+  },
+  "app.appearance-settings.sections.content-behavior": {
+    "message": "内容行为"
+  },
+  "app.appearance-settings.sections.home-navigation": {
+    "message": "主页与导航"
+  },
+  "app.settings.defaults.sections.after-launch": {
+    "message": "启动后行为"
+  },
+  "app.settings.defaults.sections.environment": {
+    "message": "环境变量"
+  },
+  "app.settings.defaults.sections.launch-hooks": {
+    "message": "启动钩子"
+  },
+  "app.settings.defaults.sections.window-behavior": {
+    "message": "窗口行为"
+  },
+  "app.settings.developer.feature-flags-section-title": {
+    "message": "功能开关"
+  },
+  "app.settings.privacy.section-title": {
+    "message": "隐私与数据分享"
+  },
+  "app.settings.resources.sections.data-storage": {
+    "message": "数据目录与缓存"
+  },
+  "app.settings.resources.sections.download-behavior": {
+    "message": "下载行为"
+  },
+  "app.settings.resources.sections.missing-content": {
+    "message": "缺失内容"
+  },
+  "app.settings.resources.sections.network-authentication": {
+    "message": "网络认证"
+  },
+  "app.translation-settings.display-section-title": {
+    "message": "翻译显示"
   }
 }

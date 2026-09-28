@@ -81,6 +81,18 @@ const pageTransitionsFlag: FeatureFlag = 'page_transitions'
 const autoInstallDependenciesFlag: FeatureFlag = 'auto_install_dependencies'
 
 const messages = defineMessages({
+	homeNavigationSectionTitle: {
+		id: 'app.appearance-settings.sections.home-navigation',
+		defaultMessage: 'Home & navigation',
+	},
+	advancedInterfaceSectionTitle: {
+		id: 'app.appearance-settings.sections.advanced-interface',
+		defaultMessage: 'Advanced interface',
+	},
+	contentBehaviorSectionTitle: {
+		id: 'app.appearance-settings.sections.content-behavior',
+		defaultMessage: 'Content behavior',
+	},
 	colorThemeTitle: {
 		id: 'app.appearance-settings.color-theme.title',
 		defaultMessage: 'Color theme',
@@ -1422,7 +1434,11 @@ watch(
 			</div>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'home-navigation'">
+		<SettingsSection
+			v-if="props.scope === 'home-navigation'"
+			:title="formatMessage(messages.homeNavigationSectionTitle)"
+			title-id="settings-target-appearance-home-navigation"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-appearance-home-layout" tabindex="-1">
@@ -1663,7 +1679,11 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'interface'">
+		<SettingsSection
+			v-if="props.scope === 'interface'"
+			:title="formatMessage(messages.advancedInterfaceSectionTitle)"
+			title-id="settings-target-appearance-advanced-interface"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-appearance-advanced-rendering" tabindex="-1">
@@ -1759,7 +1779,11 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'content-downloads'">
+		<SettingsSection
+			v-if="props.scope === 'content-downloads'"
+			:title="formatMessage(messages.contentBehaviorSectionTitle)"
+			title-id="settings-target-appearance-content-behavior"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-content-auto-install-dependencies" tabindex="-1">

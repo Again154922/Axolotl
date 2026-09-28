@@ -311,6 +311,24 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		label: message('app.appearance-settings.native-decorations.title', 'Native decorations'),
 	},
 	{
+		id: 'appearance-advanced-interface',
+		categoryId: 'interface',
+		targetId: 'settings-target-appearance-advanced-interface',
+		label: message('app.appearance-settings.sections.advanced-interface', 'Advanced interface'),
+	},
+	{
+		id: 'appearance-home-navigation',
+		categoryId: 'home-navigation',
+		targetId: 'settings-target-appearance-home-navigation',
+		label: message('app.appearance-settings.sections.home-navigation', 'Home & navigation'),
+	},
+	{
+		id: 'appearance-content-behavior',
+		categoryId: 'content-downloads',
+		targetId: 'settings-target-appearance-content-behavior',
+		label: message('app.appearance-settings.sections.content-behavior', 'Content behavior'),
+	},
+	{
 		id: 'appearance-close-behavior',
 		categoryId: 'interface',
 		targetId: 'settings-target-appearance-close-behavior',
@@ -406,6 +424,12 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		label: message('app.translation-settings.cache', 'Translation cache'),
 	},
 	{
+		id: 'translation-display',
+		categoryId: 'language-translation',
+		targetId: 'settings-target-translation-display',
+		label: message('app.translation-settings.display-section-title', 'Translation display'),
+	},
+	{
 		id: 'ai-providers',
 		categoryId: 'ai',
 		targetId: 'settings-target-ai-providers',
@@ -434,6 +458,12 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		categoryId: 'privacy-data',
 		targetId: 'settings-target-privacy-telemetry',
 		label: message('app.settings.privacy.telemetry', 'Telemetry'),
+	},
+	{
+		id: 'privacy-section',
+		categoryId: 'privacy-data',
+		targetId: 'settings-target-privacy',
+		label: message('app.settings.privacy.section-title', 'Privacy & data sharing'),
 	},
 	{
 		id: 'privacy-discord-rpc',
@@ -524,6 +554,16 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		],
 	},
 	{
+		id: 'defaults-after-launch',
+		categoryId: 'launch-defaults',
+		targetId: 'settings-target-defaults-after-launch',
+		label: message('app.settings.defaults.sections.after-launch', 'After launch behavior'),
+		keywords: [
+			message('app.appearance-settings.lightweight-mode.title', 'Lightweight mode'),
+			message('app.appearance-settings.minimize-launcher.title', 'Minimize launcher'),
+		],
+	},
+	{
 		id: 'resources-download-mirrors',
 		categoryId: 'content-downloads',
 		targetId: 'settings-target-resources-download-mirrors',
@@ -535,6 +575,33 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 		categoryId: 'content-downloads',
 		targetId: 'settings-target-resources-download-engine',
 		label: message('app.settings.resources.download-engine', 'Download engine'),
+	},
+	{
+		id: 'resources-data-storage',
+		categoryId: 'storage-backups',
+		targetId: 'settings-target-resources-data-storage',
+		label: message('app.settings.resources.sections.data-storage', 'Data directories & cache'),
+	},
+	{
+		id: 'resources-download-behavior',
+		categoryId: 'content-downloads',
+		targetId: 'settings-target-resources-download-behavior',
+		label: message('app.settings.resources.sections.download-behavior', 'Download behavior'),
+	},
+	{
+		id: 'resources-network-auth',
+		categoryId: 'network-multiplayer',
+		targetId: 'settings-target-resources-network-auth',
+		label: message(
+			'app.settings.resources.sections.network-authentication',
+			'Network authentication',
+		),
+	},
+	{
+		id: 'resources-missing-content',
+		categoryId: 'content-downloads',
+		targetId: 'settings-target-resources-missing-content',
+		label: message('app.settings.resources.sections.missing-content', 'Missing content'),
 	},
 	{
 		id: 'resources-ignore-ssl-errors',

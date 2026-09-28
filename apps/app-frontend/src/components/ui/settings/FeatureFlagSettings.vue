@@ -29,6 +29,10 @@ const previewRemoteAnnouncement = inject<
 >('previewRemoteAnnouncement')
 const previewWithAction = ref(false)
 const messages = defineMessages({
+	featureFlagsSectionTitle: {
+		id: 'app.settings.developer.feature-flags-section-title',
+		defaultMessage: 'Feature flags',
+	},
 	announcementPreview: {
 		id: 'app.settings.developer.announcement-preview',
 		defaultMessage: 'Announcement preview',
@@ -113,7 +117,10 @@ watch(
 )
 </script>
 <template>
-	<SettingsSection>
+	<SettingsSection
+		:title="formatMessage(messages.featureFlagsSectionTitle)"
+		title-id="settings-target-feature-flags"
+	>
 		<SettingsRow v-for="option in options" :key="option">
 			<template #label>{{ option.replaceAll('_', ' ') }}</template>
 			<template #control>

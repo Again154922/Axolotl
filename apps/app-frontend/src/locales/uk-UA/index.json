@@ -820,5 +820,47 @@
   },
   "unknown-pack-warning-modal.warning.title": {
     "message": "Попередження про невідомий файл"
+  },
+  "app.appearance-settings.sections.advanced-interface": {
+    "message": "Advanced interface"
+  },
+  "app.appearance-settings.sections.content-behavior": {
+    "message": "Content behavior"
+  },
+  "app.appearance-settings.sections.home-navigation": {
+    "message": "Home & navigation"
+  },
+  "app.settings.defaults.sections.after-launch": {
+    "message": "After launch behavior"
+  },
+  "app.settings.defaults.sections.environment": {
+    "message": "Environment variables"
+  },
+  "app.settings.defaults.sections.launch-hooks": {
+    "message": "Launch hooks"
+  },
+  "app.settings.defaults.sections.window-behavior": {
+    "message": "Window behavior"
+  },
+  "app.settings.developer.feature-flags-section-title": {
+    "message": "Feature flags"
+  },
+  "app.settings.privacy.section-title": {
+    "message": "Privacy & data sharing"
+  },
+  "app.settings.resources.sections.data-storage": {
+    "message": "Data directories & cache"
+  },
+  "app.settings.resources.sections.download-behavior": {
+    "message": "Download behavior"
+  },
+  "app.settings.resources.sections.missing-content": {
+    "message": "Missing content"
+  },
+  "app.settings.resources.sections.network-authentication": {
+    "message": "Network authentication"
+  },
+  "app.translation-settings.display-section-title": {
+    "message": "Translation display"
   }
 }
