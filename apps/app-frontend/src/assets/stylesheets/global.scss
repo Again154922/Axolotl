@@ -79,11 +79,13 @@ html body {
 	// plain surface it always painted.
 	--surface-card: var(--surface-3);
 
-	// The baselines the relative ratios are measured against (see opacity.scss).
+	// The baselines the ratio scale is measured against (see opacity.scss).
 	// Declared opaque so the plain themes, and any host that has not adopted the
 	// model, keep painting exactly what they painted before.
 	--opacity-baseline: 100%;
 	--opacity-baseline-page: 100%;
+
+	@include opacity-scale;
 }
 
 // Declared on `body`, not on the root: the opaque snapshots above live on the
@@ -96,26 +98,47 @@ html.transparent-window body {
 	// low settings; at 100% every layer lands back on fully opaque.
 	--window-alpha: var(--transparent-window-alpha, 55%);
 
-	// The baselines the ratios below are measured against. The window mode has a
-	// single layer, so the page and the components above it share one.
+	// The baselines the ratios are measured against. The window mode has a single
+	// layer, so the page and the components above it share one. The scale is
+	// emitted here rather than on the root: `var()` substitution happens on the
+	// element that declares a property, so a rung declared elsewhere would bake in
+	// that element's baseline and never follow these.
 	--opacity-baseline: var(--window-alpha);
 	--opacity-baseline-page: var(--window-alpha);
 
-	// Interpolation is what makes Sass evaluate the ratio function: a custom
-	// property value is otherwise emitted as written, function call and all.
-	--surface-1: #{relative-alpha-value(var(--surface-1-opaque), 0)};
-	--surface-1-5: #{relative-alpha-value(var(--surface-1-5-opaque), 0.16)};
-	--surface-2: #{relative-alpha-value(var(--surface-2-opaque), 0.3)};
-	--surface-2-5: #{relative-alpha-value(var(--surface-2-5-opaque), 0.38)};
-	--surface-3: #{relative-alpha-value(var(--surface-3-opaque), 0.55)};
-	--surface-4: #{relative-alpha-value(var(--surface-4-opaque), 0.6)};
-	--surface-5: #{relative-alpha-value(var(--surface-5-opaque), 0.78)};
+	@include opacity-scale;
+
+	// The ratio goes through a variable: `color-mix()` rejects a `calc()` in its
+	// percentage slot, and an invalid argument drops the surface entirely.
+	--surface-1: color-mix(
+		in srgb,
+		var(--surface-1-opaque) var(--opacity-baseline-page),
+		transparent
+	);
+	--surface-1-5: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-1-5),
+		transparent
+	);
+	--surface-2: color-mix(in srgb, var(--surface-2-opaque) var(--opacity-ratio-2), transparent);
+	--surface-2-5: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-chrome),
+		transparent
+	);
+	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-3), transparent);
+	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--opacity-ratio-4), transparent);
+	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
 
 	// Compatibility aliases with remaining consumers still resolve against the
 	// body palette instead of the opaque root values.
-	--color-bg: #{relative-alpha-value(var(--surface-1-opaque), 0)};
-	--color-divider: #{relative-alpha-value(var(--surface-5-opaque), 0.78)};
-	--color-divider-dark: #{relative-alpha-value(var(--surface-5-opaque), 0.78)};
+	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--opacity-baseline-page), transparent);
+	--color-divider: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
+	--color-divider-dark: color-mix(
+		in srgb,
+		var(--surface-5-opaque) var(--opacity-ratio-5),
+		transparent
+	);
 	--color-tooltip-bg: var(--surface-3-opaque);
 }
 
@@ -153,35 +176,57 @@ html.has-custom-background body {
 
 	// The page layer follows "Background visibility"; everything above it follows
 	// "Component opacity". The ratios below are measured against those two
-	// baselines, so lowering one lets the image through every layer above it.
+	// baselines, so lowering one lets the image through every layer above it. The
+	// scale is emitted in this same rule on purpose: `var()` substitution happens
+	// on the element that declares a property, so a rung declared anywhere else
+	// would bake in that element's baseline instead of following these.
 	--opacity-baseline: var(--custom-bg-component-alpha);
 	--opacity-baseline-page: var(--custom-bg-page-alpha);
 
-	// Interpolation is what makes Sass evaluate the ratio function: a custom
-	// property value is otherwise emitted as written, function call and all.
-	--surface-1: #{relative-alpha-value(var(--surface-1-opaque), 0, var(--opacity-baseline-page))};
-	--surface-1-5: #{relative-alpha-value(
-			var(--surface-1-5-opaque),
-			0.16,
-			var(--opacity-baseline-page)
-		)};
-	--surface-2: #{relative-alpha-value(var(--surface-2-opaque), 0.3)};
-	--surface-2-5: #{relative-alpha-value(var(--surface-2-5-opaque), 0.38)};
-	--surface-3: #{relative-alpha-value(var(--surface-3-opaque), 0.55)};
-	--surface-4: #{relative-alpha-value(var(--surface-4-opaque), 0.6)};
-	--surface-5: #{relative-alpha-value(var(--surface-5-opaque), 0.78)};
+	@include opacity-scale;
+
+	// Interpolation and a variable both matter here: Sass leaves a custom
+	// property value as written, and `color-mix()` rejects a `calc()` in its
+	// percentage slot, so each ratio has to arrive through a variable.
+	--surface-1: color-mix(
+		in srgb,
+		var(--surface-1-opaque) var(--opacity-baseline-page),
+		transparent
+	);
+	--surface-1-5: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-1-5),
+		transparent
+	);
+	--surface-2: color-mix(in srgb, var(--surface-2-opaque) var(--opacity-ratio-2), transparent);
+	--surface-2-5: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-chrome),
+		transparent
+	);
+	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-3), transparent);
+	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--opacity-ratio-4), transparent);
+	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
 
 	// A card sits directly on the page rather than on another panel, so it takes
 	// the component opacity as it is set: ratio 0, no interpolated floor of its
 	// own. At 0% a `--surface-3` card would still be 55% opaque, which is why the
 	// background behind the cards never used to come through.
-	--surface-card: #{relative-alpha-value(var(--surface-3-opaque), 0)};
+	--surface-card: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--opacity-ratio-card),
+		transparent
+	);
 
 	// Compatibility aliases with remaining consumers still resolve against the
 	// body palette instead of the opaque root values.
-	--color-bg: #{relative-alpha-value(var(--surface-1-opaque), 0, var(--opacity-baseline-page))};
-	--color-divider: #{relative-alpha-value(var(--surface-5-opaque), 0.78)};
-	--color-divider-dark: #{relative-alpha-value(var(--surface-5-opaque), 0.78)};
+	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--opacity-baseline-page), transparent);
+	--color-divider: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
+	--color-divider-dark: color-mix(
+		in srgb,
+		var(--surface-5-opaque) var(--opacity-ratio-5),
+		transparent
+	);
 	--color-tooltip-bg: var(--surface-3-opaque);
 }
 

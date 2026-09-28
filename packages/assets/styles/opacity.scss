@@ -9,27 +9,67 @@
 //   r < 0 → α = b·(1 + r)        scale down from the baseline
 //
 // `r = 0` is exactly the baseline, `r = +0.55` reproduces the old `--surface-3`
-// rung, and at `b = 100%` a negative ratio `−0.30` renders at 70%, which is what
-// the fixed values it replaces used to render. Every ratio therefore keeps the
-// app pixel-identical at the default settings and only moves when a setting does.
+// rung, and at `b = 100%` a ratio of `−0.30` renders at 70%, which is what the
+// fixed values it replaces used to render. A migrated layer therefore keeps its
+// current rendering at the default settings and only moves when a setting does.
 //
-// The baseline defaults to 100%, so a host that never publishes it (the website
-// shares only the Tailwind preset) keeps painting exactly what it painted before.
+// Two constraints shape how this is written down:
+//
+//  1. `color-mix()` takes the resulting percentage as a *variable*. Writing the
+//     `calc()` inline in that slot silently invalidates the declaration, which
+//     drops the whole surface colour and paints everything transparent.
+//  2. Sass does not evaluate functions inside custom-property values, so a
+//     ratio has to be emitted from a mixin (or interpolated with `#{}`).
+//
+// The scale is declared once and resolved lazily: the ratios reference the
+// baseline tokens without resolving them, so a consumer only overrides
+// `--opacity-baseline` (and optionally `--opacity-baseline-page`) on `body` and
+// every rung follows. Both default to 100%, so a host that never publishes them
+// (the website shares only the Tailwind preset) keeps painting what it painted.
 
-@function relative-alpha-value($colour, $ratio, $baseline: var(--opacity-baseline, 100%)) {
-	@if $ratio >= 0 {
-		@return unquote(
-			'color-mix(in srgb, #{$colour} calc(#{$baseline} + (100% - #{$baseline}) * #{$ratio}), transparent)'
-		);
-	}
+// The scale is emitted *where the baseline is declared*, never once on the root:
+// `var()` substitution happens on the element that declares the property, so a
+// root-declared rung substitutes the root's baseline and inherits the result -
+// overriding the baseline further down would have no effect on it. A host
+// therefore publishes its baselines and calls this mixin in the same rule.
+//
+// The scale is also declared on the root by the app, where it only serves as the
+// 100% default for anything that reads a rung outside the two palettes. Both
+// palettes redeclare it next to their own baselines.
 
-	@return unquote('color-mix(in srgb, #{$colour} calc(#{$baseline} * #{1 + $ratio}), transparent)');
+@mixin opacity-scale {
+	--opacity-ratio-1-5: calc(
+		var(--opacity-baseline-page, 100%) + (100% - var(--opacity-baseline-page, 100%)) * 0.16
+	);
+	--opacity-ratio-2: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.3
+	);
+	--opacity-ratio-chrome: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.38
+	);
+	--opacity-ratio-3: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.55
+	);
+	--opacity-ratio-4: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.6
+	);
+	--opacity-ratio-5: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.78
+	);
+	// Ratio 0: the card sits on the page, so it takes the baseline as it is.
+	--opacity-ratio-card: var(--opacity-baseline, 100%);
+
+	// Below the baseline the ratio scales it down instead: `-0.18` keeps 82% of
+	// it. Deeper rungs land here as the fixed alphas are migrated.
+	--opacity-ratio-minus-18: calc(var(--opacity-baseline, 100%) * 0.82);
 }
 
-@mixin relative-alpha($colour, $ratio, $baseline: var(--opacity-baseline, 100%)) {
-	background-color: relative-alpha-value($colour, $ratio, $baseline);
+/// Paints `$colour` at the given rung of the scale. Use the rung names above so
+/// the ratios stay a shared vocabulary instead of numbers scattered per file.
+@mixin relative-alpha($colour, $rung) {
+	background-color: color-mix(in srgb, #{$colour} var(--opacity-ratio-#{$rung}), transparent);
 }
 
-@mixin relative-alpha-border($colour, $ratio, $baseline: var(--opacity-baseline, 100%)) {
-	border-color: relative-alpha-value($colour, $ratio, $baseline);
+@mixin relative-alpha-border($colour, $rung) {
+	border-color: color-mix(in srgb, #{$colour} var(--opacity-ratio-#{$rung}), transparent);
 }
