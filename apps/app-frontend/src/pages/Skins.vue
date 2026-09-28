@@ -237,6 +237,11 @@ function closeArmorTab() {
 	// Leaving the tab drops whatever was not saved on purpose.
 	resetArmorPreviewToSaved()
 	skinListTab.value = lastSkinListTab.value
+
+	// Escape and the toggle both leave the armour button holding focus, which
+	// keeps its focus ring drawn until something else is clicked.
+	const focused = document.activeElement
+	if (focused instanceof HTMLElement) focused.blur()
 }
 
 const { formatMessage } = useVIntl()
