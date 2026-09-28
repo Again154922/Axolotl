@@ -3529,9 +3529,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-grid-layout.has-transparent-background {
 	.app-grid-navbar,
 	.app-grid-statusbar {
+		// Window chrome sits above the page: baseline + 0.38, per the opacity
+		// model in `@modrinth/assets/styles/opacity.scss`.
 		background-color: color-mix(
 			in srgb,
-			var(--surface-3-opaque) var(--window-alpha-chrome),
+			var(--surface-3-opaque)
+				calc(var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.38),
 			transparent
 		) !important;
 
@@ -3556,9 +3559,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 }
 
 .app-contents.has-transparent-background {
+	// Window chrome sits above the page: baseline + 0.38, per the opacity model
+	// in `@modrinth/assets/styles/opacity.scss`.
 	background-color: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--window-alpha-chrome),
+		var(--surface-3-opaque)
+			calc(var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.38),
 		transparent
 	);
 

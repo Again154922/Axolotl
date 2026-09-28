@@ -1,0 +1,35 @@
+// The signed-ratio opacity model.
+//
+// Translucent layers express how opaque they are *relative to a baseline*
+// instead of as a fixed number, so the user-facing opacity settings reach every
+// one of them rather than only the surface ladder:
+//
+//   b = the baseline the layer sits on (0…100%)
+//   r ≥ 0 → α = b + (1 − b)·r    interpolate toward opaque (the surface ladder)
+//   r < 0 → α = b·(1 + r)        scale down from the baseline
+//
+// `r = 0` is exactly the baseline, `r = +0.55` reproduces the old `--surface-3`
+// rung, and at `b = 100%` a negative ratio `−0.30` renders at 70%, which is what
+// the fixed values it replaces used to render. Every ratio therefore keeps the
+// app pixel-identical at the default settings and only moves when a setting does.
+//
+// The baseline defaults to 100%, so a host that never publishes it (the website
+// shares only the Tailwind preset) keeps painting exactly what it painted before.
+
+@function relative-alpha-value($colour, $ratio, $baseline: var(--opacity-baseline, 100%)) {
+	@if $ratio >= 0 {
+		@return unquote(
+			'color-mix(in srgb, #{$colour} calc(#{$baseline} + (100% - #{$baseline}) * #{$ratio}), transparent)'
+		);
+	}
+
+	@return unquote('color-mix(in srgb, #{$colour} calc(#{$baseline} * #{1 + $ratio}), transparent)');
+}
+
+@mixin relative-alpha($colour, $ratio, $baseline: var(--opacity-baseline, 100%)) {
+	background-color: relative-alpha-value($colour, $ratio, $baseline);
+}
+
+@mixin relative-alpha-border($colour, $ratio, $baseline: var(--opacity-baseline, 100%)) {
+	border-color: relative-alpha-value($colour, $ratio, $baseline);
+}
