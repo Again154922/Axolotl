@@ -353,6 +353,6 @@ const statusRef = ref<HTMLElement | null>(null)
 }
 
 .notification-bottom-progress-track {
-	background-color: color-mix(in srgb, var(--surface-2) 50%, transparent);
+	background-color: color-mix(in srgb, var(--surface-2) var(--opacity-ratio-keep-50), transparent);
 }
 </style>

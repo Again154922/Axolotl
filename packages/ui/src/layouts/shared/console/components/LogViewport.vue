@@ -344,25 +344,21 @@ defineExpose({
 	min-width: 0;
 }
 
+/* The `-bg` tints are rungs of the opacity model and already carry the theme
+   (light 10%, dark/oled 20%), so one rule each replaces the old fixed 12%/18%
+   pair -- the `[data-theme='dark']` overrides duplicated a distinction the token
+   now makes on its own. */
 .log-line.entry-error {
-	background-color: color-mix(in srgb, var(--color-red) 12%, transparent);
+	background-color: var(--color-red-bg);
 }
 
 .log-line.entry-warning {
-	background-color: color-mix(in srgb, var(--color-orange) 12%, transparent);
-}
-
-[data-theme='dark'] .log-line.entry-error {
-	background-color: color-mix(in srgb, var(--color-red) 18%, transparent);
-}
-
-[data-theme='dark'] .log-line.entry-warning {
-	background-color: color-mix(in srgb, var(--color-orange) 18%, transparent);
+	background-color: var(--color-orange-bg);
 }
 
 .log-line mark {
 	padding: 0 0.1em;
-	background-color: color-mix(in srgb, var(--color-blue) 45%, transparent);
+	background-color: color-mix(in srgb, var(--color-blue) var(--opacity-ratio-keep-45), transparent);
 	color: var(--color-text-primary);
 	border-radius: 2px;
 	font-weight: 500;
@@ -393,7 +389,7 @@ defineExpose({
 
 .level-debug {
 	color: var(--color-text-tertiary);
-	background-color: color-mix(in srgb, var(--color-blue) 5%, transparent);
+	background-color: color-mix(in srgb, var(--color-blue) var(--opacity-ratio-keep-5), transparent);
 }
 
 .level-timestamp {

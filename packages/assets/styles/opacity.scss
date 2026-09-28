@@ -64,14 +64,18 @@
 	// transparent)` to `keep-60` renders identically at a 100% baseline and
 	// follows the setting everywhere else. Rungs are added as sites migrate.
 	--opacity-ratio-keep-82: calc(var(--opacity-baseline, 100%) * 0.82);
+	--opacity-ratio-keep-68: calc(var(--opacity-baseline, 100%) * 0.68);
 	--opacity-ratio-keep-60: calc(var(--opacity-baseline, 100%) * 0.6);
+	--opacity-ratio-keep-55: calc(var(--opacity-baseline, 100%) * 0.55);
 	--opacity-ratio-keep-50: calc(var(--opacity-baseline, 100%) * 0.5);
 	--opacity-ratio-keep-45: calc(var(--opacity-baseline, 100%) * 0.45);
+	--opacity-ratio-keep-35: calc(var(--opacity-baseline, 100%) * 0.35);
 	--opacity-ratio-keep-30: calc(var(--opacity-baseline, 100%) * 0.3);
 	--opacity-ratio-keep-25: calc(var(--opacity-baseline, 100%) * 0.25);
 	--opacity-ratio-keep-22: calc(var(--opacity-baseline, 100%) * 0.22);
 	--opacity-ratio-keep-20: calc(var(--opacity-baseline, 100%) * 0.2);
 	--opacity-ratio-keep-18: calc(var(--opacity-baseline, 100%) * 0.18);
+	--opacity-ratio-keep-15: calc(var(--opacity-baseline, 100%) * 0.15);
 	--opacity-ratio-keep-12: calc(var(--opacity-baseline, 100%) * 0.12);
 	--opacity-ratio-keep-10: calc(var(--opacity-baseline, 100%) * 0.1);
 	--opacity-ratio-keep-5: calc(var(--opacity-baseline, 100%) * 0.05);
@@ -98,14 +102,4 @@
 	--opacity-ratio-bar: calc(
 		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.15
 	);
-}
-
-/// Paints `$colour` at the given rung of the scale. Use the rung names above so
-/// the ratios stay a shared vocabulary instead of numbers scattered per file.
-@mixin relative-alpha($colour, $rung) {
-	background-color: color-mix(in srgb, #{$colour} var(--opacity-ratio-#{$rung}), transparent);
-}
-
-@mixin relative-alpha-border($colour, $rung) {
-	border-color: color-mix(in srgb, #{$colour} var(--opacity-ratio-#{$rung}), transparent);
 }

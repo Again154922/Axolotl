@@ -3584,7 +3584,14 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	}
 
 	:deep(.browse-install-header) {
-		background-color: color-mix(in srgb, var(--surface-1-opaque) 68%, transparent) !important;
+		// 68% of the baseline, so the header follows the window opacity setting
+		// instead of a fixed alpha. A `calc()` inline in this slot would
+		// invalidate the mix, hence the rung.
+		background-color: color-mix(
+			in srgb,
+			var(--surface-1-opaque) var(--opacity-ratio-keep-68),
+			transparent
+		) !important;
 
 		backdrop-filter: blur(20px) saturate(115%);
 		-webkit-backdrop-filter: blur(20px) saturate(115%);
@@ -3656,10 +3663,18 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 }
 
 .sidebar-toggle-handle {
-	--handle-bg: color-mix(in srgb, var(--color-brand) 12%, var(--color-bg));
-	--handle-bg-hover: color-mix(in srgb, var(--color-brand) 20%, var(--color-bg));
+	--handle-bg: color-mix(in srgb, var(--color-brand) var(--opacity-ratio-keep-12), var(--color-bg));
+	--handle-bg-hover: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-20),
+		var(--color-bg)
+	);
 	--handle-border: var(--brand-gradient-border);
-	--handle-border-hover: color-mix(in srgb, var(--color-brand) 45%, transparent);
+	--handle-border-hover: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-45),
+		transparent
+	);
 
 	position: absolute;
 	top: 50%;

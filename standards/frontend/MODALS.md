@@ -90,7 +90,7 @@ Replaces the default header text. Use this when you need custom markup in the he
 <NewModal ref="modal">
 	<template #title>
 		<AlertIcon />
-		<span class="text-2xl font-semibold text-contrast">Custom Title</span>
+		<span class="text-2xl font-semibold text-[var(--color-text-primary)]">Custom Title</span>
 	</template>
 	<p>Content here.</p>
 </NewModal>

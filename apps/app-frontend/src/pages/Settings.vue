@@ -523,7 +523,8 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 											class="flex items-center gap-3 rounded-lg border border-solid p-4"
 											:style="{
 												borderColor: 'var(--surface-4)',
-												background: 'color-mix(in srgb, var(--surface-3) 35%, transparent)',
+												background:
+													'color-mix(in srgb, var(--surface-3) var(--opacity-ratio-keep-35), transparent)',
 											}"
 										>
 											<div class="flex min-w-0 flex-1 flex-col gap-2">
@@ -569,7 +570,11 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 
 <style scoped>
 .settings-layout {
-	--settings-divider: color-mix(in srgb, var(--surface-4) 55%, transparent);
+	--settings-divider: color-mix(
+		in srgb,
+		var(--surface-4) var(--opacity-ratio-keep-55),
+		transparent
+	);
 	display: grid;
 	grid-template-columns: minmax(18rem, 20rem) minmax(0, 1fr);
 	gap: var(--gap-lg);

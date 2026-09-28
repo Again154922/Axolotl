@@ -13,11 +13,17 @@ const config: Config = {
 					3: 'var(--surface-3)',
 					4: 'var(--surface-4)',
 					5: 'var(--surface-5)',
-					content: 'var(--surface-content)',
-					'content-alt': 'var(--surface-content-alt)',
-					'content-muted': 'var(--surface-content-muted)',
-					'content-selected': 'var(--surface-content-selected)',
-					bar: 'var(--surface-bar)',
+					// The content stack, the card and the bars have no opaque root
+					// value when a host publishes none, so each falls back to the
+					// closest surface it derives from (see `global.scss`). The
+					// website shares this preset but not the app's tokens, so
+					// without a fallback `bg-surface-content` would paint nothing.
+					content: 'var(--surface-content, var(--surface-3))',
+					'content-alt': 'var(--surface-content-alt, var(--surface-1-5))',
+					'content-muted': 'var(--surface-content-muted, var(--surface-2))',
+					'content-selected': 'var(--surface-content-selected, var(--surface-2-5))',
+					bar: 'var(--surface-bar, var(--surface-3))',
+					card: 'var(--surface-card, var(--surface-3))',
 				},
 
 				red: {
@@ -119,6 +125,7 @@ const config: Config = {
 					green: 'var(--color-green-bg)',
 					blue: 'var(--color-blue-bg)',
 					purple: 'var(--color-purple-bg)',
+					raised: 'var(--surface-3)', // var(--color-raised-bg)
 				},
 				banners: {
 					error: {

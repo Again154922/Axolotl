@@ -165,6 +165,16 @@ html.transparent-window body {
 	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--opacity-ratio-4), transparent);
 	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
 
+	// A card sits directly on the page rather than on another panel, so it takes
+	// the component opacity as it is set: ratio 0, no interpolated floor of its
+	// own. At 0% a `--surface-3` card would still be 55% opaque, which is why the
+	// background behind the cards never used to come through.
+	--surface-card: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--opacity-ratio-card),
+		transparent
+	);
+
 	// Compatibility aliases with remaining consumers still resolve against the
 	// body palette instead of the opaque root values.
 	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--opacity-baseline-page), transparent);
@@ -209,7 +219,8 @@ html.transparent-window body {
 	);
 	// The highlight family renders at 25% of the baseline in the theme this
 	// palette paints by default; the light theme's pink tint is the one at 22%
-	// (`variables.scss`), and a single rule cannot tell the two apart.
+	// (`variables.scss`), and a single rule cannot tell the two apart. The light
+	// palette re-declares its value below, next to the `-bg` rungs.
 	--color-pink-highlight: color-mix(
 		in srgb,
 		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25),
@@ -221,34 +232,36 @@ html.transparent-window body {
 		transparent
 	);
 
+	// The `-bg` tint rungs are the dark/oled values (20%); the light palette
+	// re-declares them at 10% in the scoped block below.
 	--color-red-bg: color-mix(
 		in srgb,
-		var(--color-red-bg-opaque) var(--opacity-ratio-keep-10),
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-20),
 		transparent
 	);
 	--color-orange-bg: color-mix(
 		in srgb,
-		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-10),
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20),
 		transparent
 	);
 	--color-green-bg: color-mix(
 		in srgb,
-		var(--color-green-bg-opaque) var(--opacity-ratio-keep-10),
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-20),
 		transparent
 	);
 	--color-blue-bg: color-mix(
 		in srgb,
-		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-10),
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-20),
 		transparent
 	);
 	--color-purple-bg: color-mix(
 		in srgb,
-		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-10),
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-20),
 		transparent
 	);
 	--color-pink-bg: color-mix(
 		in srgb,
-		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-10),
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-20),
 		transparent
 	);
 
@@ -407,7 +420,8 @@ html.has-custom-background body {
 	);
 	// The highlight family renders at 25% of the baseline in the theme this
 	// palette paints by default; the light theme's pink tint is the one at 22%
-	// (`variables.scss`), and a single rule cannot tell the two apart.
+	// (`variables.scss`), and a single rule cannot tell the two apart. The light
+	// palette re-declares its value below, next to the `-bg` rungs.
 	--color-pink-highlight: color-mix(
 		in srgb,
 		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25),
@@ -419,6 +433,8 @@ html.has-custom-background body {
 		transparent
 	);
 
+	// The `-bg` tint rungs are the dark/oled values (20%); the light palette
+	// re-declares them at 10% in the scoped block below.
 	--color-red-bg: color-mix(
 		in srgb,
 		var(--color-red-bg-opaque) var(--opacity-ratio-keep-20),
@@ -455,6 +471,58 @@ html.has-custom-background body {
 	--color-brand-highlight: color-mix(
 		in srgb,
 		var(--color-brand-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+}
+
+// The `-bg` tint rung and the pink highlight rung are theme-specific: the light
+// palette paints them at 10% / 22% of the baseline, dark and oled at 20% / 25%
+// (`variables.scss`). The two palette rules above cannot tell light from dark --
+// they are scoped only to the palette mode -- so the light values are re-declared
+// here, after both. The theme store marks the resolved theme on `html`
+// (`light-mode`, plus the `.light` alias `variables.scss` also honours), and this
+// selector is more specific than the palette rules, so it wins wherever both
+// apply. `var()` substitutes on the declaring element, so the rung is still
+// resolved against the scale declared on this same `body` by the palette above.
+html.light-mode.transparent-window body,
+html.light.transparent-window body,
+html.light-mode.has-custom-background body,
+html.light.has-custom-background body {
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+
+	// Light's pink tint is the one highlight the theme paints below 25%.
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-22),
 		transparent
 	);
 }

@@ -715,17 +715,18 @@ defineExpose({ openWidgetPicker, setLayout })
 	position: absolute;
 	inset: 0;
 	content: '';
-	border: 1px solid color-mix(in srgb, var(--color-divider) 55%, transparent);
+	border: 1px solid
+		color-mix(in srgb, var(--color-divider) var(--opacity-ratio-keep-55), transparent);
 	border-radius: var(--radius-lg);
 	background-image:
 		linear-gradient(
 			to right,
-			color-mix(in srgb, var(--color-divider) 45%, transparent) 1px,
+			color-mix(in srgb, var(--color-divider) var(--opacity-ratio-keep-45), transparent) 1px,
 			transparent 1px
 		),
 		linear-gradient(
 			to bottom,
-			color-mix(in srgb, var(--color-divider) 45%, transparent) 1px,
+			color-mix(in srgb, var(--color-divider) var(--opacity-ratio-keep-45), transparent) 1px,
 			transparent 1px
 		);
 	background-size:

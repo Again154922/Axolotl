@@ -57,11 +57,11 @@ CSS custom properties are defined in `packages/assets/styles/variables.scss` wit
 
 **For text colors:**
 
-| Class            | Usage                            |
-| ---------------- | -------------------------------- |
-| `text-contrast`  | Primary headings                 |
-| `text-primary`   | Default body text                |
-| `text-secondary` | Reduced emphasis, secondary info |
+| Class                               | Usage                            |
+| ----------------------------------- | -------------------------------- |
+| `text-[var(--color-text-primary)]`  | Primary headings                 |
+| `text-[var(--color-text-default)]`  | Default body text                |
+| `text-[var(--color-text-tertiary)]` | Reduced emphasis, secondary info |
 
 **Brand and semantic colors** not all exposed as Figma variables — refer to `packages/assets/styles/variables.scss` for the full set:
 
