@@ -114,6 +114,8 @@ jobs:
         working-directory: third-party/blockbench
       - uses: ./.github/actions/replace-gradle-mirror
       - run: pnpm --filter @modrinth/app-frontend build
+      - name: Check for dead alpha utilities
+        run: node scripts/axolotl/check-dead-utilities.mjs
       - name: Test version metadata writes
         run: cargo test --package theseus writing_version_info_creates_missing_parent_directory
       - run: cargo check --package theseus_gui --features updater
