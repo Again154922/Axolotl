@@ -137,19 +137,6 @@ export const launcherAnnouncements: readonly LauncherAnnouncement[] = [
 						'Fixed popup menus opening in the wrong direction and several overlay positioning regressions.',
 					'zh-CN': '修复弹出菜单打开方向错误以及多个弹层定位回归问题。',
 				},
-			],
-		},
-	},
-	{
-		id: 'launcher-1.9.7-beta.6',
-		version: '1.9.7-beta.6',
-		publishedAt: '2026-09-27',
-		title: {
-			'en-US': 'Axolotl Launcher 1.9.7-beta.6',
-			'zh-CN': 'Axolotl Launcher 1.9.7-beta.6',
-		},
-		changes: {
-			fixed: [
 				{
 					'en-US':
 						'Fixed screenshots from external instances failing to open in the Screenshot Center.',
