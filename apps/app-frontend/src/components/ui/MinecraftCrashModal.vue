@@ -7,10 +7,12 @@ import {
 	ScanEyeIcon,
 	ShareIcon,
 	SparklesIcon,
+	XIcon,
 } from '@modrinth/assets'
 import {
 	Button,
 	Card,
+	commonMessages,
 	defineMessages,
 	injectModrinthClient,
 	injectNotificationManager,
@@ -1279,22 +1281,38 @@ defineExpose({
 		fade="danger"
 		hide-header
 		merge-header
+		:closable="false"
 		no-padding
 		width="80vw"
 		max-width="80vw"
 	>
 		<div class="crash-modal-shell">
 			<section class="crash-modal-sidebar flex min-h-0 flex-col gap-4 overflow-y-auto p-6">
-				<div class="flex flex-col gap-2">
-					<h2 class="m-0 pr-8 text-xl font-semibold text-[var(--color-text-primary)]">
-						{{ title }}
-					</h2>
-					<p class="m-0 font-semibold text-red">{{ summary }}</p>
-					<p class="m-0 text-sm text-[var(--color-text-tertiary)]">{{ body }}</p>
-					<p class="m-0 text-sm text-[var(--color-text-tertiary)]">{{ hint }}</p>
-					<p v-if="showSupportHint" class="m-0 text-sm text-[var(--color-text-tertiary)]">
-						{{ formatMessage(messages.supportHint) }}
-					</p>
+				<div class="flex items-start justify-between gap-3">
+					<div class="flex min-w-0 flex-col gap-2">
+						<h2 class="m-0 text-xl font-semibold text-[var(--color-text-primary)]">
+							{{ title }}
+						</h2>
+						<p class="m-0 font-semibold text-red">{{ summary }}</p>
+						<p class="m-0 text-sm text-[var(--color-text-tertiary)]">{{ body }}</p>
+						<p class="m-0 text-sm text-[var(--color-text-tertiary)]">{{ hint }}</p>
+						<p v-if="showSupportHint" class="m-0 text-sm text-[var(--color-text-tertiary)]">
+							{{ formatMessage(messages.supportHint) }}
+						</p>
+					</div>
+					<!--
+						The modal has no header of its own, so the close control lives with the
+						title, in the flow: positioned against the modal body it would be laid
+						out before that body has its measured width and start off at the corner.
+					-->
+					<Button
+						v-tooltip="formatMessage(commonMessages.closeButton)"
+						circular
+						icon-only
+						:aria-label="formatMessage(commonMessages.closeButton)"
+						@click="modal?.hide()"
+						><XIcon aria-hidden="true"
+					/></Button>
 				</div>
 
 				<div
