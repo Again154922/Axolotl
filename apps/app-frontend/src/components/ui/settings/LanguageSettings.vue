@@ -197,7 +197,7 @@ function retrySave() {
 							v-tooltip="systemToggleTooltip"
 							type="button"
 							role="switch"
-							class="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--surface-5)] bg-[var(--surface-4)] px-2.5 py-2 text-[0.8125rem] font-semibold text-secondary whitespace-nowrap cursor-pointer transition-colors language-system-toggle"
+							class="inline-flex min-h-9 max-w-full shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-[var(--surface-5)] bg-[var(--surface-4)] px-2.5 py-2 text-[0.8125rem] font-semibold text-secondary cursor-pointer transition-colors language-system-toggle"
 							:class="{ 'is-active': followSystem }"
 							:aria-checked="followSystem"
 							:aria-label="formatMessage(messages.systemLanguage)"
@@ -205,7 +205,7 @@ function retrySave() {
 							@click="toggleFollowSystem"
 						>
 							<MonitorIcon class="size-4 shrink-0" />
-							<span>{{ formatMessage(messages.systemLanguage) }}</span>
+							<span class="min-w-0 truncate">{{ formatMessage(messages.systemLanguage) }}</span>
 						</button>
 					</div>
 					<p v-if="followSystem" class="m-0 text-xs text-secondary">

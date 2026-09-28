@@ -1031,7 +1031,9 @@ onMounted(async () => {
 						</p>
 					</div>
 				</div>
-				<div class="flex shrink-0 items-center gap-2 text-sm font-semibold text-secondary">
+				<div
+					class="ai-provider-detail-actions flex items-center gap-2 text-sm font-semibold text-secondary"
+				>
 					<Button v-if="selectedDefinition.sponsored" type="quiet" @click="openSponsoredWebsite">
 						<ExternalIcon />{{ formatMessage(messages.visitWebsite) }}
 					</Button>
@@ -1634,6 +1636,11 @@ onMounted(async () => {
 	background: transparent;
 }
 
+.ai-provider-detail-actions {
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
 .ai-provider-detail-scroll {
 	display: flex;
 	min-height: 0;
@@ -1708,6 +1715,16 @@ onMounted(async () => {
 }
 
 @media (max-width: 760px) {
+	.ai-provider-detail-header {
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.ai-provider-detail-actions {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
 	.ai-provider-layout {
 		grid-template-columns: minmax(0, 1fr);
 		overflow-y: auto;

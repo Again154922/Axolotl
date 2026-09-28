@@ -10096,5 +10096,50 @@
   },
   "app.translation-settings.display-section-title": {
     "message": "翻譯顯示"
+  },
+  "app.settings.feature-flags.project-background": {
+    "message": "專案背景"
+  },
+  "app.settings.feature-flags.page-path": {
+    "message": "頁面路徑"
+  },
+  "app.settings.feature-flags.worlds-tab": {
+    "message": "世界分頁"
+  },
+  "app.settings.feature-flags.worlds-in-home": {
+    "message": "在首頁顯示世界"
+  },
+  "app.settings.feature-flags.server-project-qa": {
+    "message": "伺服器專案問答"
+  },
+  "app.settings.feature-flags.show-version-environment-column": {
+    "message": "顯示版本環境欄"
+  },
+  "app.settings.feature-flags.server-ram-as-bytes-always-on": {
+    "message": "一律以位元組顯示伺服器記憶體"
+  },
+  "app.settings.feature-flags.always-show-app-controls": {
+    "message": "一律顯示應用程式控制項"
+  },
+  "app.settings.feature-flags.skip-non-essential-warnings": {
+    "message": "略過非必要警告"
+  },
+  "app.settings.feature-flags.skip-unknown-pack-warning": {
+    "message": "略過未知整合包警告"
+  },
+  "app.settings.feature-flags.i18n-debug": {
+    "message": "翻譯偵錯"
+  },
+  "app.settings.feature-flags.show-instance-play-time": {
+    "message": "顯示實例遊玩時間"
+  },
+  "app.settings.feature-flags.page-transitions": {
+    "message": "頁面切換動畫"
+  },
+  "app.settings.feature-flags.advanced-filters-collapsed": {
+    "message": "預設摺疊進階篩選"
+  },
+  "app.settings.feature-flags.auto-install-dependencies": {
+    "message": "自動安裝相依項"
   }
 }

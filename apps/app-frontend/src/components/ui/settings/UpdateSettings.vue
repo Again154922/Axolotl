@@ -746,7 +746,7 @@ function onDatabaseOperationModalHide() {
 
 .database-isolation {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.8fr);
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
 	gap: var(--gap-lg);
 	margin: 0 var(--gap-lg) var(--gap-lg);
 	padding: var(--gap-md);

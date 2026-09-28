@@ -12931,5 +12931,50 @@
   },
   "app.translation-settings.display-section-title": {
     "message": "翻译显示"
+  },
+  "app.settings.feature-flags.project-background": {
+    "message": "项目背景"
+  },
+  "app.settings.feature-flags.page-path": {
+    "message": "页面路径"
+  },
+  "app.settings.feature-flags.worlds-tab": {
+    "message": "世界标签页"
+  },
+  "app.settings.feature-flags.worlds-in-home": {
+    "message": "在主页显示世界"
+  },
+  "app.settings.feature-flags.server-project-qa": {
+    "message": "服务器项目问答"
+  },
+  "app.settings.feature-flags.show-version-environment-column": {
+    "message": "显示版本环境列"
+  },
+  "app.settings.feature-flags.server-ram-as-bytes-always-on": {
+    "message": "始终以字节显示服务器内存"
+  },
+  "app.settings.feature-flags.always-show-app-controls": {
+    "message": "始终显示应用控制项"
+  },
+  "app.settings.feature-flags.skip-non-essential-warnings": {
+    "message": "跳过非必要警告"
+  },
+  "app.settings.feature-flags.skip-unknown-pack-warning": {
+    "message": "跳过未知整合包警告"
+  },
+  "app.settings.feature-flags.i18n-debug": {
+    "message": "翻译调试"
+  },
+  "app.settings.feature-flags.show-instance-play-time": {
+    "message": "显示实例游玩时间"
+  },
+  "app.settings.feature-flags.page-transitions": {
+    "message": "页面切换动画"
+  },
+  "app.settings.feature-flags.advanced-filters-collapsed": {
+    "message": "默认折叠高级筛选"
+  },
+  "app.settings.feature-flags.auto-install-dependencies": {
+    "message": "自动安装依赖项"
   }
 }
