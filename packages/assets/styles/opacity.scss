@@ -76,10 +76,6 @@
 	--opacity-ratio-keep-10: calc(var(--opacity-baseline, 100%) * 0.1);
 	--opacity-ratio-keep-5: calc(var(--opacity-baseline, 100%) * 0.05);
 	--opacity-ratio-keep-2: calc(var(--opacity-baseline, 100%) * 0.02);
-
-	// A floor rather than a ratio: a surface that carries text stays readable at
-	// any baseline, and still hints at the background behind it.
-	--opacity-ratio-floor-90: calc(90% + var(--opacity-baseline, 100%) * 0.1);
 }
 
 /// Paints `$colour` at the given rung of the scale. Use the rung names above so

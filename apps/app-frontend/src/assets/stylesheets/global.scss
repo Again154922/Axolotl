@@ -114,25 +114,28 @@ html.transparent-window body {
 	--opacity-baseline: var(--window-alpha);
 	--opacity-baseline-page: var(--window-alpha);
 
-	// Content surfaces keep a readable floor wherever the panels are translucent.
+	// Content surfaces are a stack rather than one blanket transparency: the
+	// deeper a layer sits, the more of the baseline it keeps, so a card reads as
+	// a solid sheet over a darker row while the whole stack still follows the
+	// setting. At a 100% baseline every layer is opaque, as it always was.
 	--surface-content: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--opacity-ratio-floor-90),
-		transparent
-	);
-	--surface-content-alt: color-mix(
-		in srgb,
-		var(--surface-1-5-opaque) var(--opacity-ratio-floor-90),
-		transparent
-	);
-	--surface-content-muted: color-mix(
-		in srgb,
-		var(--surface-2-opaque) var(--opacity-ratio-floor-90),
+		var(--surface-3-opaque) var(--opacity-ratio-5),
 		transparent
 	);
 	--surface-content-selected: color-mix(
 		in srgb,
-		var(--surface-2-5-opaque) var(--opacity-ratio-floor-90),
+		var(--surface-2-5-opaque) var(--opacity-ratio-4),
+		transparent
+	);
+	--surface-content-muted: color-mix(
+		in srgb,
+		var(--surface-2-opaque) var(--opacity-ratio-3),
+		transparent
+	);
+	--surface-content-alt: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-chrome),
 		transparent
 	);
 
@@ -297,25 +300,28 @@ html.has-custom-background body {
 	--opacity-baseline: var(--custom-bg-component-alpha);
 	--opacity-baseline-page: var(--custom-bg-page-alpha);
 
-	// Content surfaces keep a readable floor wherever the panels are translucent.
+	// Content surfaces are a stack rather than one blanket transparency: the
+	// deeper a layer sits, the more of the baseline it keeps, so a card reads as
+	// a solid sheet over a darker row while the whole stack still follows the
+	// setting. At a 100% baseline every layer is opaque, as it always was.
 	--surface-content: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--opacity-ratio-floor-90),
-		transparent
-	);
-	--surface-content-alt: color-mix(
-		in srgb,
-		var(--surface-1-5-opaque) var(--opacity-ratio-floor-90),
-		transparent
-	);
-	--surface-content-muted: color-mix(
-		in srgb,
-		var(--surface-2-opaque) var(--opacity-ratio-floor-90),
+		var(--surface-3-opaque) var(--opacity-ratio-5),
 		transparent
 	);
 	--surface-content-selected: color-mix(
 		in srgb,
-		var(--surface-2-5-opaque) var(--opacity-ratio-floor-90),
+		var(--surface-2-5-opaque) var(--opacity-ratio-4),
+		transparent
+	);
+	--surface-content-muted: color-mix(
+		in srgb,
+		var(--surface-2-opaque) var(--opacity-ratio-3),
+		transparent
+	);
+	--surface-content-alt: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-chrome),
 		transparent
 	);
 
