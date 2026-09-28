@@ -125,10 +125,14 @@ test('every rule that declares a baseline also publishes the scale', () => {
 		for (const block of ruleBlocks(stripComments(sheet.text))) {
 			if (!/--opacity-baseline\s*:/.test(block)) continue
 			declarations += 1
+			// A declaration (`--opacity-ratio-3: …`), not a reference
+			// (`var(--opacity-ratio-3)`): only the declaration publishes the rung in
+			// this rule, which is what `var()` substitution at the declaring element
+			// requires. Matching the reference form let a removed `@include` pass.
 			assert.match(
 				block,
-				/--opacity-ratio-|@include\s+opacity-scale/,
-				`${sheet.name}: a rule declares --opacity-baseline without --opacity-ratio- / @include opacity-scale`,
+				/--opacity-ratio-[a-z0-9-]+\s*:|@include\s+opacity-scale/,
+				`${sheet.name}: a rule declares --opacity-baseline without publishing the scale`,
 			)
 		}
 	}
