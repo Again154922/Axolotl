@@ -140,6 +140,90 @@ html.transparent-window body {
 		transparent
 	);
 	--color-tooltip-bg: var(--surface-3-opaque);
+
+	// The tint families need the same treatment as the surfaces above, and for
+	// the same reason: the mix that turns an opaque base into a tint lives in
+	// `variables.scss` on the root, and `var()` substitution happens on the
+	// element that declares it, so those tints would keep the root's 100%
+	// baseline no matter what this one is set to. The bases carry no rung, so
+	// they are inherited as they are.
+	--color-red-highlight: color-mix(
+		in srgb,
+		var(--color-red-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-orange-highlight: color-mix(
+		in srgb,
+		var(--color-orange-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-green-highlight: color-mix(
+		in srgb,
+		var(--color-green-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-blue-highlight: color-mix(
+		in srgb,
+		var(--color-blue-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-purple-highlight: color-mix(
+		in srgb,
+		var(--color-purple-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	// The highlight family renders at 25% of the baseline in the theme this
+	// palette paints by default; the light theme's pink tint is the one at 22%
+	// (`variables.scss`), and a single rule cannot tell the two apart.
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-gray-highlight: color-mix(
+		in srgb,
+		var(--color-gray-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+
+	// The brand tint follows the accent colour, which is why it takes the base
+	// the theme and accent selected rather than a tone of its own.
+	--color-brand-highlight: color-mix(
+		in srgb,
+		var(--color-brand-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
 }
 
 // The custom-background path needs the same treatment as the transparent window
@@ -228,6 +312,90 @@ html.has-custom-background body {
 		transparent
 	);
 	--color-tooltip-bg: var(--surface-3-opaque);
+
+	// The tint families need the same treatment as the surfaces above, and for
+	// the same reason: the mix that turns an opaque base into a tint lives in
+	// `variables.scss` on the root, and `var()` substitution happens on the
+	// element that declares it, so those tints would keep the root's 100%
+	// baseline no matter what this one is set to. The bases carry no rung, so
+	// they are inherited as they are.
+	--color-red-highlight: color-mix(
+		in srgb,
+		var(--color-red-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-orange-highlight: color-mix(
+		in srgb,
+		var(--color-orange-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-green-highlight: color-mix(
+		in srgb,
+		var(--color-green-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-blue-highlight: color-mix(
+		in srgb,
+		var(--color-blue-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-purple-highlight: color-mix(
+		in srgb,
+		var(--color-purple-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	// The highlight family renders at 25% of the baseline in the theme this
+	// palette paints by default; the light theme's pink tint is the one at 22%
+	// (`variables.scss`), and a single rule cannot tell the two apart.
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-gray-highlight: color-mix(
+		in srgb,
+		var(--color-gray-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+
+	// The brand tint follows the accent colour, which is why it takes the base
+	// the theme and accent selected rather than a tone of its own.
+	--color-brand-highlight: color-mix(
+		in srgb,
+		var(--color-brand-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
 }
 
 * {

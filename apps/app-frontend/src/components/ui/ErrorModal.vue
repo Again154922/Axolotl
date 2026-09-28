@@ -539,12 +539,22 @@ async function exportLogs() {
 
 <style>
 .light-mode {
-	--color-orange-bg: rgba(255, 163, 71, 0.2);
+	--color-orange-bg-opaque: rgb(255 163 71);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
 }
 
 .dark-mode,
 .oled-mode {
-	--color-orange-bg: rgba(224, 131, 37, 0.2);
+	--color-orange-bg-opaque: rgb(224 131 37);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
 }
 </style>
 

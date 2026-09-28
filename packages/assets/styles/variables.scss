@@ -118,23 +118,99 @@
 	--color-contrast: var(--color-text-primary);
 	--color-accent-contrast: #ffffff;
 
-	--color-red-highlight: rgba(203, 34, 69, 0.25);
-	--color-orange-highlight: rgba(224, 131, 37, 0.25);
-	--color-green-highlight: rgba(0, 175, 92, 0.25);
-	--color-blue-highlight: rgba(31, 104, 192, 0.25);
-	--color-purple-highlight: rgba(142, 50, 243, 0.25);
-	--color-pink-highlight: rgba(219, 39, 119, 0.22);
-	--color-gray-highlight: rgba(89, 91, 97, 0.25);
+	// The tint families are rungs of the opacity model rather than fixed alphas,
+	// so a selected chip or card follows "Component opacity" the way its
+	// unselected neighbours already do. Each family keeps its hue in an opaque
+	// base and mixes that base at the rung that renders it at a 100% baseline.
+	//
+	// The rung is read with a percentage fallback on purpose: these blocks are
+	// root-scope, but the scale is published per palette (see opacity.scss), so
+	// outside a palette the fallback preserves the value the fixed alpha had.
+	// A palette that publishes its own baseline re-declares both the base and
+	// the mix next to that baseline.
+	--color-red-highlight-opaque: rgb(203 34 69);
+	--color-red-highlight: color-mix(
+		in srgb,
+		var(--color-red-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-orange-highlight-opaque: rgb(224 131 37);
+	--color-orange-highlight: color-mix(
+		in srgb,
+		var(--color-orange-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-green-highlight-opaque: rgb(0 175 92);
+	--color-green-highlight: color-mix(
+		in srgb,
+		var(--color-green-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-blue-highlight-opaque: rgb(31 104 192);
+	--color-blue-highlight: color-mix(
+		in srgb,
+		var(--color-blue-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-purple-highlight-opaque: rgb(142 50 243);
+	--color-purple-highlight: color-mix(
+		in srgb,
+		var(--color-purple-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	// The pink tint is the one highlight that sat below 25%.
+	--color-pink-highlight-opaque: rgb(219 39 119);
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-22, 22%),
+		transparent
+	);
+	--color-gray-highlight-opaque: rgb(89 91 97);
+	--color-gray-highlight: color-mix(
+		in srgb,
+		var(--color-gray-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
 
-	--color-red-bg: rgba(203, 34, 69, 0.1);
-	--color-orange-bg: rgba(224, 131, 37, 0.1);
-	--color-green-bg: rgba(0, 175, 92, 0.1);
-	--color-blue-bg: rgba(31, 104, 192, 0.1);
-	--color-purple-bg: rgba(142, 50, 243, 0.1);
-	--color-pink-bg: rgba(219, 39, 119, 0.1);
+	--color-red-bg-opaque: rgb(203 34 69);
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-10, 10%),
+		transparent
+	);
+	--color-orange-bg-opaque: rgb(224 131 37);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-10, 10%),
+		transparent
+	);
+	--color-green-bg-opaque: rgb(0 175 92);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-10, 10%),
+		transparent
+	);
+	--color-blue-bg-opaque: rgb(31 104 192);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-10, 10%),
+		transparent
+	);
+	--color-purple-bg-opaque: rgb(142 50 243);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-10, 10%),
+		transparent
+	);
+	--color-pink-bg-opaque: rgb(219 39 119);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-10, 10%),
+		transparent
+	);
 
 	--color-brand: var(--color-green);
-	--color-brand-highlight: var(--color-green-highlight);
+	--color-brand-highlight-opaque: var(--color-green-highlight-opaque);
 	--color-brand-shadow: rgba(0, 175, 92, 0.7);
 	--color-yellow: var(--color-orange);
 
@@ -366,23 +442,91 @@ html {
 	--color-contrast: var(--color-text-primary);
 	--color-accent-contrast: #000000;
 
-	--color-red-highlight: rgba(255, 73, 110, 0.25);
-	--color-orange-highlight: rgba(255, 163, 71, 0.25);
-	--color-green-highlight: rgba(27, 217, 106, 0.25);
-	--color-blue-highlight: rgba(79, 156, 255, 0.25);
-	--color-purple-highlight: rgba(199, 138, 255, 0.25);
-	--color-pink-highlight: rgba(244, 114, 182, 0.25);
-	--color-gray-highlight: rgba(159, 164, 179, 0.25);
+	// Same model as `.light-properties`: an opaque base per family plus the mix
+	// that renders it at a 100% baseline. The dark tints are stronger than the
+	// light ones -- 25% for every highlight and 20% for every `-bg`.
+	--color-red-highlight-opaque: rgb(255 73 110);
+	--color-red-highlight: color-mix(
+		in srgb,
+		var(--color-red-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-orange-highlight-opaque: rgb(255 163 71);
+	--color-orange-highlight: color-mix(
+		in srgb,
+		var(--color-orange-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-green-highlight-opaque: rgb(27 217 106);
+	--color-green-highlight: color-mix(
+		in srgb,
+		var(--color-green-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-blue-highlight-opaque: rgb(79 156 255);
+	--color-blue-highlight: color-mix(
+		in srgb,
+		var(--color-blue-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-purple-highlight-opaque: rgb(199 138 255);
+	--color-purple-highlight: color-mix(
+		in srgb,
+		var(--color-purple-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-pink-highlight-opaque: rgb(244 114 182);
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
+	--color-gray-highlight-opaque: rgb(159 164 179);
+	--color-gray-highlight: color-mix(
+		in srgb,
+		var(--color-gray-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
 
-	--color-red-bg: rgba(255, 73, 110, 0.2);
-	--color-orange-bg: rgba(255, 163, 71, 0.2);
-	--color-green-bg: rgba(27, 217, 106, 0.2);
-	--color-blue-bg: rgba(79, 156, 255, 0.2);
-	--color-purple-bg: rgba(199, 138, 255, 0.2);
-	--color-pink-bg: rgba(244, 114, 182, 0.2);
+	--color-red-bg-opaque: rgb(255 73 110);
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
+	--color-orange-bg-opaque: rgb(255 163 71);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
+	--color-green-bg-opaque: rgb(27 217 106);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
+	--color-blue-bg-opaque: rgb(79 156 255);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
+	--color-purple-bg-opaque: rgb(199 138 255);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
+	--color-pink-bg-opaque: rgb(244 114 182);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
 
 	--color-brand: var(--color-green);
-	--color-brand-highlight: rgba(27, 217, 106, 0.25);
+	--color-brand-highlight-opaque: rgb(27 217 106);
 	--color-brand-shadow: rgba(27, 217, 106, 0.7);
 	--color-yellow: var(--color-orange);
 
@@ -483,43 +627,62 @@ html {
 	);
 }
 
+// Each accent selects the opaque base its brand tint comes from; the mix that
+// turns a base into the tint is written once, below, so the aliasing above is
+// what picks the colour. A base is a plain colour, so it needs no rung and can
+// be resolved here -- only the mix has to resolve where a palette publishes its
+// baseline.
 .accent-pink {
 	--color-brand: var(--color-pink);
-	--color-brand-highlight: var(--color-pink-highlight);
+	--color-brand-highlight-opaque: var(--color-pink-highlight-opaque);
 	--color-brand-shadow: color-mix(in srgb, var(--color-pink) 68%, transparent);
 }
 
 .accent-orange {
 	--color-brand: var(--color-orange);
-	--color-brand-highlight: var(--color-orange-highlight);
+	--color-brand-highlight-opaque: var(--color-orange-highlight-opaque);
 	--color-brand-shadow: color-mix(in srgb, var(--color-orange) 68%, transparent);
 }
 
 .accent-green {
 	--color-brand: var(--color-green);
-	--color-brand-highlight: var(--color-green-highlight);
+	--color-brand-highlight-opaque: var(--color-green-highlight-opaque);
 	--color-brand-shadow: color-mix(in srgb, var(--color-green) 68%, transparent);
 }
 
 .accent-blue {
 	--color-brand: var(--color-blue);
-	--color-brand-highlight: var(--color-blue-highlight);
+	--color-brand-highlight-opaque: var(--color-blue-highlight-opaque);
 	--color-brand-shadow: color-mix(in srgb, var(--color-blue) 68%, transparent);
 }
 
 .accent-purple {
 	--color-brand: var(--color-purple);
-	--color-brand-highlight: var(--color-purple-highlight);
+	--color-brand-highlight-opaque: var(--color-purple-highlight-opaque);
 	--color-brand-shadow: color-mix(in srgb, var(--color-purple) 68%, transparent);
 }
 
 .accent-custom {
 	--color-brand: var(--custom-accent-light, var(--color-pink));
-	--color-brand-highlight: color-mix(in srgb, var(--color-brand) 25%, transparent);
+	// A custom accent is not one of the palette tones, so the base is the accent
+	// itself rather than a `<tone>-highlight-opaque`.
+	--color-brand-highlight-opaque: var(--color-brand);
 	--color-brand-shadow: color-mix(in srgb, var(--color-brand) 68%, transparent);
 }
 
 .dark-mode.accent-custom,
 .dark.accent-custom {
 	--color-brand: var(--custom-accent-dark, var(--color-pink));
+}
+
+// The one place `--color-brand-highlight` is defined: it mixes whichever base
+// the theme and accent above selected. Root-scope, so it keeps the percentage
+// fallback for a host that publishes no scale, and a palette that does
+// re-declares it next to its own baseline.
+:root {
+	--color-brand-highlight: color-mix(
+		in srgb,
+		var(--color-brand-highlight-opaque) var(--opacity-ratio-keep-25, 25%),
+		transparent
+	);
 }
