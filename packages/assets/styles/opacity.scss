@@ -59,9 +59,20 @@
 	// Ratio 0: the card sits on the page, so it takes the baseline as it is.
 	--opacity-ratio-card: var(--opacity-baseline, 100%);
 
-	// Below the baseline the ratio scales it down instead: `-0.18` keeps 82% of
-	// it. Deeper rungs land here as the fixed alphas are migrated.
-	--opacity-ratio-minus-18: calc(var(--opacity-baseline, 100%) * 0.82);
+	// Below the baseline a rung keeps a share of it, so it is named by that
+	// share: `keep-60` is `b * 0.60`. Migrating a fixed `color-mix(… 60%,
+	// transparent)` to `keep-60` renders identically at a 100% baseline and
+	// follows the setting everywhere else. Rungs are added as sites migrate.
+	--opacity-ratio-keep-82: calc(var(--opacity-baseline, 100%) * 0.82);
+	--opacity-ratio-keep-60: calc(var(--opacity-baseline, 100%) * 0.6);
+	--opacity-ratio-keep-50: calc(var(--opacity-baseline, 100%) * 0.5);
+	--opacity-ratio-keep-45: calc(var(--opacity-baseline, 100%) * 0.45);
+	--opacity-ratio-keep-30: calc(var(--opacity-baseline, 100%) * 0.3);
+	--opacity-ratio-keep-18: calc(var(--opacity-baseline, 100%) * 0.18);
+	--opacity-ratio-keep-12: calc(var(--opacity-baseline, 100%) * 0.12);
+	--opacity-ratio-keep-10: calc(var(--opacity-baseline, 100%) * 0.1);
+	--opacity-ratio-keep-5: calc(var(--opacity-baseline, 100%) * 0.05);
+	--opacity-ratio-keep-2: calc(var(--opacity-baseline, 100%) * 0.02);
 }
 
 /// Paints `$colour` at the given rung of the scale. Use the rung names above so

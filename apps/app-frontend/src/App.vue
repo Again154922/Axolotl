@@ -3529,12 +3529,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-grid-layout.has-transparent-background {
 	.app-grid-navbar,
 	.app-grid-statusbar {
-		// Window chrome sits above the page: baseline + 0.38, per the opacity
-		// model in `@modrinth/assets/styles/opacity.scss`.
+		// Window chrome sits above the page: the chrome rung of the opacity
+		// model, which follows `--opacity-baseline`.
 		background-color: color-mix(
 			in srgb,
-			var(--surface-3-opaque)
-				calc(var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.38),
+			var(--surface-3-opaque) var(--opacity-ratio-chrome),
 			transparent
 		) !important;
 
@@ -3559,12 +3558,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 }
 
 .app-contents.has-transparent-background {
-	// Window chrome sits above the page: baseline + 0.38, per the opacity model
-	// in `@modrinth/assets/styles/opacity.scss`.
+	// Window chrome sits above the page: the chrome rung of the opacity model,
+	// which follows `--opacity-baseline`.
 	background-color: color-mix(
 		in srgb,
-		var(--surface-3-opaque)
-			calc(var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.38),
+		var(--surface-3-opaque) var(--opacity-ratio-chrome),
 		transparent
 	);
 
@@ -3575,9 +3573,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		border: none;
 		box-shadow: none;
 		border-top-left-radius: var(--radius-xl);
+		// The panel behind the chrome keeps 82% of the baseline: a `calc()` in
+		// this slot would invalidate the whole declaration, so it goes through a
+		// rung of the opacity model.
 		background-color: color-mix(
 			in srgb,
-			var(--surface-1-opaque) calc(var(--window-alpha) * 0.82),
+			var(--surface-1-opaque) var(--opacity-ratio-keep-82),
 			transparent
 		);
 	}
