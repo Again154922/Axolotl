@@ -93,10 +93,10 @@
 		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.18
 	);
 
-	// The two bars: the same surface-3 base as the panels, twenty points lighter
-	// so the app chrome sits under the content rather than beside it.
+	// The two bars: the same surface-3 base as the panels, forty points lighter
+	// so the app chrome sits well under the content it frames.
 	--opacity-ratio-bar: calc(
-		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.35
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.15
 	);
 }
 
