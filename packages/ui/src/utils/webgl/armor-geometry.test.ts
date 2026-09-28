@@ -44,6 +44,17 @@ function assertUvBounds(
 	}
 }
 
+function assertUvHorizontalBounds(
+	geometry: THREE.BufferGeometry,
+	normalKey: string,
+	minU: number,
+	maxU: number,
+): void {
+	const actual = uvBoundsForNormal(geometry, normalKey)
+	assert.ok(Math.abs(actual.minU - minU) < 1e-5, `minU: ${actual.minU}`)
+	assert.ok(Math.abs(actual.maxU - maxU) < 1e-5, `maxU: ${actual.maxU}`)
+}
+
 function uAtFaceEdge(
 	geometry: THREE.BufferGeometry,
 	normalKey: string,
@@ -181,23 +192,31 @@ test('armor arms use vanilla mirrored UV regions on their physical outer and inn
 	assert.ok(Math.abs(uAtFaceEdge(left, '-1,0,0', 'z', 'max') - 40) < 1e-5)
 })
 
-test('left leg reuses and mirrors the right leg region of the 64x32 armor texture', () => {
+test('left leg mirrors every face and swaps its physical side UV regions', () => {
 	const source = new THREE.BoxGeometry(4 / 16, 12 / 16, 4 / 16)
 	const sourceUv = source.getAttribute('uv') as THREE.BufferAttribute
-	const expected = Array.from({ length: sourceUv.count }, (_, index) => [
-		1 - sourceUv.getX(index),
-		sourceUv.getY(index) * 2,
-	])
+	const expectedV = Array.from({ length: sourceUv.count }, (_, index) => sourceUv.getY(index) * 2)
 	for (let index = 0; index < sourceUv.count; index++) {
 		sourceUv.setXY(index, sourceUv.getX(index) + 16 / 64, sourceUv.getY(index) + 32 / 64)
 	}
 
-	const armorUv = createArmorGeometry(source, 'outer', 'leftLeg').getAttribute(
-		'uv',
-	) as THREE.BufferAttribute
+	for (const layer of ['outer', 'leggings'] as const) {
+		const geometry = createArmorGeometry(source, layer, 'leftLeg')
+		const armorUv = geometry.getAttribute('uv') as THREE.BufferAttribute
 
-	for (let index = 0; index < armorUv.count; index++) {
-		assert.ok(Math.abs(armorUv.getX(index) - expected[index][0]) < 1e-7)
-		assert.ok(Math.abs(armorUv.getY(index) - expected[index][1]) < 1e-7)
+		for (let index = 0; index < armorUv.count; index++) {
+			assert.ok(Math.abs(armorUv.getY(index) - expectedV[index]) < 1e-7)
+		}
+
+		for (const [normal, minU, maxU] of [
+			['0,0,-1', 4, 8],
+			['0,0,1', 12, 16],
+			['0,-1,0', 8, 12],
+			['0,1,0', 4, 8],
+			['-1,0,0', 0, 4],
+			['1,0,0', 8, 12],
+		] as const) {
+			assertUvHorizontalBounds(geometry, normal, minU, maxU)
+		}
 	}
 })
