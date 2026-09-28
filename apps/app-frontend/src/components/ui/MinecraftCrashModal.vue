@@ -1385,7 +1385,7 @@ defineExpose({
 
 			<section class="crash-modal-workspace flex min-h-0 min-w-0 flex-col bg-surface-2">
 				<div
-					class="flex min-h-14 shrink-0 items-end gap-1 overflow-x-auto border-0 border-b border-solid border-surface-5 px-3 pr-16 pt-3"
+					class="flex min-h-14 shrink-0 items-end gap-1 overflow-x-auto border-0 border-b border-solid border-surface-5 px-5 pt-3 pr-16"
 				>
 					<button
 						v-for="file in crashLogFiles"
@@ -1530,7 +1530,7 @@ defineExpose({
 				>
 					{{ formatMessage(messages.logFilesEmpty) }}
 				</div>
-				<LogViewport v-else class="min-h-0 flex-1" :lines="selectedLogLines" />
+				<LogViewport v-else class="min-h-0 flex-1 p-5" :lines="selectedLogLines" />
 			</section>
 		</div>
 	</NewModal>
