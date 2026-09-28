@@ -85,6 +85,14 @@ html body {
 	--opacity-baseline: 100%;
 	--opacity-baseline-page: 100%;
 
+	// Content surfaces carry text, so they keep a readable floor instead of
+	// following the ratio scale; outside the palettes they are the plain
+	// surfaces they have always been.
+	--surface-content: var(--surface-3-opaque);
+	--surface-content-alt: var(--surface-1-5-opaque);
+	--surface-content-muted: var(--surface-2-opaque);
+	--surface-content-selected: var(--surface-2-5-opaque);
+
 	@include opacity-scale;
 }
 
@@ -105,6 +113,28 @@ html.transparent-window body {
 	// that element's baseline and never follow these.
 	--opacity-baseline: var(--window-alpha);
 	--opacity-baseline-page: var(--window-alpha);
+
+	// Content surfaces keep a readable floor wherever the panels are translucent.
+	--surface-content: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
+	--surface-content-alt: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
+	--surface-content-muted: color-mix(
+		in srgb,
+		var(--surface-2-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
+	--surface-content-selected: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
 
 	@include opacity-scale;
 
@@ -266,6 +296,28 @@ html.has-custom-background body {
 	// would bake in that element's baseline instead of following these.
 	--opacity-baseline: var(--custom-bg-component-alpha);
 	--opacity-baseline-page: var(--custom-bg-page-alpha);
+
+	// Content surfaces keep a readable floor wherever the panels are translucent.
+	--surface-content: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
+	--surface-content-alt: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
+	--surface-content-muted: color-mix(
+		in srgb,
+		var(--surface-2-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
+	--surface-content-selected: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-floor-90),
+		transparent
+	);
 
 	@include opacity-scale;
 

@@ -216,9 +216,9 @@ const deleteHovered = ref(false)
 			{ 'opacity-50': disabled },
 			groupKind === 'world'
 				? selected
-					? 'card-shadow !bg-surface-2.5 rounded-lg p-3'
-					: 'card-shadow !bg-surface-3 rounded-lg p-3 hover:!bg-surface-3'
-				: 'px-3 hover:bg-[hsl(230deg,6.98%,16.86%,60%)]',
+					? 'card-shadow !bg-surface-content-selected rounded-lg p-3'
+					: 'card-shadow !bg-surface-content rounded-lg p-3 hover:!bg-surface-content'
+				: 'rounded-lg bg-surface-3 px-3 hover:bg-surface-3',
 		]"
 		:style="
 			groupDepth && groupKind !== 'world' ? { paddingLeft: `${groupDepth * 2.5}rem` } : undefined

@@ -290,10 +290,10 @@ function handleItemUpdate(id: string) {
 					"
 					:class="[
 						isItemSelected(item.id)
-							? 'bg-surface-2.5'
+							? 'bg-surface-content-selected'
 							: (visibleRange.start + idx) % 2 === 1
-								? 'bg-surface-1.5'
-								: 'bg-surface-2',
+								? 'bg-surface-content-alt'
+								: 'bg-surface-content-muted',
 						'border-0 border-t border-solid border-surface-4',
 						visibleRange.start + idx === items.length - 1 && !flat ? 'rounded-b-[20px]' : '',
 					]"
@@ -378,10 +378,10 @@ function handleItemUpdate(id: string) {
 				"
 				:class="[
 					isItemSelected(item.id)
-						? 'bg-surface-2.5'
+						? 'bg-surface-content-selected'
 						: index % 2 === 1
-							? 'bg-surface-1.5'
-							: 'bg-surface-2',
+							? 'bg-surface-content-alt'
+							: 'bg-surface-content-muted',
 					'border-0 border-t border-solid border-surface-4',
 					index === items.length - 1 && !flat ? 'rounded-b-[20px]' : '',
 				]"

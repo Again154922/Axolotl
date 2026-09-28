@@ -13,6 +13,10 @@ const config: Config = {
 					3: 'var(--surface-3)',
 					4: 'var(--surface-4)',
 					5: 'var(--surface-5)',
+					content: 'var(--surface-content)',
+					'content-alt': 'var(--surface-content-alt)',
+					'content-muted': 'var(--surface-content-muted)',
+					'content-selected': 'var(--surface-content-selected)',
 				},
 
 				red: {
