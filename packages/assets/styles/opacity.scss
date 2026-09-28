@@ -76,6 +76,22 @@
 	--opacity-ratio-keep-10: calc(var(--opacity-baseline, 100%) * 0.1);
 	--opacity-ratio-keep-5: calc(var(--opacity-baseline, 100%) * 0.05);
 	--opacity-ratio-keep-2: calc(var(--opacity-baseline, 100%) * 0.02);
+
+	// The content stack's own rungs: the surface ladder 15 percentage points
+	// lighter, so the sheets sit on each other instead of reading as slabs. Kept
+	// apart from the shared rungs above so tuning the stack cannot move a panel.
+	--opacity-ratio-content: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.63
+	);
+	--opacity-ratio-content-selected: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.45
+	);
+	--opacity-ratio-content-muted: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.4
+	);
+	--opacity-ratio-content-alt: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.23
+	);
 }
 
 /// Paints `$colour` at the given rung of the scale. Use the rung names above so

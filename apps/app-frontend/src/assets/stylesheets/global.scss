@@ -120,22 +120,22 @@ html.transparent-window body {
 	// setting. At a 100% baseline every layer is opaque, as it always was.
 	--surface-content: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--opacity-ratio-5),
+		var(--surface-3-opaque) var(--opacity-ratio-content),
 		transparent
 	);
 	--surface-content-selected: color-mix(
 		in srgb,
-		var(--surface-2-5-opaque) var(--opacity-ratio-4),
+		var(--surface-2-5-opaque) var(--opacity-ratio-content-selected),
 		transparent
 	);
 	--surface-content-muted: color-mix(
 		in srgb,
-		var(--surface-2-opaque) var(--opacity-ratio-3),
+		var(--surface-2-opaque) var(--opacity-ratio-content-muted),
 		transparent
 	);
 	--surface-content-alt: color-mix(
 		in srgb,
-		var(--surface-1-5-opaque) var(--opacity-ratio-chrome),
+		var(--surface-1-5-opaque) var(--opacity-ratio-content-alt),
 		transparent
 	);
 
@@ -306,22 +306,22 @@ html.has-custom-background body {
 	// setting. At a 100% baseline every layer is opaque, as it always was.
 	--surface-content: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--opacity-ratio-5),
+		var(--surface-3-opaque) var(--opacity-ratio-content),
 		transparent
 	);
 	--surface-content-selected: color-mix(
 		in srgb,
-		var(--surface-2-5-opaque) var(--opacity-ratio-4),
+		var(--surface-2-5-opaque) var(--opacity-ratio-content-selected),
 		transparent
 	);
 	--surface-content-muted: color-mix(
 		in srgb,
-		var(--surface-2-opaque) var(--opacity-ratio-3),
+		var(--surface-2-opaque) var(--opacity-ratio-content-muted),
 		transparent
 	);
 	--surface-content-alt: color-mix(
 		in srgb,
-		var(--surface-1-5-opaque) var(--opacity-ratio-chrome),
+		var(--surface-1-5-opaque) var(--opacity-ratio-content-alt),
 		transparent
 	);
 
