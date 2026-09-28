@@ -164,13 +164,15 @@ const buttonColors = {
 	moderation: 'orange',
 } as const
 
+// The track is the tone's own tint family rung (`--color-<tone>-bg`), so it
+// follows "Component opacity" the way the admonition body it sits on does.
 const progressTrackClasses = {
-	info: 'bg-brand-blue/20',
-	warning: 'bg-brand-orange/20',
-	'circle-warning': 'bg-brand-orange/20',
-	critical: 'bg-brand-red/20',
-	success: 'bg-brand-green/20',
-	moderation: 'bg-brand-orange/20',
+	info: 'bg-bg-blue',
+	warning: 'bg-bg-orange',
+	'circle-warning': 'bg-bg-orange',
+	critical: 'bg-bg-red',
+	success: 'bg-bg-green',
+	moderation: 'bg-bg-orange',
 }
 
 const progressFillClasses = {

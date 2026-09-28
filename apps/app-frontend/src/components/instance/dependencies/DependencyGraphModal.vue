@@ -673,8 +673,8 @@ function sourceLabel(node: DependencyGraphNode) {
 }
 
 function nodeStatusClass(node: DependencyGraphNode) {
-	if (!node.resolved) return 'border-orange bg-surface-2 shadow-orange/15'
-	if (node.cycle) return 'border-red bg-surface-2 shadow-red/15'
+	if (!node.resolved) return 'border-orange bg-surface-2 node-shadow-orange'
+	if (node.cycle) return 'border-red bg-surface-2 node-shadow-red'
 	if (node.enabled === false) return 'border-surface-4 bg-surface-2 opacity-70'
 	return 'border-surface-4 bg-surface-2 shadow-black/20'
 }
@@ -893,7 +893,7 @@ defineExpose({ show, hide, setItems })
 								:key="row.id"
 								role="treeitem"
 								tabindex="0"
-								class="group flex min-h-14 w-full items-center gap-2 rounded-xl px-2 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+								class="tree-row-ring group flex min-h-14 w-full items-center gap-2 rounded-xl px-2 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2"
 								:class="
 									row.kind === 'cycle'
 										? 'text-red'
@@ -964,7 +964,7 @@ defineExpose({ show, hide, setItems })
 							>
 								<div class="flex min-w-0 items-center gap-2">
 									<span
-										class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand"
+										class="graph-icon-box flex size-8 shrink-0 items-center justify-center rounded-lg text-brand"
 									>
 										<GitGraphIcon class="size-4" />
 									</span>
@@ -1297,5 +1297,31 @@ defineExpose({ show, hide, setItems })
 
 .dependency-graph-port-output {
 	right: -6px;
+}
+
+.node-shadow-orange {
+	--tw-shadow-color: color-mix(
+		in srgb,
+		var(--color-orange) var(--opacity-ratio-keep-15),
+		transparent
+	);
+	--tw-shadow: var(--tw-shadow-colored);
+}
+
+.node-shadow-red {
+	--tw-shadow-color: color-mix(in srgb, var(--color-red) var(--opacity-ratio-keep-15), transparent);
+	--tw-shadow: var(--tw-shadow-colored);
+}
+
+.tree-row-ring:focus-visible {
+	--tw-ring-color: color-mix(in srgb, var(--color-brand) var(--opacity-ratio-keep-40), transparent);
+}
+
+.graph-icon-box {
+	background-color: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-10),
+		transparent
+	);
 }
 </style>

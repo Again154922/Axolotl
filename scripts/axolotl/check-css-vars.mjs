@@ -35,6 +35,17 @@ function allow(group, entries) {
 	for (const [name, reason] of entries) allowlist.set(name, { group, reason })
 }
 
+// Tailwind's own utilities provide these. A coloured shadow is not a colour
+// utility: `shadow-<colour>` only stores the colour, and the declaration that
+// draws it has to switch `--tw-shadow` to the coloured variant, exactly as the
+// `shadow-*` rule that emits the variable does.
+allow('tailwind-internal', [
+	[
+		'tw-shadow-colored',
+		'packages/tooling-config/tailwind emits it from every shadow-* utility; a hand-written coloured shadow in DependencyGraphModal.vue switches --tw-shadow to it',
+	],
+])
+
 // Values applied through a Vue `:style` binding, `style="--x: …"`, or
 // `element.style.setProperty('--x', …)` at runtime, so no stylesheet declares them.
 allow('runtime-set', [

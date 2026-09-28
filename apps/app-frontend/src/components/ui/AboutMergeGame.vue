@@ -93,7 +93,7 @@
 			<Transition name="panel">
 				<div
 					v-if="gameOver"
-					class="absolute inset-0 z-30 flex overflow-y-auto bg-surface-1/60 backdrop-blur-[2px]"
+					class="merge-overlay-scrim absolute inset-0 z-30 flex overflow-y-auto backdrop-blur-[2px]"
 				>
 					<div
 						class="m-auto flex max-h-full min-w-0 w-full max-w-64 flex-col items-center gap-1.5 overflow-y-auto rounded-2xl border border-surface-5 bg-surface-2 p-3 text-center shadow-xl"
@@ -122,7 +122,7 @@
 								:key="index"
 								:src="ball"
 								class="size-4 rounded-full"
-								:class="index <= highestLevel ? 'ring-1 ring-brand/60' : 'opacity-20 grayscale'"
+								:class="index <= highestLevel ? 'ball-ring-active ring-1' : 'opacity-20 grayscale'"
 								alt=""
 							/>
 						</div>
@@ -1047,5 +1047,13 @@ onScopeDispose(() => {
 		transform: translateY(100%);
 		opacity: 0;
 	}
+}
+
+.merge-overlay-scrim {
+	background-color: color-mix(in srgb, var(--surface-1) var(--opacity-ratio-keep-60), transparent);
+}
+
+.ball-ring-active {
+	--tw-ring-color: color-mix(in srgb, var(--color-brand) var(--opacity-ratio-keep-60), transparent);
 }
 </style>

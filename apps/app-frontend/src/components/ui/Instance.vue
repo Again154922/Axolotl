@@ -301,7 +301,7 @@ onUnmounted(() => unlisten())
 				/>
 				<div
 					v-if="modLoading || installing"
-					class="pointer-events-none absolute inset-0 flex items-center justify-center bg-surface-1/30"
+					class="instance-loading-overlay pointer-events-none absolute inset-0 flex items-center justify-center"
 				>
 					<SpinnerIcon
 						v-tooltip="
@@ -475,3 +475,9 @@ onUnmounted(() => unlisten())
 		</div>
 	</div>
 </template>
+
+<style scoped>
+.instance-loading-overlay {
+	background-color: color-mix(in srgb, var(--surface-1) var(--opacity-ratio-keep-30), transparent);
+}
+</style>

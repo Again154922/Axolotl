@@ -1156,7 +1156,7 @@ watch(
 							opacity: settings.custom_background_opacity / 100,
 						}"
 					/>
-					<div class="absolute inset-0 bg-surface-1/35" />
+					<div class="custom-bg-preview-dim absolute inset-0" />
 					<div class="relative flex h-full items-center justify-center">
 						<div
 							v-if="!customBackgroundPreview"
@@ -1174,7 +1174,7 @@ watch(
 						</div>
 						<div
 							v-else-if="isBackgroundDragActive"
-							class="absolute inset-0 flex items-center justify-center bg-surface-1/70"
+							class="custom-bg-preview-drag absolute inset-0 flex items-center justify-center"
 						>
 							<span class="font-semibold text-[var(--color-text-primary)]">
 								{{ formatMessage(messages.customBackgroundDropHint) }}
@@ -1182,7 +1182,7 @@ watch(
 						</div>
 						<div
 							v-if="customBackgroundPreview && !isBackgroundDragActive"
-							class="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-surface-1/80 p-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+							class="custom-bg-preview-actions absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 p-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
 						>
 							<HeadlessTooltip side="top">
 								<Button type="base" native-type="button" @click.stop="chooseCustomBackground">
@@ -1885,5 +1885,17 @@ watch(
 		border: 0.1875rem solid var(--surface-4);
 		box-shadow: var(--shadow-button);
 	}
+}
+
+.custom-bg-preview-dim {
+	background-color: color-mix(in srgb, var(--surface-1) var(--opacity-ratio-keep-35), transparent);
+}
+
+.custom-bg-preview-drag {
+	background-color: color-mix(in srgb, var(--surface-1) var(--opacity-ratio-keep-70), transparent);
+}
+
+.custom-bg-preview-actions {
+	background-color: color-mix(in srgb, var(--surface-1) var(--opacity-ratio-keep-80), transparent);
 }
 </style>

@@ -383,7 +383,7 @@ async function onJavaDownloaded(job) {
 
 		<div
 			v-if="showDeepScanConfirm"
-			class="flex flex-col gap-2 rounded-lg border border-warning bg-warning/10 p-3 text-sm"
+			class="deep-scan-warning flex flex-col gap-2 rounded-lg border border-warning p-3 text-sm"
 		>
 			<span>{{ formatMessage(messages.deepScanConfirm) }}</span>
 			<div class="flex flex-wrap gap-2">
@@ -491,5 +491,16 @@ async function onJavaDownloaded(job) {
 		align-items: flex-start;
 		flex-direction: column;
 	}
+}
+
+/* `warning` is not one of the tint families (there is no `--color-warning-bg`
+   in the app palette), so the box uses a mix of the app's warning tone
+   (orange, see Admonition / AppActionBar) at the rung the fixed /10 used. */
+.deep-scan-warning {
+	background-color: color-mix(
+		in srgb,
+		var(--color-orange) var(--opacity-ratio-keep-10),
+		transparent
+	);
 }
 </style>

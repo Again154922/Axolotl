@@ -3239,7 +3239,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		v-if="isDragging && !onSkinsPage && !onSettingsPage"
 		class="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center pointer-events-none"
 	>
-		<div class="rounded-2xl border-2 border-dashed border-brand bg-surface-2/90 p-8 text-center">
+		<div class="drop-overlay-card rounded-2xl border-2 border-dashed border-brand p-8 text-center">
 			<p class="text-lg text-[var(--color-text-primary)]">
 				{{ formatMessage(messages.dropOverlayTitle) }}
 			</p>
@@ -3368,6 +3368,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	syntax: '<length>';
 	inherits: true;
 	initial-value: 0px;
+}
+
+.drop-overlay-card {
+	background-color: color-mix(in srgb, var(--surface-2) var(--opacity-ratio-keep-90), transparent);
 }
 
 .app-grid-layout,

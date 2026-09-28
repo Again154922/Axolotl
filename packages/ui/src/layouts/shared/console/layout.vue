@@ -122,7 +122,7 @@
 				<Transition name="terminal-loading-fade">
 					<div
 						v-if="resolvedLoading"
-						class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-surface-3/80 px-8"
+						class="console-loading-scrim pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-8"
 						aria-hidden="true"
 					>
 						<LoadingIndicator />
@@ -937,5 +937,11 @@ async function handleShare() {
 .modrinth-console-fullscreen-active .app-grid-navbar,
 .modrinth-console-fullscreen-active .app-grid-statusbar {
 	z-index: 0 !important;
+}
+</style>
+
+<style scoped>
+.console-loading-scrim {
+	background-color: color-mix(in srgb, var(--surface-3) var(--opacity-ratio-keep-80), transparent);
 }
 </style>
