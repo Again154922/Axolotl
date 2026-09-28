@@ -1,7 +1,12 @@
-export function loadNotificationDismissals(storageKeys: string[], fieldCount: number) {
+export function loadNotificationDismissals(
+	storageKeys: string[],
+	fieldCount: number,
+	legacyPrefixLength = 0,
+) {
 	const keys = new Set<string>()
+	const legacyKeys = new Set<string>()
 	let clearedAt: number | null = null
-	for (const storageKey of storageKeys) {
+	for (const [storageIndex, storageKey] of storageKeys.entries()) {
 		try {
 			const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null')
 			if (Number.isFinite(value?.clearedAt)) {
@@ -14,6 +19,9 @@ export function loadNotificationDismissals(storageKeys: string[], fieldCount: nu
 				try {
 					const fields = JSON.parse(entry)
 					if (!Array.isArray(fields) || fields.length < 3) continue
+					if (storageIndex > 0 && legacyPrefixLength > 0 && fields.length <= legacyPrefixLength) {
+						legacyKeys.add(JSON.stringify(fields.slice(0, legacyPrefixLength)))
+					}
 					keys.add(
 						JSON.stringify(
 							Array.from(
@@ -30,5 +38,5 @@ export function loadNotificationDismissals(storageKeys: string[], fieldCount: nu
 			// Read each storage version independently so valid migration data survives.
 		}
 	}
-	return { keys, clearedAt }
+	return { keys, legacyKeys, clearedAt }
 }

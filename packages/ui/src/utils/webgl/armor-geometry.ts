@@ -25,6 +25,22 @@ const ARMOR_ARM_UV_RECTS: Record<string, UvBounds> = {
 	'1,0,0': { minU: 40, maxU: 44, minV: 20, maxV: 32 },
 }
 
+const ARMOR_LEG_UV_RECTS: Record<string, UvBounds> = {
+	'0,0,-1': { minU: 4, maxU: 8 },
+	'0,0,1': { minU: 12, maxU: 16 },
+	'0,-1,0': { minU: 8, maxU: 12 },
+	'0,1,0': { minU: 4, maxU: 8 },
+	'-1,0,0': { minU: 8, maxU: 12 },
+	'1,0,0': { minU: 0, maxU: 4 },
+}
+
+function armorLegUvRect(normal: string, bodyPart: ArmorBodyPart): UvBounds | undefined {
+	if (bodyPart !== 'leftLeg') return ARMOR_LEG_UV_RECTS[normal]
+	if (normal === '-1,0,0') return ARMOR_LEG_UV_RECTS['1,0,0']
+	if (normal === '1,0,0') return ARMOR_LEG_UV_RECTS['-1,0,0']
+	return ARMOR_LEG_UV_RECTS[normal]
+}
+
 function armorArmUvRect(normal: string, bodyPart: ArmorBodyPart): UvBounds | undefined {
 	if (bodyPart !== 'leftArm') return ARMOR_ARM_UV_RECTS[normal]
 
@@ -102,20 +118,22 @@ function remapArmorUv(
 		remapArmUv(uv, normal, bodyPart)
 		return
 	}
-
 	const leftLegSourceBounds = new Map<string, UvBounds>()
-	for (let index = 0; index < uv.count; index++) {
-		let u = uv.getX(index)
-		if (bodyPart === 'leftLeg') u -= 16 / 64
-		if (bodyPart !== 'leftLeg' || !normal) continue
-
-		const key = normalKey(normal, index)
-		const bounds = leftLegSourceBounds.get(key)
-		if (bounds) {
-			bounds.minU = Math.min(bounds.minU, u)
-			bounds.maxU = Math.max(bounds.maxU, u)
-		} else {
-			leftLegSourceBounds.set(key, { minU: u, maxU: u, minV: 0, maxV: 0 })
+	if (bodyPart === 'leftLeg' && normal) {
+		for (let index = 0; index < uv.count; index++) {
+			const key = normalKey(normal, index)
+			if (!ARMOR_LEG_UV_RECTS[key]) continue
+			const u = uv.getX(index) - 16 / 64
+			const v = uv.getY(index) - 32 / 64
+			const bounds = leftLegSourceBounds.get(key)
+			if (bounds) {
+				bounds.minU = Math.min(bounds.minU, u)
+				bounds.maxU = Math.max(bounds.maxU, u)
+				bounds.minV = Math.min(bounds.minV, v)
+				bounds.maxV = Math.max(bounds.maxV, v)
+			} else {
+				leftLegSourceBounds.set(key, { minU: u, maxU: u, minV: v, maxV: v })
+			}
 		}
 	}
 
@@ -129,13 +147,13 @@ function remapArmorUv(
 		if (bodyPart === 'leftLeg') {
 			u -= 16 / 64
 			v -= 32 / 64
-
-			// ArmorModel uses CubeListBuilder.mirror() for the left leg. Mirror
-			// each face inside its remapped UV rectangle so armor and trims share
-			// the vanilla left-to-right orientation.
-			if (normal) {
-				const bounds = leftLegSourceBounds.get(normalKey(normal, index))
-				if (bounds) u = bounds.minU + bounds.maxU - u
+			const normalKeyValue = normal ? normalKey(normal, index) : undefined
+			const target = normalKeyValue && armorLegUvRect(normalKeyValue, bodyPart)
+			const source = normalKeyValue && leftLegSourceBounds.get(normalKeyValue)
+			if (target && source) {
+				const ratio =
+					source.maxU > source.minU ? (u - source.minU) / (source.maxU - source.minU) : 0
+				u = (target.minU + (1 - ratio) * (target.maxU - target.minU)) / 64
 			}
 		}
 

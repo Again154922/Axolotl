@@ -6,6 +6,7 @@ import {
 import { type Ref, ref } from 'vue'
 
 import { loadNotificationDismissals } from './notification-dismissals.ts'
+import { webNotificationKey } from './notification-keys.ts'
 
 export class AppNotificationManager extends AbstractWebNotificationManager {
 	private static readonly STORAGE_KEY = 'axolotl:active-web-notifications-v1'
@@ -32,7 +33,7 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 		this.dismissedBefore = dismissed.clearedAt
 		const restoredNotifications = this.loadActiveNotifications().filter(
 			(notification) =>
-				!this.dismissedKeys.has(this.key(notification)) &&
+				!this.dismissedKeys.has(webNotificationKey(notification)) &&
 				(this.dismissedBefore === null || (notification.createdAt ?? 0) > this.dismissedBefore),
 		)
 		// Persisted entries belong to the history panel after a restart. Only notifications
@@ -59,7 +60,7 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 
 	protected addNotificationToStorage(notification: WebNotification): void {
 		if (
-			this.dismissedKeys.has(this.key(notification)) ||
+			this.dismissedKeys.has(webNotificationKey(notification)) ||
 			(this.dismissedBefore !== null && (notification.createdAt ?? 0) <= this.dismissedBefore)
 		)
 			return
@@ -82,7 +83,7 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 
 	protected clearAllNotificationsFromStorage(): void {
 		for (const notification of this.state.value) {
-			this.dismissedKeys.add(this.key(notification))
+			this.dismissedKeys.add(webNotificationKey(notification))
 		}
 		this.state.value.splice(0)
 		this.saveActiveNotifications()
@@ -114,7 +115,7 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 		const existing = this.state.value.find((notification) => notification.id === id)
 		const notification = super.removeNotification(id)
 		if (existing && notification) {
-			this.dismissedKeys.add(this.key(existing))
+			this.dismissedKeys.add(webNotificationKey(existing))
 			this.saveDismissedKeys()
 		}
 		this.saveActiveNotifications()
@@ -125,15 +126,6 @@ export class AppNotificationManager extends AbstractWebNotificationManager {
 		this.dismissedBefore = Date.now()
 		super.clearAllNotifications()
 		this.saveDismissedKeys()
-	}
-
-	private key(notification: WebNotification): string {
-		return JSON.stringify([
-			notification.title ?? '',
-			notification.text ?? '',
-			notification.type ?? '',
-			notification.errorCode ?? '',
-		])
 	}
 
 	private saveDismissedKeys(): void {

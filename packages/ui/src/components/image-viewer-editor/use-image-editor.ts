@@ -43,7 +43,13 @@ const CONTROL_SIZE = 14
 const CONTROL_TOUCH_SIZE = 24
 const MAX_RENDERED_CANVAS_PIXELS = 16_777_216
 const MIN_CROP_SIZE = 1
-const SELECTION_COLOR = '#1bd96a'
+
+function getSelectionColor() {
+	if (typeof document === 'undefined') return '#ffffff'
+	return (
+		getComputedStyle(document.documentElement).getPropertyValue('--color-brand').trim() || '#ffffff'
+	)
+}
 const CENSOR_REGENERATED_PROPERTIES = new Set([
 	'type',
 	'version',
@@ -285,7 +291,7 @@ export function useImageEditor() {
 			originX: 'left',
 			originY: 'top',
 			fill: 'transparent',
-			stroke: SELECTION_COLOR,
+			stroke: getSelectionColor(),
 			strokeUniform: true,
 			strokeWidth: 2,
 			lockRotation: true,
@@ -1345,9 +1351,9 @@ export function useImageEditor() {
 		const renderScale = Math.max(canvas.value?.getZoom() ?? 1, 0.01)
 		const controlScale = renderScale / displayScale
 		object.set({
-			borderColor: SELECTION_COLOR,
+			borderColor: getSelectionColor(),
 			borderScaleFactor: 2 * controlScale,
-			cornerColor: SELECTION_COLOR,
+			cornerColor: getSelectionColor(),
 			cornerSize: CONTROL_SIZE * controlScale,
 			cornerStrokeColor: '#ffffff',
 			cornerStyle: 'circle',

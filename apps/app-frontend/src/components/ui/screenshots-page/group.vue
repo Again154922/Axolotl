@@ -187,7 +187,7 @@ function getSelectionKey(screenshot: InstanceScreenshot) {
 		>
 			<div
 				v-if="showDropOutline"
-				class="pointer-events-none absolute -inset-2 inset-y-0 z-20 rounded-xl border-2 border-dashed border-contrast bg-transparent opacity-40"
+				class="pointer-events-none absolute -inset-2 inset-y-0 z-20 rounded-xl border-2 border-dashed border-brand bg-brand-highlight opacity-40"
 			/>
 		</Transition>
 		<ScreenshotSection
