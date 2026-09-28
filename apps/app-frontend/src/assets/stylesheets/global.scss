@@ -488,6 +488,11 @@ html.light-mode.transparent-window body,
 html.light.transparent-window body,
 html.light-mode.has-custom-background body,
 html.light.has-custom-background body {
+	// The selected-button fill is `--color-brand-highlight` in the light theme, and
+	// that tint resolves per palette now, so it is republished here, where the
+	// baseline is known, instead of keeping the root's substitution.
+	--color-button-bg-selected: var(--color-brand-highlight);
+
 	--color-red-bg: color-mix(
 		in srgb,
 		var(--color-red-bg-opaque) var(--opacity-ratio-keep-10),

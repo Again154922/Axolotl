@@ -2,6 +2,7 @@
 	<nav
 		v-if="filteredLinks.length > 1"
 		ref="scrollContainer"
+		:role="mode === 'local' ? 'tablist' : undefined"
 		class="relative flex w-fit overflow-x-auto rounded-full bg-surface-3 p-1 text-sm font-bold"
 		:class="{ 'shadow-xl border border-solid border-surface-4': mode === 'navigation' }"
 	>
@@ -34,6 +35,8 @@
 				:key="link.href"
 				ref="tabLinkElements"
 				type="button"
+				role="tab"
+				:aria-selected="index === currentActiveIndex"
 				class="button-animation z-[1] flex flex-row items-center gap-2 border-0 bg-transparent px-4 py-2 text-inherit hover:cursor-pointer focus:rounded-full"
 				:class="getSSRFallbackClasses(index)"
 				@click="emit('tabClick', index, link)"

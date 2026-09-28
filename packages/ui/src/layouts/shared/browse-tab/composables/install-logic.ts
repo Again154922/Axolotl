@@ -492,8 +492,12 @@ export function getTargetInstallPreferences(
 
 /**
  * Normalizes loader identifiers so API and UI aliases compare consistently.
+ *
+ * Not exported: `#ui/utils/version-compatibility` exports the same helper and
+ * the two bodies are identical, so exporting both from the package barrel is
+ * what made rolldown report a NAMESPACE_CONFLICT and silently drop one.
  */
-export function normalizeLoaderAlias(loader: string) {
+function normalizeLoaderAlias(loader: string) {
 	return loader.toLowerCase().replaceAll('_', '').replaceAll('-', '').replaceAll(' ', '')
 }
 
