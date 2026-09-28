@@ -70,6 +70,12 @@ html body {
 	--surface-3-opaque: var(--surface-3);
 	--surface-4-opaque: var(--surface-4);
 	--surface-5-opaque: var(--surface-5);
+
+	// A card sits directly on the page rather than on another panel, so it
+	// follows the component opacity as it is set. The palettes below override
+	// this with the translucent mix; everywhere else a card keeps painting the
+	// plain surface it always painted.
+	--surface-card: var(--surface-3);
 }
 
 // Declared on `body`, not on the root: the opaque snapshots above live on the
@@ -182,6 +188,16 @@ html.has-custom-background body {
 	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--custom-bg-alpha-3), transparent);
 	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--custom-bg-alpha-4), transparent);
 	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--custom-bg-alpha-5), transparent);
+
+	// Cards on the page track the component opacity itself. The interpolated
+	// levels above keep stacked panels readable, but they leave a card with a
+	// floor of their own share: at 0% a `--surface-3` card would still be 55%
+	// opaque, so the background behind the cards never comes through.
+	--surface-card: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--custom-bg-component-alpha),
+		transparent
+	);
 
 	// Compatibility aliases with remaining consumers still resolve against the
 	// body palette instead of the opaque root values.
