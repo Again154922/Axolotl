@@ -235,7 +235,7 @@ function formatEraserMode(value: ScreenshotEraserMode) {
 			<XIcon aria-hidden="true" />
 			{{ formatMessage(commonMessages.cancelButton) }}
 		</Button>
-		<Button type="colored" color="green" :disabled="busy" @click="emit('save', 'create_copy')">
+		<Button type="colored" color="brand" :disabled="busy" @click="emit('save', 'create_copy')">
 			<SaveIcon aria-hidden="true" />
 			{{ formatMessage(messages.saveAsCopy) }}
 		</Button>

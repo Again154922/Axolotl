@@ -175,7 +175,7 @@ watch(thumbnail, (url, previousUrl) => {
 		tabindex="0"
 		class="group relative isolate aspect-video min-w-0 cursor-pointer overflow-hidden rounded-xl border border-solid border-surface-5 bg-surface-2 p-0 text-left shadow-sm transition-[filter] hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
 		:class="{
-			'!border-contrast brightness-110': selected,
+			'!border-brand brightness-110': selected,
 			'!border-brand ring-2 ring-brand animate-pulse': highlighted,
 			'opacity-50': activeDragged,
 			'cursor-grab active:cursor-grabbing': canDrag,
@@ -212,7 +212,7 @@ watch(thumbnail, (url, previousUrl) => {
 					selected ? 'border-0 !opacity-100' : 'border-2 border-solid border-primary bg-transparent'
 				"
 			>
-				<span v-if="selected" class="absolute inset-0 rounded-full bg-contrast" />
+				<span v-if="selected" class="absolute inset-0 rounded-full bg-brand" />
 				<CheckIcon v-if="selected" class="relative size-4 invert [stroke-width:3]" />
 			</span>
 		</button>

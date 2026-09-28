@@ -20,3 +20,10 @@ test('full screenshot URLs remain reserved for the image viewer', () => {
 	assert.match(screenshotsPage, /src: screenshot\.url/)
 	assert.doesNotMatch(card, /:src="screenshot\.url"/)
 })
+
+test('screenshot interaction states use the configured brand color', () => {
+	assert.match(card, /!border-brand brightness-110/)
+	assert.match(card, /rounded-full bg-brand/)
+	assert.doesNotMatch(card, /!border-contrast brightness-110/)
+	assert.doesNotMatch(card, /rounded-full bg-contrast/)
+})
