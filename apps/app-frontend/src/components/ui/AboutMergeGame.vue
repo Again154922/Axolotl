@@ -51,7 +51,7 @@
 						{{ formatMessage(messages.tapToDrop) }}
 					</span>
 					<span
-						class="rounded-full border border-surface-5 bg-surface-2/80 px-3 py-1 text-xs text-[var(--color-text-tertiary)]"
+						class="rounded-full border border-surface-5 bg-[color-mix(in_srgb,var(--surface-2)_80%,transparent)] px-3 py-1 text-xs text-[var(--color-text-tertiary)]"
 					>
 						{{ formatMessage(messages.tideHint) }}
 					</span>

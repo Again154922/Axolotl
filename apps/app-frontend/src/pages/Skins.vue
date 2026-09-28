@@ -20,7 +20,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { DragDropEvent } from '@tauri-apps/api/webview'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { computedAsync } from '@vueuse/core'
-import type { Ref } from 'vue'
+import type { ComponentPublicInstance, Ref } from 'vue'
 import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
@@ -206,10 +206,17 @@ const messages = defineMessages({
 	},
 })
 
+/**
+ * The armour panel and the external toggle that controls it live in two
+ * components, so they agree on one id for `aria-controls`.
+ */
+const ARMOR_TRIM_PANEL_ID = 'skins-armor-trim-panel'
 const editSkinModal = useTemplateRef('editSkinModal')
 const addSkinFileInput = useTemplateRef<HTMLInputElement>('addSkinFileInput')
 const skinSectionList = useTemplateRef<VirtualSkinSectionListExpose>('skinSectionList')
 const skinPreviewArea = useTemplateRef<HTMLElement>('skinPreviewArea')
+const armorTrimTab = useTemplateRef<ComponentPublicInstance>('armorTrimTab')
+const armorPreviewControls = useTemplateRef<ComponentPublicInstance>('armorPreviewControls')
 const savedArmorPreview = ref<ArmorPreviewConfig>(loadSkinArmorPreview())
 const armorPreviewConfig = ref<ArmorPreviewConfig>(cloneArmorPreviewConfig(savedArmorPreview.value))
 
@@ -233,15 +240,45 @@ function openArmorTab() {
 	skinListTab.value = 'armor'
 }
 
+/**
+ * Whether an element belongs to the armour surface: somewhere inside the open
+ * armour tab or the button that toggles it. Only those hold a focus ring that
+ * would be left behind when the tab closes.
+ */
+function isArmorPreviewElement(element: Element) {
+	const tabElement: unknown = armorTrimTab.value?.$el
+	const toggleElement: unknown = armorPreviewControls.value?.$el
+
+	return (
+		(tabElement instanceof Element && tabElement.contains(element)) ||
+		(toggleElement instanceof Element && toggleElement.contains(element))
+	)
+}
+
 function closeArmorTab() {
 	// Leaving the tab drops whatever was not saved on purpose.
 	resetArmorPreviewToSaved()
 	skinListTab.value = lastSkinListTab.value
 
 	// Escape and the toggle both leave the armour button holding focus, which
-	// keeps its focus ring drawn until something else is clicked.
+	// keeps its focus ring drawn until something else is clicked. Only drop that
+	// ring when the focus sits on the armour surface, never on an unrelated
+	// control that happened to hold it when Escape was pressed.
 	const focused = document.activeElement
-	if (focused instanceof HTMLElement) focused.blur()
+	if (focused instanceof HTMLElement && isArmorPreviewElement(focused)) focused.blur()
+}
+
+/**
+ * The tab bar keeps the last list tab highlighted while the armour tab shows, so
+ * picking one of them leaves the armour tab. That transition has to drop the
+ * draft exactly like the toggle and Escape paths do, or it lingers on the model
+ * while the panel is gone.
+ */
+function selectSkinListTab(index: number) {
+	if (skinListTab.value === 'armor') resetArmorPreviewToSaved()
+
+	lastSkinListTab.value = index === 0 ? 'saved' : 'default'
+	skinListTab.value = lastSkinListTab.value
 }
 
 const { formatMessage } = useVIntl()
@@ -1162,8 +1199,10 @@ await loadSkins()
 					{{ formatMessage(messages.editSkinButton) }}
 				</button>
 				<ArmorPreviewControls
+					ref="armorPreviewControls"
 					v-model="armorPreviewConfig"
 					panel="external"
+					:panel-id="ARMOR_TRIM_PANEL_ID"
 					:open="skinListTab === 'armor'"
 					@open="openArmorTab"
 					@close="closeArmorTab"
@@ -1177,12 +1216,7 @@ await loadSkins()
 					:active-index="lastSkinListTab === 'saved' ? 0 : 1"
 					:links="skinListTabLinks"
 					mode="local"
-					@tab-click="
-						(index: number) => {
-							lastSkinListTab = index === 0 ? 'saved' : 'default'
-							skinListTab = lastSkinListTab
-						}
-					"
+					@tab-click="selectSkinListTab"
 				/>
 				<Button type="colored" color="brand" @click="router.push('/lab/skin-editor')"
 					><PlusIcon />
@@ -1193,7 +1227,7 @@ await loadSkins()
 				<div v-if="skinListTab !== 'armor'" key="list">
 					<SkinListSkeleton v-if="isSkinListBuffering" />
 					<VirtualSkinSectionList
-						v-else
+						v-show="!isSkinListBuffering"
 						ref="skinSectionList"
 						:active-tab="lastSkinListTab"
 						:saved-skins="savedSkins"
@@ -1216,8 +1250,10 @@ await loadSkins()
 				</div>
 				<ArmorTrimTab
 					v-else
+					ref="armorTrimTab"
 					key="armor"
 					v-model="armorPreviewConfig"
+					:panel-id="ARMOR_TRIM_PANEL_ID"
 					:saved="savedArmorPreview"
 					@save="saveArmorPreview"
 					@reset="resetArmorPreviewToSaved"

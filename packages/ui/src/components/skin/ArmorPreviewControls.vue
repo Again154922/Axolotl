@@ -14,10 +14,16 @@ const messages = defineMessages({
 	armorPreview: { id: 'skin.preview.armor.open', defaultMessage: 'Armor and trims' },
 })
 
-const { panel = 'popover', open = false } = defineProps<{
+const {
+	panel = 'popover',
+	open = false,
+	panelId,
+} = defineProps<{
 	panel?: 'popover' | 'external'
 	/** Whether the panel this button opens is currently open. */
 	open?: boolean
+	/** id of the panel this external toggle controls, wired to `aria-controls`. */
+	panelId?: string
 }>()
 
 const emit = defineEmits<{
@@ -90,6 +96,7 @@ const portalTarget = computed(() =>
 			class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 hover:brightness-[--hover-brightness] focus-visible:brightness-[--hover-brightness] active:scale-95 [&>svg]:size-5 [&>svg]:shrink-0"
 			:aria-label="formatMessage(messages.armorPreview)"
 			:aria-expanded="open"
+			:aria-controls="panelId"
 			@click="open ? emit('close') : emit('open')"
 		>
 			<span class="relative size-5 shrink-0">

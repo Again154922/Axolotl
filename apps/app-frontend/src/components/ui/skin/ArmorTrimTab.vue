@@ -26,7 +26,11 @@ const messages = defineMessages({
 })
 
 const draft = defineModel<ArmorPreviewConfig>({ required: true })
-const props = defineProps<{ saved: ArmorPreviewConfig }>()
+const props = defineProps<{
+	saved: ArmorPreviewConfig
+	/** Stable id shared with the toggle so it can point `aria-controls` here. */
+	panelId: string
+}>()
 const emit = defineEmits<{
 	save: []
 	reset: []
@@ -46,7 +50,12 @@ const { formatMessage } = useVIntl()
  */
 function handleKeydown(event: KeyboardEvent) {
 	if (event.key !== 'Escape') return
-	if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
+	if (
+		event.target instanceof Element &&
+		event.target.closest('[role="dialog"], [role="alertdialog"], [aria-modal="true"]')
+	) {
+		return
+	}
 
 	emit('close')
 }
@@ -69,6 +78,9 @@ const isDirty = computed(() =>
 
 <template>
 	<div
+		:id="panelId"
+		role="region"
+		:aria-label="formatMessage(messages.title)"
 		class="flex min-h-[24rem] flex-col gap-4 rounded-2xl border border-solid border-surface-5 bg-surface-2 p-4"
 	>
 		<header class="flex flex-wrap items-start justify-between gap-3">

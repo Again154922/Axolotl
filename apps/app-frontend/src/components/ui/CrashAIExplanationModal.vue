@@ -76,7 +76,7 @@ defineExpose({ show })
 			</div>
 			<div
 				v-else-if="errorMessage"
-				class="rounded-lg bg-red-500/10 p-3 text-[var(--color-text-tertiary)]"
+				class="rounded-lg bg-bg-red p-3 text-[var(--color-text-tertiary)]"
 			>
 				{{ formatMessage(messages.error, { message: errorMessage }) }}
 			</div>
