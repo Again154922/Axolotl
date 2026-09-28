@@ -141,7 +141,6 @@ html.transparent-window body {
 	);
 	--surface-bar: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-bar), transparent);
 
-	@include opacity-scale;
 
 	// The ratio goes through a variable: `color-mix()` rejects a `calc()` in its
 	// percentage slot, and an invalid argument drops the surface entirely.

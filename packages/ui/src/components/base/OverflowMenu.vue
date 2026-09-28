@@ -1,6 +1,7 @@
 <template>
 	<PopoutMenu
 		ref="dropdown"
+		data-button-group-item
 		v-bind="$attrs"
 		:disabled="disabled"
 		:dropdown-id="dropdownId"

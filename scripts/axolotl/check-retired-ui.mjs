@@ -49,6 +49,10 @@ const RETIRED = [
 	{ pattern: /\bLegacyButton\b/, reason: 'use Button, IconButton or ButtonLink' },
 	{ pattern: /\bNewButton\b/, reason: 'use Button, IconButton or ButtonLink' },
 	{ pattern: /\bDropdownSelect\b/, reason: 'use Combobox' },
+	{
+		pattern: /\bexport\s*\{[^}]*\bas\s+Input\b/,
+		reason: 'the one-name alias was removed; export StyledInput instead',
+	},
 	{ pattern: /\b(?:hover-)?color-fill\s*=/, reason: 'use the quiet-button interaction prop' },
 	{ pattern: /\bhighlighted-style\s*=/, reason: 'use semantic selected state and ARIA' },
 	{ pattern: /\bbtn-wrapper\b/, reason: 'the descendant-search wrapper was removed' },
