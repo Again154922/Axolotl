@@ -90,6 +90,7 @@ html body {
 	// surfaces they have always been.
 	--surface-content: var(--surface-3-opaque);
 	--surface-content-alt: var(--surface-1-5-opaque);
+	--surface-bar: var(--surface-3-opaque);
 	--surface-content-muted: var(--surface-2-opaque);
 	--surface-content-selected: var(--surface-2-5-opaque);
 
@@ -138,6 +139,7 @@ html.transparent-window body {
 		var(--surface-1-5-opaque) var(--opacity-ratio-content-alt),
 		transparent
 	);
+	--surface-bar: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-bar), transparent);
 
 	@include opacity-scale;
 
@@ -324,6 +326,7 @@ html.has-custom-background body {
 		var(--surface-1-5-opaque) var(--opacity-ratio-content-alt),
 		transparent
 	);
+	--surface-bar: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-bar), transparent);
 
 	@include opacity-scale;
 

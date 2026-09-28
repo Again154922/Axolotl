@@ -81,16 +81,22 @@
 	// lighter, so the sheets sit on each other instead of reading as slabs. Kept
 	// apart from the shared rungs above so tuning the stack cannot move a panel.
 	--opacity-ratio-content: calc(
-		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.63
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.58
 	);
 	--opacity-ratio-content-selected: calc(
-		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.45
-	);
-	--opacity-ratio-content-muted: calc(
 		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.4
 	);
+	--opacity-ratio-content-muted: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.35
+	);
 	--opacity-ratio-content-alt: calc(
-		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.23
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.18
+	);
+
+	// The two bars: the same surface-3 base as the panels, twenty points lighter
+	// so the app chrome sits under the content rather than beside it.
+	--opacity-ratio-bar: calc(
+		var(--opacity-baseline, 100%) + (100% - var(--opacity-baseline, 100%)) * 0.35
 	);
 }
 

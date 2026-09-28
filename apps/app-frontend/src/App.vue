@@ -2778,7 +2778,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		/>
 		<UnknownPackWarningModal ref="unknownPackWarningModal" />
 		<div
-			class="app-grid-navbar bg-surface-3 flex flex-col p-[0.5rem] pt-0 gap-[0.5rem] w-[--left-bar-width] overflow-hidden"
+			class="app-grid-navbar bg-surface-bar flex flex-col p-[0.5rem] pt-0 gap-[0.5rem] w-[--left-bar-width] overflow-hidden"
 		>
 			<NavRail>
 				<NavButton
@@ -2938,7 +2938,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				<LogInIcon class="text-brand" />
 			</NavButton>
 		</div>
-		<div data-tauri-drag-region class="app-grid-statusbar bg-surface-3 h-[--top-bar-height] flex">
+		<div data-tauri-drag-region class="app-grid-statusbar bg-surface-bar h-[--top-bar-height] flex">
 			<div data-tauri-drag-region class="flex min-w-0 flex-1 overflow-hidden p-3">
 				<div data-tauri-drag-region class="flex shrink-0 items-center gap-2">
 					<AxolotlLogo class="h-full w-auto shrink-0 pointer-events-none" />

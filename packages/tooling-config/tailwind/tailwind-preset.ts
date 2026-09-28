@@ -17,6 +17,7 @@ const config: Config = {
 					'content-alt': 'var(--surface-content-alt)',
 					'content-muted': 'var(--surface-content-muted)',
 					'content-selected': 'var(--surface-content-selected)',
+					bar: 'var(--surface-bar)',
 				},
 
 				red: {
