@@ -1,15 +1,18 @@
 <template>
-	<canvas id="about_scene" class="size-full" />
+	<canvas ref="canvas" class="about-scene-canvas size-full" />
 </template>
 
 <script setup lang="ts">
 import * as THREE from 'three'
-import { type GLTF, GLTFLoader } from 'three/examples/jsm/Addons.js'
-import { onMounted, onScopeDispose } from 'vue'
+import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { onMounted, onScopeDispose, ref } from 'vue'
 
 import { useTheming } from '@/store/theme'
 
 const themeStore = useTheming()
+const canvas = ref<HTMLCanvasElement>()
+let cleanup: (() => void) | undefined
+onScopeDispose(() => cleanup?.())
 function isDarkMode() {
 	if (themeStore.selectedTheme == 'system') {
 		return matchMedia('(prefers-color-scheme: dark)').matches
@@ -169,24 +172,58 @@ function createCircle(material: THREE.ShaderMaterial, position: THREE.Vector3) {
 	return mesh
 }
 
+function disposeObject(object: THREE.Object3D) {
+	const geometries = new Set<THREE.BufferGeometry>()
+	const materials = new Set<THREE.Material>()
+	const textures = new Set<THREE.Texture>()
+	const bitmaps = new Set<ImageBitmap>()
+	object.traverse((child) => {
+		if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose()
+		if (!('geometry' in child) || !('material' in child)) return
+		const renderable = child as THREE.Mesh
+		geometries.add(renderable.geometry)
+		const meshMaterials = Array.isArray(renderable.material)
+			? renderable.material
+			: [renderable.material]
+		for (const material of meshMaterials) {
+			materials.add(material)
+			for (const value of Object.values(material)) {
+				if (value instanceof THREE.Texture) {
+					textures.add(value)
+					if (typeof ImageBitmap !== 'undefined' && value.image instanceof ImageBitmap) {
+						bitmaps.add(value.image)
+					}
+				}
+			}
+		}
+	})
+	for (const geometry of geometries) geometry.dispose()
+	for (const material of materials) material.dispose()
+	for (const texture of textures) texture.dispose()
+	for (const bitmap of bitmaps) bitmap.close()
+	object.clear()
+}
+
 function main() {
-	const canvas = document.querySelector<HTMLCanvasElement>('#about_scene')
-	if (!canvas) return console.error('No canvas')
+	const sceneCanvas = canvas.value
+	if (!sceneCanvas) return console.error('About scene canvas is unavailable')
 
 	let isUpdating = true
+	let animationFrame: number | undefined
+	let disposed = false
 
 	const canvasSize = new THREE.Vector2(
-		canvas.getBoundingClientRect().width,
-		canvas.getBoundingClientRect().height,
+		Math.max(1, sceneCanvas.clientWidth),
+		Math.max(1, sceneCanvas.clientHeight),
 	)
 
 	const renderer = new THREE.WebGLRenderer({
 		antialias: true,
 		alpha: true,
-		canvas,
+		canvas: sceneCanvas,
 	})
-	renderer.setPixelRatio(devicePixelRatio)
-	renderer.setSize(canvasSize.x, canvasSize.y)
+	renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+	renderer.setSize(canvasSize.x, canvasSize.y, false)
 
 	// three@0.185 deprecates Clock; use a tiny elapsed-time helper instead.
 	const startedAt = performance.now()
@@ -207,6 +244,7 @@ function main() {
 
 	const camera = new THREE.PerspectiveCamera(30, canvasSize.x / canvasSize.y, 1, 3000)
 	camera.fov *= 0.7
+	camera.updateProjectionMatrix()
 	camera.position.set(-10, 5, 30)
 	camera.lookAt(0, 0, 0)
 
@@ -234,8 +272,13 @@ function main() {
 	scene.add(createWater(waterMaterial, new THREE.Vector3(2, -8, -10)))
 	scene.add(createWater(waterMaterial, new THREE.Vector3(16, -8, -26)))
 
+	let mixer: THREE.AnimationMixer | undefined
 	async function load() {
 		const axlGLTF = await loadGLTF('/models/axolotl.gltf')
+		if (disposed) {
+			disposeObject(axlGLTF.scene)
+			return
+		}
 
 		const axlModel = axlGLTF.scene
 		axlModel.scale.multiplyScalar(5)
@@ -243,10 +286,11 @@ function main() {
 		axlModel.position.add(new THREE.Vector3(0, -2.5, 0))
 		scene.add(axlModel)
 
-		const mixer = new THREE.AnimationMixer(axlModel)
+		const modelMixer = new THREE.AnimationMixer(axlModel)
+		mixer = modelMixer
 		const axlSwimAnim = axlGLTF.animations.filter((a) => a.name === 'swim')[0]
 		if (!axlSwimAnim) return console.error('Missing animation swim')
-		mixer.clipAction(axlSwimAnim).play()
+		modelMixer.clipAction(axlSwimAnim).play()
 
 		// // Axl Label
 		// const axlLabelGLTF = await loadGLTF('/models/axl_label.glb')
@@ -264,13 +308,15 @@ function main() {
 				originAxlModelPosition.z,
 			)
 			axlModel.rotation.y = Math.sin(elapsedTime * 0.3) * 0.2 + (Math.PI * 100) / 180
-			mixer.update(deltaTime)
+			modelMixer.update(deltaTime)
 		}
 	}
 	let updateGLTF = (_deltaTime: number, _elapsedTime: number) => {}
-	load().then((updateFn) => {
-		if (updateFn) updateGLTF = updateFn
-	})
+	void load()
+		.then((updateFn) => {
+			if (!disposed && updateFn) updateGLTF = updateFn
+		})
+		.catch((error) => console.error('Failed to load About scene model', error))
 
 	const circleMaterial = createCircleMaterial()
 	circleMaterial.uniforms.color.value = new THREE.Color(accentColor).multiplyScalar(
@@ -286,6 +332,7 @@ function main() {
 			m.position.y += deltaTime * 2.0
 			if (m.position.y >= 32) {
 				scene.remove(m)
+				m.geometry.dispose()
 				return false
 			}
 			return true
@@ -304,7 +351,7 @@ function main() {
 
 	function animate(_time: number) {
 		if (isUpdating === false) return
-		requestAnimationFrame(animate)
+		animationFrame = requestAnimationFrame(animate)
 
 		const deltaTime = nextDelta()
 		const elapsedTime = elapsedSeconds()
@@ -332,33 +379,50 @@ function main() {
 
 	function updateSize() {
 		if (!isUpdating) return
-		if (!canvas) return
-		const rect = canvas.getBoundingClientRect()
-		const w = rect.width
-		const h = rect.height
+		const w = sceneCanvas.clientWidth
+		const h = sceneCanvas.clientHeight
 		if (w > 0 && h > 0) {
-			renderer.setSize(w, h)
+			renderer.setSize(w, h, false)
 			camera.aspect = w / h
 			camera.updateProjectionMatrix()
 		}
 	}
 
 	const resizeObserver = new ResizeObserver(updateSize)
-	resizeObserver.observe(canvas)
+	resizeObserver.observe(sceneCanvas)
+	updateSize()
 
 	addEventListener('mousemove', onMouseMove)
-	onScopeDispose(() => {
+	cleanup = () => {
+		disposed = true
 		isUpdating = false
+		if (animationFrame !== undefined) cancelAnimationFrame(animationFrame)
 		removeEventListener('mousemove', onMouseMove)
 		resizeObserver.disconnect()
+		mixer?.stopAllAction()
+		if (mixer) mixer.uncacheRoot(mixer.getRoot())
+		mixer = undefined
+		updateGLTF = () => {}
+		for (const circle of circleMeshList) {
+			scene.remove(circle)
+			circle.geometry.dispose()
+		}
+		circleMeshList = []
+		circleMaterial.dispose()
+		disposeObject(scene)
+		renderer.renderLists.dispose()
+		renderer.forceContextLoss()
 		renderer.dispose()
-	})
+	}
 }
 
 onMounted(main)
 </script>
 <style>
-#about_scene {
+.about-scene-canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
 	background: linear-gradient(
 		to bottom,
 		color-mix(in srgb, var(--color-brand) 36%, var(--surface-1) 100%),
