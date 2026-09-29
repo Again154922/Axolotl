@@ -122,7 +122,10 @@ import {
 import { install_create_modpack_instance, install_get_modpack_preview } from '@/helpers/install'
 import { type DirectLinkSyncReport, get as getInstance, run } from '@/helpers/instance'
 import { type BackupOperation, cancelBackup, listBackupOperations } from '@/helpers/instance-backup'
-import { reconcileMojangAuthSourceAtStartup } from '@/helpers/mojang-auth'
+import {
+	reconcileMojangAuthSourceAtStartup,
+	reconcileMojangAuthSourceIfMirrored,
+} from '@/helpers/mojang-auth'
 import { cancelLogin, get as getCreds, login, logout } from '@/helpers/mr_auth.ts'
 import { getNavShortcutEnabled } from '@/helpers/nav-shortcut-state'
 import { runWhenIdle } from '@/helpers/page-transition'
@@ -431,7 +434,6 @@ const authServerQuery = useQuery({
 			setNetworkReachable(true)
 			authServerRefetchInterval.value = 5 * 60 * 1000
 			authUnreachableDebug('Auth servers are reachable')
-			return true
 		} catch (error) {
 			setNetworkReachable(false)
 			// Keep probing while the temporary outage is active so the launcher
@@ -439,20 +441,32 @@ const authServerQuery = useQuery({
 			authServerRefetchInterval.value = 15 * 1000
 			throw error
 		}
+		try {
+			await reconcileMojangAuthSourceIfMirrored()
+		} catch (error) {
+			console.warn('Failed to reconcile the Mojang auth source', error)
+		}
+		return true
 	},
 	refetchInterval: () => authServerRefetchInterval.value,
+	// A single slow probe is not enough to declare the auth servers down.
 	retry: 1,
 	retryDelay: 1000,
 	refetchOnWindowFocus: false,
 })
 
-const authUnreachable = computed(() => {
-	if (!offline.value && authServerQuery.isError.value && !authServerQuery.isLoading.value) {
-		console.warn('Failed to reach auth servers', authServerQuery.error.value)
-		return true
-	}
-	return false
-})
+const authUnreachable = computed(
+	() => !offline.value && authServerQuery.isError.value && !authServerQuery.isLoading.value,
+)
+
+watch(
+	() => authServerQuery.error.value,
+	(error) => {
+		if (!error) return
+		setNetworkReachable(false)
+		console.warn('Failed to reach auth servers', error)
+	},
+)
 
 const appUpdateDownload = {
 	progress: appUpdateState.progress,
@@ -2704,7 +2718,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		<button
 			v-tooltip.bottom="formatMessage(messages.quitLauncher)"
 			data-tauri-drag-region-exclude
-			class="flex size-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-secondary transition-colors hover:bg-surface-4 hover:text-contrast"
+			class="flex size-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-[var(--color-text-tertiary)] transition-colors hover:bg-surface-4 hover:text-[var(--color-text-primary)]"
 			type="button"
 			:aria-label="formatMessage(messages.quitLauncher)"
 			@click="forceExit"
@@ -2737,7 +2751,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 			>
 				<span
 					data-tauri-drag-region
-					class="flex items-center gap-4 text-contrast font-semibold text-xl select-none cursor-default"
+					class="flex items-center gap-4 text-[var(--color-text-primary)] font-semibold text-xl select-none cursor-default"
 				>
 					<RefreshCwIcon data-tauri-drag-region class="animate-spin w-6 h-6" />
 					{{ formatMessage(messages.restarting) }}
@@ -2764,7 +2778,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		/>
 		<UnknownPackWarningModal ref="unknownPackWarningModal" />
 		<div
-			class="app-grid-navbar bg-bg-raised flex flex-col p-[0.5rem] pt-0 gap-[0.5rem] w-[--left-bar-width] overflow-hidden"
+			class="app-grid-navbar bg-surface-bar flex flex-col p-[0.5rem] pt-0 gap-[0.5rem] w-[--left-bar-width] overflow-hidden"
 		>
 			<NavRail>
 				<NavButton
@@ -2885,7 +2899,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				v-if="AxolotlBrandConfig.capabilities.privateModrinthServices && credentials?.user"
 				v-tooltip.right="`Modrinth account`"
 				data-onboarding-id="account-entry"
-				class="w-12 h-12 text-primary rounded-full flex items-center justify-center text-2xl transition-all bg-transparent hover:bg-button-bg hover:text-contrast border-0 cursor-pointer"
+				class="w-12 h-12 text-[var(--color-text-default)] rounded-full flex items-center justify-center text-2xl transition-all bg-transparent hover:bg-surface-4 hover:text-[var(--color-text-primary)] border-0 cursor-pointer"
 				:options="[
 					{
 						id: 'view-profile',
@@ -2904,7 +2918,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 					<UserIcon />
 					<span class="inline-flex items-center gap-1">
 						{{ formatMessage(messages.signedInAs) }}
-						<span class="inline-flex items-center gap-1 text-contrast font-semibold">
+						<span
+							class="inline-flex items-center gap-1 text-[var(--color-text-primary)] font-semibold"
+						>
 							<Avatar :src="credentials?.user?.avatar_url" alt="" size="20px" circle />
 							{{ credentials?.user?.username }}
 						</span>
@@ -2922,7 +2938,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				<LogInIcon class="text-brand" />
 			</NavButton>
 		</div>
-		<div data-tauri-drag-region class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex">
+		<div data-tauri-drag-region class="app-grid-statusbar bg-surface-bar h-[--top-bar-height] flex">
 			<div data-tauri-drag-region class="flex min-w-0 flex-1 overflow-hidden p-3">
 				<div data-tauri-drag-region class="flex shrink-0 items-center gap-2">
 					<AxolotlLogo class="h-full w-auto shrink-0 pointer-events-none" />
@@ -2935,13 +2951,13 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				</div>
 				<div data-tauri-drag-region class="flex shrink-0 items-center gap-1 ml-3">
 					<button
-						class="cursor-pointer p-0 m-0 text-contrast border-none outline-none bg-button-bg rounded-full flex items-center justify-center w-6 h-6 hover:brightness-75 transition-all"
+						class="cursor-pointer p-0 m-0 text-[var(--color-text-primary)] border-none outline-none bg-surface-4 rounded-full flex items-center justify-center w-6 h-6 hover:brightness-75 transition-all"
 						@click="router.back()"
 					>
 						<LeftArrowIcon />
 					</button>
 					<button
-						class="cursor-pointer p-0 m-0 text-contrast border-none outline-none bg-button-bg rounded-full flex items-center justify-center w-6 h-6 hover:brightness-75 transition-all"
+						class="cursor-pointer p-0 m-0 text-[var(--color-text-primary)] border-none outline-none bg-surface-4 rounded-full flex items-center justify-center w-6 h-6 hover:brightness-75 transition-all"
 						@click="router.forward()"
 					>
 						<RightArrowIcon />
@@ -3059,7 +3075,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				<div id="sidebar-teleport-target" class="sidebar-teleport-content contents"></div>
 				<div class="sidebar-default-content hidden" :class="{ 'sidebar-enabled': sidebarVisible }">
 					<div class="p-4 border-0 border-b-[1px] border-[--brand-gradient-border] border-solid">
-						<h3 class="text-base text-primary font-medium m-0">
+						<h3 class="text-base text-[var(--color-text-default)] font-medium m-0">
 							{{ formatMessage(messages.playingAs) }}
 						</h3>
 						<suspense>
@@ -3230,9 +3246,13 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		v-if="isDragging && !onSkinsPage && !onSettingsPage"
 		class="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center pointer-events-none"
 	>
-		<div class="rounded-2xl border-2 border-dashed border-brand bg-surface-2/90 p-8 text-center">
-			<p class="text-lg text-contrast">{{ formatMessage(messages.dropOverlayTitle) }}</p>
-			<p class="text-sm text-secondary mt-2">{{ formatMessage(messages.dropOverlaySubtitle) }}</p>
+		<div class="drop-overlay-card rounded-2xl border-2 border-dashed border-brand p-8 text-center">
+			<p class="text-lg text-[var(--color-text-primary)]">
+				{{ formatMessage(messages.dropOverlayTitle) }}
+			</p>
+			<p class="text-sm text-[var(--color-text-tertiary)] mt-2">
+				{{ formatMessage(messages.dropOverlaySubtitle) }}
+			</p>
 		</div>
 	</div>
 
@@ -3248,8 +3268,8 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		class="fixed inset-0 z-[9999] bg-black/20 flex items-center justify-center"
 	>
 		<div class="flex flex-col items-center gap-3">
-			<SpinnerIcon class="h-10 w-10 animate-spin text-contrast" />
-			<span v-if="scanningInstances" class="text-sm text-secondary"
+			<SpinnerIcon class="h-10 w-10 animate-spin text-[var(--color-text-primary)]" />
+			<span v-if="scanningInstances" class="text-sm text-[var(--color-text-tertiary)]"
 				>{{ formatMessage(messages.dropScanning) }}…</span
 			>
 		</div>
@@ -3298,10 +3318,12 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 
 	<NewModal ref="compatibleModeConfirmModal" max-width="560px" :closable="true">
 		<template #title>
-			<span class="text-contrast">{{ formatMessage(messages.dropCompatibleModeTitle) }}</span>
+			<span class="text-[var(--color-text-primary)]">{{
+				formatMessage(messages.dropCompatibleModeTitle)
+			}}</span>
 		</template>
 		<div class="flex flex-col gap-4">
-			<span class="text-secondary text-sm">{{
+			<span class="text-[var(--color-text-tertiary)] text-sm">{{
 				formatMessage(messages.dropCompatibleModeDesc)
 			}}</span>
 			<div class="grid grid-cols-2 gap-3">
@@ -3355,6 +3377,10 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	initial-value: 0px;
 }
 
+.drop-overlay-card {
+	background-color: color-mix(in srgb, var(--surface-2) var(--opacity-ratio-keep-90), transparent);
+}
+
 .app-grid-layout,
 .app-contents {
 	--top-bar-height: 3rem;
@@ -3382,7 +3408,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	grid-template-rows: auto 1fr;
 	position: relative;
 	//z-index: 0;
-	background-color: var(--color-raised-bg);
+	background-color: var(--surface-3);
 	height: 100vh;
 }
 
@@ -3402,7 +3428,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	pointer-events: none;
 	// Opaque floor under the custom image: lowering "background visibility"
 	// dims the image against the app surface instead of revealing the desktop.
-	// It must read the *opaque* snapshot -- the translucent `--color-raised-bg`
+	// It must read the *opaque* snapshot -- the translucent `--surface-3`
 	// is what the components above use to show the image through, and using it
 	// here as well would let the desktop through along with the image.
 	background-color: var(--surface-3-opaque);
@@ -3434,9 +3460,9 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-grid-layout.has-custom-background {
 	.app-grid-navbar,
 	.app-grid-statusbar {
-		// `--color-raised-bg` already carries the "Component opacity" alpha in
+		// `--surface-3` carries the body-overridden "Component opacity" alpha in
 		// this mode (see `global.scss`), so this only paints the chrome.
-		background-color: var(--color-raised-bg) !important;
+		background-color: var(--surface-3) !important;
 
 		backdrop-filter: none;
 		-webkit-backdrop-filter: none;
@@ -3514,9 +3540,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 .app-grid-layout.has-transparent-background {
 	.app-grid-navbar,
 	.app-grid-statusbar {
+		// Window chrome sits above the page: the chrome rung of the opacity
+		// model, which follows `--opacity-baseline`.
 		background-color: color-mix(
 			in srgb,
-			var(--surface-3-opaque) var(--window-alpha-chrome),
+			var(--surface-3-opaque) var(--opacity-ratio-chrome),
 			transparent
 		) !important;
 
@@ -3541,9 +3569,11 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 }
 
 .app-contents.has-transparent-background {
+	// Window chrome sits above the page: the chrome rung of the opacity model,
+	// which follows `--opacity-baseline`.
 	background-color: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--window-alpha-chrome),
+		var(--surface-3-opaque) var(--opacity-ratio-chrome),
 		transparent
 	);
 
@@ -3554,15 +3584,25 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 		border: none;
 		box-shadow: none;
 		border-top-left-radius: var(--radius-xl);
+		// The panel behind the chrome keeps 82% of the baseline: a `calc()` in
+		// this slot would invalidate the whole declaration, so it goes through a
+		// rung of the opacity model.
 		background-color: color-mix(
 			in srgb,
-			var(--surface-1-opaque) calc(var(--window-alpha) * 0.82),
+			var(--surface-1-opaque) var(--opacity-ratio-keep-82),
 			transparent
 		);
 	}
 
 	:deep(.browse-install-header) {
-		background-color: color-mix(in srgb, var(--surface-1-opaque) 68%, transparent) !important;
+		// 68% of the baseline, so the header follows the window opacity setting
+		// instead of a fixed alpha. A `calc()` inline in this slot would
+		// invalidate the mix, hence the rung.
+		background-color: color-mix(
+			in srgb,
+			var(--surface-1-opaque) var(--opacity-ratio-keep-68),
+			transparent
+		) !important;
 
 		backdrop-filter: blur(20px) saturate(115%);
 		-webkit-backdrop-filter: blur(20px) saturate(115%);
@@ -3582,10 +3622,28 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	height: calc(100vh - var(--top-bar-height));
 	background: var(--brand-gradient-bg);
 
-	--color-button-bg: var(--brand-gradient-button);
-	--color-button-bg-hover: var(--brand-gradient-border);
-	--color-divider: var(--brand-gradient-border);
-	--color-divider-dark: var(--brand-gradient-border);
+	--sidebar-control-surface: var(--brand-gradient-button);
+	--sidebar-control-surface-hover: var(--brand-gradient-border);
+	--sidebar-stroke: var(--brand-gradient-border);
+}
+
+.app-sidebar-scrollable {
+	:deep(.bg-surface-4) {
+		background-color: var(--sidebar-control-surface);
+	}
+
+	:deep(.hover\:bg-surface-4:hover) {
+		background-color: var(--sidebar-control-surface-hover);
+	}
+
+	:deep(.bg-divider) {
+		background-color: var(--sidebar-stroke);
+	}
+
+	:deep(.border-divider),
+	:deep(.border-button-border) {
+		border-color: var(--sidebar-stroke);
+	}
 }
 
 .disable-advanced-rendering {
@@ -3616,10 +3674,18 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 }
 
 .sidebar-toggle-handle {
-	--handle-bg: color-mix(in srgb, var(--color-brand) 12%, var(--color-bg));
-	--handle-bg-hover: color-mix(in srgb, var(--color-brand) 20%, var(--color-bg));
+	--handle-bg: color-mix(in srgb, var(--color-brand) var(--opacity-ratio-keep-12), var(--color-bg));
+	--handle-bg-hover: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-20),
+		var(--color-bg)
+	);
 	--handle-border: var(--brand-gradient-border);
-	--handle-border-hover: color-mix(in srgb, var(--color-brand) 45%, transparent);
+	--handle-border-hover: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-45),
+		transparent
+	);
 
 	position: absolute;
 	top: 50%;
@@ -3640,7 +3706,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	border-radius: 12px 0 0 12px;
 
 	background-color: var(--handle-bg);
-	color: var(--color-contrast);
+	color: var(--color-text-primary);
 	cursor: pointer;
 
 	box-shadow: -4px 0 10px rgba(0, 0, 0, 0.08);
@@ -3797,10 +3863,6 @@ body.modrinth-console-fullscreen-active .app-sidebar {
 }
 
 .windows {
-	.fake-appbar {
-		height: 2.5rem !important;
-	}
-
 	.info-card {
 		right: 22rem;
 	}

@@ -37,7 +37,7 @@
 					:style="{ height: estimateHeight(item) + 'px' }"
 				>
 					<span
-						class="flex shrink-0 w-[52px] items-center justify-end leading-none text-right text-secondary bg-surface-3 border-r border-solid border-surface-3 select-none overflow-hidden"
+						class="flex shrink-0 w-[52px] items-center justify-end leading-none text-right text-[var(--color-text-tertiary)] bg-surface-3 border-r border-solid border-surface-3 select-none overflow-hidden"
 						>{{ item.originalIndex + 1 }}</span
 					>
 					<span
@@ -344,25 +344,21 @@ defineExpose({
 	min-width: 0;
 }
 
+/* The `-bg` tints are rungs of the opacity model and already carry the theme
+   (light 10%, dark/oled 20%), so one rule each replaces the old fixed 12%/18%
+   pair -- the `[data-theme='dark']` overrides duplicated a distinction the token
+   now makes on its own. */
 .log-line.entry-error {
-	background-color: color-mix(in srgb, var(--color-red) 12%, transparent);
+	background-color: var(--color-red-bg);
 }
 
 .log-line.entry-warning {
-	background-color: color-mix(in srgb, var(--color-orange) 12%, transparent);
-}
-
-[data-theme='dark'] .log-line.entry-error {
-	background-color: color-mix(in srgb, var(--color-red) 18%, transparent);
-}
-
-[data-theme='dark'] .log-line.entry-warning {
-	background-color: color-mix(in srgb, var(--color-orange) 18%, transparent);
+	background-color: var(--color-orange-bg);
 }
 
 .log-line mark {
 	padding: 0 0.1em;
-	background-color: color-mix(in srgb, var(--color-blue) 45%, transparent);
+	background-color: color-mix(in srgb, var(--color-blue) var(--opacity-ratio-keep-45), transparent);
 	color: var(--color-text-primary);
 	border-radius: 2px;
 	font-weight: 500;
@@ -382,9 +378,7 @@ defineExpose({
 	overflow-wrap: anywhere;
 }
 
-.level-error,
-.level-critical,
-.level-emergency {
+.level-error {
 	color: var(--color-red);
 	font-weight: 600;
 }
@@ -393,24 +387,9 @@ defineExpose({
 	color: var(--color-orange);
 }
 
-.level-fatal {
-	color: var(--color-red);
-	font-weight: 700;
-	background-color: color-mix(in srgb, var(--color-red) 8%, transparent);
-}
-
-[data-theme='dark'] .level-fatal {
-	background-color: color-mix(in srgb, var(--color-red) 15%, transparent);
-}
-
-.level-debug,
-.level-notice {
-	color: var(--color-text-secondary);
-	background-color: color-mix(in srgb, var(--color-blue) 5%, transparent);
-}
-
-.level-notice {
-	background-color: color-mix(in srgb, var(--color-blue) 10%, transparent);
+.level-debug {
+	color: var(--color-text-tertiary);
+	background-color: color-mix(in srgb, var(--color-blue) var(--opacity-ratio-keep-5), transparent);
 }
 
 .level-timestamp {
@@ -454,7 +433,7 @@ defineExpose({
 }
 
 .level-stack-frame {
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 }
 
 .level-stack-class {
@@ -492,7 +471,7 @@ defineExpose({
 }
 
 .level-mod-name {
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 }
 
 .level-mod-status {

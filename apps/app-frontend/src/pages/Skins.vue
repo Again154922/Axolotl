@@ -10,9 +10,12 @@ import {
 } from '@modrinth/assets'
 import {
 	type ArmorPreviewConfig,
+	ArmorPreviewControls,
 	Button,
+	cloneArmorPreviewConfig,
 	commonMessages,
 	ConfirmModal,
+	createDefaultArmorPreviewConfig,
 	defineMessages,
 	injectNotificationManager,
 	NavTabs,
@@ -25,12 +28,14 @@ import { invoke } from '@tauri-apps/api/core'
 import type { DragDropEvent } from '@tauri-apps/api/webview'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { computedAsync } from '@vueuse/core'
-import type { Ref } from 'vue'
+import type { ComponentPublicInstance, Ref } from 'vue'
 import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
 import type AccountsCard from '@/components/ui/AccountsCard.vue'
+import ArmorTrimTab from '@/components/ui/skin/ArmorTrimTab.vue'
 import EditSkinModal from '@/components/ui/skin/EditSkinModal.vue'
+import SkinListSkeleton from '@/components/ui/skin/SkinListSkeleton.vue'
 import VirtualSkinSectionList from '@/components/ui/skin/VirtualSkinSectionList.vue'
 import { useNetworkStatus } from '@/composables/useNetworkStatus'
 import { check_reachable, get_default_user, users } from '@/helpers/auth'
@@ -209,13 +214,80 @@ const messages = defineMessages({
 	},
 })
 
+/**
+ * The armour panel and the external toggle that controls it live in two
+ * components, so they agree on one id for `aria-controls`.
+ */
+const ARMOR_TRIM_PANEL_ID = 'skins-armor-trim-panel'
 const editSkinModal = useTemplateRef('editSkinModal')
 const addSkinFileInput = useTemplateRef<HTMLInputElement>('addSkinFileInput')
 const skinSectionList = useTemplateRef<VirtualSkinSectionListExpose>('skinSectionList')
 const skinPreviewArea = useTemplateRef<HTMLElement>('skinPreviewArea')
-const armorPreviewConfig = ref<ArmorPreviewConfig>(loadSkinArmorPreview())
+const armorTrimTab = useTemplateRef<ComponentPublicInstance>('armorTrimTab')
+const armorPreviewControls = useTemplateRef<ComponentPublicInstance>('armorPreviewControls')
+const savedArmorPreview = ref<ArmorPreviewConfig>(loadSkinArmorPreview())
+const armorPreviewConfig = ref<ArmorPreviewConfig>(cloneArmorPreviewConfig(savedArmorPreview.value))
 
-watch(armorPreviewConfig, saveSkinArmorPreview, { deep: true })
+function saveArmorPreview() {
+	savedArmorPreview.value = cloneArmorPreviewConfig(armorPreviewConfig.value)
+	saveSkinArmorPreview(savedArmorPreview.value)
+}
+
+function resetArmorPreviewToSaved() {
+	armorPreviewConfig.value = cloneArmorPreviewConfig(savedArmorPreview.value)
+}
+
+function restoreDefaultArmorPreview() {
+	armorPreviewConfig.value = createDefaultArmorPreviewConfig()
+}
+
+/** A third tab behind the two list tabs, opened from the preview's action row. */
+function openArmorTab() {
+	if (skinListTab.value !== 'armor') lastSkinListTab.value = skinListTab.value
+
+	skinListTab.value = 'armor'
+}
+
+/**
+ * Whether an element belongs to the armour surface: somewhere inside the open
+ * armour tab or the button that toggles it. Only those hold a focus ring that
+ * would be left behind when the tab closes.
+ */
+function isArmorPreviewElement(element: Element) {
+	const tabElement: unknown = armorTrimTab.value?.$el
+	const toggleElement: unknown = armorPreviewControls.value?.$el
+
+	return (
+		(tabElement instanceof Element && tabElement.contains(element)) ||
+		(toggleElement instanceof Element && toggleElement.contains(element))
+	)
+}
+
+function closeArmorTab() {
+	// Leaving the tab drops whatever was not saved on purpose.
+	resetArmorPreviewToSaved()
+	skinListTab.value = lastSkinListTab.value
+
+	// Escape and the toggle both leave the armour button holding focus, which
+	// keeps its focus ring drawn until something else is clicked. Only drop that
+	// ring when the focus sits on the armour surface, never on an unrelated
+	// control that happened to hold it when Escape was pressed.
+	const focused = document.activeElement
+	if (focused instanceof HTMLElement && isArmorPreviewElement(focused)) focused.blur()
+}
+
+/**
+ * The tab bar keeps the last list tab highlighted while the armour tab shows, so
+ * picking one of them leaves the armour tab. That transition has to drop the
+ * draft exactly like the toggle and Escape paths do, or it lingers on the model
+ * while the panel is gone.
+ */
+function selectSkinListTab(index: number) {
+	if (skinListTab.value === 'armor') resetArmorPreviewToSaved()
+
+	lastSkinListTab.value = index === 0 ? 'saved' : 'default'
+	skinListTab.value = lastSkinListTab.value
+}
 
 const { formatMessage } = useVIntl()
 const router = useRouter()
@@ -340,7 +412,27 @@ const isAddSkinButtonDragActive = ref(false)
 
 const deleteSkinModal = ref()
 const skinToDelete = ref<Skin | null>(null)
-const skinListTab = ref<'saved' | 'default'>('saved')
+const skinListTab = ref<'saved' | 'default' | 'armor'>('saved')
+/** The list tab the tab bar keeps highlighted while the armour tab is showing. */
+const lastSkinListTab = ref<'saved' | 'default'>('saved')
+/**
+ * The list swaps its dataset in place, so a short skeleton covers the swap
+ * instead of letting the grid change under the pointer.
+ */
+const isSkinListBuffering = ref(false)
+let skinListBufferTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(skinListTab, (tab, previous) => {
+	if (tab === 'armor' || previous === 'armor') return
+
+	isSkinListBuffering.value = true
+	clearTimeout(skinListBufferTimer)
+	skinListBufferTimer = setTimeout(() => {
+		isSkinListBuffering.value = false
+	}, 240)
+})
+
+onUnmounted(() => clearTimeout(skinListBufferTimer))
 
 const skinListTabLinks = computed(() => [
 	{
@@ -1031,10 +1123,10 @@ await loadSkins()
 		to="#sidebar-default-teleport-target"
 	>
 		<section class="p-4">
-			<h3 class="m-0 text-base font-semibold text-primary">
+			<h3 class="m-0 text-base font-semibold text-[var(--color-text-default)]">
 				{{ formatMessage(messages.offlineCompatibilityTitle) }}
 			</h3>
-			<p class="mb-0 mt-2 text-sm leading-6 text-secondary">
+			<p class="mb-0 mt-2 text-sm leading-6 text-[var(--color-text-tertiary)]">
 				{{ formatMessage(messages.offlineCompatibility) }}
 			</p>
 		</section>
@@ -1044,10 +1136,10 @@ await loadSkins()
 		to="#sidebar-default-teleport-target"
 	>
 		<section class="p-4">
-			<h3 class="m-0 text-base font-semibold text-primary">
+			<h3 class="m-0 text-base font-semibold text-[var(--color-text-default)]">
 				{{ formatMessage(messages.thirdPartyManagementTitle) }}
 			</h3>
-			<p class="mb-0 mt-2 text-sm leading-6 text-secondary">
+			<p class="mb-0 mt-2 text-sm leading-6 text-[var(--color-text-tertiary)]">
 				{{ formatMessage(messages.thirdPartyManagementDescription) }}
 			</p>
 		</section>
@@ -1062,13 +1154,21 @@ await loadSkins()
 			<h1 class="m-0 text-2xl font-bold flex items-center gap-2">
 				{{ formatMessage(messages.skinSelectorTitle) }}
 			</h1>
+			<!--
+				The preview's height, strictly: the area the app gives the page
+				(100vh less the top bar) minus the title, the action row below it and
+				the page's own padding. It keeps that height whether or not actions are
+				showing -- when one appears the column grows downwards instead, so the
+				model never moves and the actions never sit on the canvas.
+			-->
 			<div
 				ref="skinPreviewArea"
-				class="ml-5 mt-4 flex h-[calc(80vh-1rem)] items-center justify-center max-[700px]:h-[calc(50vh-1rem)]"
+				class="ml-5 mt-4 flex h-[calc(100vh_-_var(--top-bar-height)_-_11rem)] min-h-[14rem] items-center justify-center"
 			>
 				<SkinPreviewRenderer
 					v-model:armor-config="armorPreviewConfig"
 					armor-preview
+					:armor-controls="false"
 					:cape-src="capeTexture"
 					:texture-src="skinTexture || ''"
 					:variant="skinVariant"
@@ -1083,80 +1183,106 @@ await loadSkins()
 							{{ formatMessage(messages.previewingBadge) }}
 						</div>
 					</template>
-					<template #subtitle>
-						<div
-							v-if="hasPendingSkinChange"
-							class="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 px-2"
-						>
-							<button
-								class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 text-contrast shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
-								:disabled="isApplyingSkin || isSkinManagementReadOnly"
-								@click="resetSelectedSkin"
-							>
-								<RotateCounterClockwiseIcon />
-								{{ formatMessage(commonMessages.resetButton) }}
-							</button>
-							<button
-								class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-brand px-4 py-2.5 text-base font-semibold leading-5 text-[rgba(0,0,0,0.9)] shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
-								:disabled="isApplyingSkin || isSkinManagementReadOnly"
-								@click="applySelectedSkin"
-							>
-								<SpinnerIcon v-if="isApplyingSkin" class="animate-spin" />
-								<CheckIcon v-else />
-								{{ formatMessage(messages.applyButton) }}
-							</button>
-						</div>
-						<button
-							v-else
-							class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
-							:disabled="!selectedSkin || isSkinManagementReadOnly"
-							@click="(e: MouseEvent) => selectedSkin && editSkinModal?.show(e, selectedSkin)"
-						>
-							<EditIcon />
-							{{ formatMessage(messages.editSkinButton) }}
-						</button>
-					</template>
 				</SkinPreviewRenderer>
+			</div>
+
+			<!--
+				The preview's actions belong to the column, not to the canvas: in the
+				flow they always get their own height, they never sit on the model, and
+				the preview above them does not move when one of them appears.
+			-->
+			<div class="ml-5 mt-3 flex flex-wrap items-center justify-center gap-2">
+				<template v-if="hasPendingSkinChange">
+					<button
+						class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
+						:disabled="isApplyingSkin || isSkinManagementReadOnly"
+						@click="resetSelectedSkin"
+					>
+						<RotateCounterClockwiseIcon />
+						{{ formatMessage(commonMessages.resetButton) }}
+					</button>
+					<button
+						class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-brand px-4 py-2.5 text-base font-semibold leading-5 text-[rgba(0,0,0,0.9)] shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
+						:disabled="isApplyingSkin || isSkinManagementReadOnly"
+						@click="applySelectedSkin"
+					>
+						<SpinnerIcon v-if="isApplyingSkin" class="animate-spin" />
+						<CheckIcon v-else />
+						{{ formatMessage(messages.applyButton) }}
+					</button>
+				</template>
+				<button
+					v-else
+					class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
+					:disabled="!selectedSkin || isSkinManagementReadOnly"
+					@click="(e: MouseEvent) => selectedSkin && editSkinModal?.show(e, selectedSkin)"
+				>
+					<EditIcon />
+					{{ formatMessage(messages.editSkinButton) }}
+				</button>
+				<ArmorPreviewControls
+					ref="armorPreviewControls"
+					v-model="armorPreviewConfig"
+					panel="external"
+					:panel-id="ARMOR_TRIM_PANEL_ID"
+					:open="skinListTab === 'armor'"
+					@open="openArmorTab"
+					@close="closeArmorTab"
+				/>
 			</div>
 		</div>
 
 		<div class="pt-2">
 			<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
 				<NavTabs
-					:active-index="skinListTab === 'saved' ? 0 : 1"
+					:active-index="lastSkinListTab === 'saved' ? 0 : 1"
 					:links="skinListTabLinks"
 					mode="local"
-					@tab-click="
-						(index: number) => {
-							skinListTab = index === 0 ? 'saved' : 'default'
-						}
-					"
+					@tab-click="selectSkinListTab"
 				/>
 				<Button type="colored" color="brand" @click="router.push('/lab/skin-editor')"
 					><PlusIcon />
 					{{ formatMessage(messages.createSkinButton) }}
 				</Button>
 			</div>
-			<VirtualSkinSectionList
-				ref="skinSectionList"
-				:active-tab="skinListTab"
-				:saved-skins="savedSkins"
-				:default-skin-sections="defaultSkinSections"
-				:get-baked-skin-textures="getBakedSkinTextures"
-				:is-skin-selected="isSkinSelected"
-				:is-skin-active="isSkinActive"
-				:is-add-skin-button-drag-active="isAddSkinButtonDragActive"
-				:read-only="isSkinManagementReadOnly"
-				@select="changeSkin"
-				@edit="(skin, event) => editSkinModal?.show(event, skin)"
-				@delete="confirmDeleteSkin"
-				@reorder-saved-skins="reorderSavedSkins"
-				@add-skin="openAddSkinFileBrowser"
-				@add-skin-dragenter="onAddSkinDragOver"
-				@add-skin-dragover="onAddSkinDragOver"
-				@add-skin-dragleave="onAddSkinDragLeave"
-				@add-skin-drop="onAddSkinDrop"
-			/>
+			<Transition name="armor-tab" mode="out-in">
+				<div v-if="skinListTab !== 'armor'" key="list">
+					<SkinListSkeleton v-if="isSkinListBuffering" />
+					<VirtualSkinSectionList
+						v-show="!isSkinListBuffering"
+						ref="skinSectionList"
+						:active-tab="lastSkinListTab"
+						:saved-skins="savedSkins"
+						:default-skin-sections="defaultSkinSections"
+						:get-baked-skin-textures="getBakedSkinTextures"
+						:is-skin-selected="isSkinSelected"
+						:is-skin-active="isSkinActive"
+						:is-add-skin-button-drag-active="isAddSkinButtonDragActive"
+						:read-only="isSkinManagementReadOnly"
+						@select="changeSkin"
+						@edit="(skin, event) => editSkinModal?.show(event, skin)"
+						@delete="confirmDeleteSkin"
+						@reorder-saved-skins="reorderSavedSkins"
+						@add-skin="openAddSkinFileBrowser"
+						@add-skin-dragenter="onAddSkinDragOver"
+						@add-skin-dragover="onAddSkinDragOver"
+						@add-skin-dragleave="onAddSkinDragLeave"
+						@add-skin-drop="onAddSkinDrop"
+					/>
+				</div>
+				<ArmorTrimTab
+					v-else
+					ref="armorTrimTab"
+					key="armor"
+					v-model="armorPreviewConfig"
+					:panel-id="ARMOR_TRIM_PANEL_ID"
+					:saved="savedArmorPreview"
+					@save="saveArmorPreview"
+					@reset="resetArmorPreviewToSaved"
+					@defaults="restoreDefaultArmorPreview"
+					@close="closeArmorTab"
+				/>
+			</Transition>
 		</div>
 	</div>
 
@@ -1166,7 +1292,7 @@ await loadSkins()
 		class="box-border flex min-h-full items-center justify-center pt-[25%]"
 	>
 		<div
-			class="relative mx-auto flex w-full max-w-xl flex-col gap-5 rounded-lg bg-bg-raised p-7 shadow-lg"
+			class="relative mx-auto flex w-full max-w-xl flex-col gap-5 rounded-lg bg-surface-3 p-7 shadow-lg"
 		>
 			<img
 				src="@/assets/axolotl.png"
@@ -1218,5 +1344,19 @@ await loadSkins()
 	@media (max-width: 700px) {
 		grid-template-columns: 1fr;
 	}
+}
+
+// The armour tab crossfades with the skin list it replaces.
+.armor-tab-enter-active,
+.armor-tab-leave-active {
+	transition:
+		opacity 180ms ease,
+		transform 180ms ease;
+}
+
+.armor-tab-enter-from,
+.armor-tab-leave-to {
+	opacity: 0;
+	transform: translateY(0.5rem);
 }
 </style>

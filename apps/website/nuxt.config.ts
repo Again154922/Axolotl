@@ -1,5 +1,8 @@
+import { fileURLToPath } from 'node:url'
+
 import svgLoader from 'vite-svg-loader'
 
+const UI_PUBLIC_ENTRY = fileURLToPath(new URL('../../packages/ui/index.ts', import.meta.url))
 const SITE_URL = 'https://axlmc.org'
 
 export default defineNuxtConfig({
@@ -44,6 +47,7 @@ export default defineNuxtConfig({
 			},
 		},
 		resolve: {
+			alias: [{ find: /^@modrinth\/ui$/, replacement: UI_PUBLIC_ENTRY }],
 			dedupe: ['vue'],
 		},
 		plugins: [

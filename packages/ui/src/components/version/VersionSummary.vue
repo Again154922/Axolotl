@@ -4,24 +4,26 @@
 	>
 		<VersionChannelIndicator :channel="version.version_type" />
 		<div class="flex min-w-0 flex-col gap-1">
-			<h1 class="my-0 truncate text-nowrap text-base font-extrabold leading-none text-contrast">
+			<h1
+				class="my-0 truncate text-nowrap text-base font-extrabold leading-none text-[var(--color-text-primary)]"
+			>
 				{{ version.version_number }}
 			</h1>
-			<p class="m-0 truncate text-nowrap text-xs font-semibold text-secondary">
+			<p class="m-0 truncate text-nowrap text-xs font-semibold text-[var(--color-text-tertiary)]">
 				{{ version.name }}
 			</p>
 		</div>
-		<ButtonStyled color="brand">
-			<a
-				:href="downloadUrl"
-				:download="primaryFilename"
-				class="min-w-0"
-				@click="emit('onDownload')"
-			>
-				<DownloadIcon aria-hidden="true" />
-				{{ formatMessage(commonMessages.downloadButton) }}
-			</a>
-		</ButtonStyled>
+		<ButtonLink
+			type="colored"
+			color="brand"
+			:href="downloadUrl"
+			:download="primaryFilename"
+			class="min-w-0"
+			@click="emit('onDownload')"
+		>
+			<DownloadIcon aria-hidden="true" />
+			{{ formatMessage(commonMessages.downloadButton) }}
+		</ButtonLink>
 		<Button
 			circular
 			icon-only
@@ -41,10 +43,11 @@ import type { Version, VersionFile } from '@modrinth/utils'
 import { computed } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
+import ButtonLink from '#ui/components/base/buttons/ButtonLink.vue'
 import { commonMessages } from '#ui/utils/common-messages'
 
 import { defineMessages, useVIntl } from '../../composables/i18n'
-import { ButtonStyled, VersionChannelIndicator } from '../index'
+import { VersionChannelIndicator } from '../index'
 
 const { formatMessage } = useVIntl()
 

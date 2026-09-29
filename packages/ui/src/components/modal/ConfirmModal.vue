@@ -8,7 +8,7 @@
 	>
 		<template #title>
 			<slot name="title">
-				<span class="font-extrabold text-contrast text-lg">{{
+				<span class="font-extrabold text-[var(--color-text-primary)] text-lg">{{
 					title || formatMessage(messages.noTitle)
 				}}</span>
 			</slot>
@@ -46,12 +46,15 @@
 					><XIcon />
 					{{ formatMessage(commonMessages.cancelButton) }}
 				</Button>
-				<ButtonStyled :color="danger ? 'red' : 'brand'">
-					<button :disabled="action_disabled" @click="proceed">
-						<component :is="proceedIcon" />
-						{{ proceedLabel || formatMessage(messages.proceed) }}
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					:color="danger ? 'red' : 'brand'"
+					:disabled="action_disabled"
+					@click="proceed"
+				>
+					<component :is="proceedIcon" />
+					{{ proceedLabel || formatMessage(messages.proceed) }}
+				</Button>
 			</div>
 		</div>
 	</NewModal>
@@ -65,7 +68,6 @@ import { computed, ref } from 'vue'
 import { defineMessages, useVIntl } from '../../composables/i18n'
 import { commonMessages } from '../../utils/common-messages'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import IntlFormatted from '../base/IntlFormatted.vue'
 import StyledInput from '../base/StyledInput.vue'
 import NewModal from './NewModal.vue'

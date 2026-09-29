@@ -30,6 +30,13 @@ export async function check_mojang_services() {
 }
 
 /**
+ * Whether Mojang service requests currently go out through the Fallen proxy.
+ */
+export async function mojang_auth_use_mirror() {
+	return await invoke('plugin:auth|mojang_auth_use_mirror')
+}
+
+/**
  * Authenticate a user with Hydra - part 1.
  * This begins the authentication flow quasi-synchronously.
  *

@@ -7,14 +7,14 @@
 		:on-hide="() => emit('cancel')"
 	>
 		<template #title>
-			<span class="text-contrast">{{
+			<span class="text-[var(--color-text-primary)]">{{
 				formatMessage(messages.title, { type: contentTypeLabel })
 			}}</span>
 		</template>
 
 		<div class="flex flex-col gap-4">
 			<!-- File name display -->
-			<span class="text-secondary text-sm truncate">{{ internalFileName }}</span>
+			<span class="text-[var(--color-text-tertiary)] text-sm truncate">{{ internalFileName }}</span>
 
 			<!-- Instance search -->
 			<StyledInput
@@ -27,7 +27,7 @@
 			<!-- Instance list -->
 			<div
 				v-if="filteredInstances.length === 0"
-				class="flex flex-col items-center gap-2 py-8 text-secondary"
+				class="flex flex-col items-center gap-2 py-8 text-[var(--color-text-tertiary)]"
 			>
 				<PackageOpenIcon class="size-8" />
 				<span class="text-sm">{{ formatMessage(messages.noInstances) }}</span>
@@ -45,18 +45,16 @@
 					<template #prepend>
 						<FolderOpenIcon
 							v-if="!inst.iconUrl"
-							class="size-6 text-secondary shrink-0"
+							class="size-6 text-[var(--color-text-tertiary)] shrink-0"
 							stroke-width="1.5"
 						/>
 						<img v-else :src="inst.iconUrl" alt="" class="size-6 shrink-0 rounded object-cover" />
 					</template>
 					<template #append>
-						<ButtonStyled type="standard" size="small" @click.stop="emit('install', inst.id)">
-							<template #prefix>
-								<DownloadIcon class="size-4" />
-							</template>
+						<Button size="2xs" @click.stop="emit('install', inst.id)">
+							<DownloadIcon class="size-4" />
 							{{ formatMessage(messages.install) }}
-						</ButtonStyled>
+						</Button>
 					</template>
 				</InstanceRowCard>
 			</div>
@@ -73,9 +71,9 @@
 
 		<template #actions>
 			<div class="flex w-full items-center justify-end">
-				<ButtonStyled type="transparent" @click="emit('cancel')">
+				<Button type="quiet" @click="emit('cancel')">
 					{{ formatMessage(messages.cancel) }}
-				</ButtonStyled>
+				</Button>
 			</div>
 		</template>
 	</NewModal>
@@ -91,7 +89,7 @@ import {
 } from '@modrinth/assets'
 import { computed, ref } from 'vue'
 
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import Button from '#ui/components/base/buttons/Button.vue'
 import InstanceRowCard from '#ui/components/base/InstanceRowCard.vue'
 import StyledInput from '#ui/components/base/StyledInput.vue'
 import NewModal from '#ui/components/modal/NewModal.vue'

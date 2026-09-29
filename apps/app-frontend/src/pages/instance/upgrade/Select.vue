@@ -1,65 +1,66 @@
 <template>
 	<section class="flex flex-col gap-6 py-2">
 		<header class="flex flex-col gap-1">
-			<h2 class="m-0 text-xl font-semibold text-contrast">
+			<h2 class="m-0 text-xl font-semibold text-[var(--color-text-primary)]">
 				{{ formatMessage(messages.title) }}
 			</h2>
-			<p class="m-0 max-w-2xl text-secondary">
+			<p class="m-0 max-w-2xl text-[var(--color-text-tertiary)]">
 				{{ formatMessage(messages.description) }}
 			</p>
 		</header>
 
 		<div class="grid gap-4 md:grid-cols-2">
 			<Card class="!m-0 p-4">
-				<h3 class="m-0 text-sm font-semibold text-secondary">
+				<h3 class="m-0 text-sm font-semibold text-[var(--color-text-tertiary)]">
 					{{ formatMessage(messages.current) }}
 				</h3>
-				<p class="mb-1 mt-3 text-lg font-semibold text-contrast">
+				<p class="mb-1 mt-3 text-lg font-semibold text-[var(--color-text-primary)]">
 					{{ formatMessage(messages.minecraftVersion, { version: instance.game_version }) }}
 				</p>
-				<p class="m-0 text-secondary">{{ currentLoaderLabel }}</p>
+				<p class="m-0 text-[var(--color-text-tertiary)]">{{ currentLoaderLabel }}</p>
 			</Card>
 
 			<Card class="!m-0 p-4">
-				<h3 class="m-0 text-sm font-semibold text-secondary">
+				<h3 class="m-0 text-sm font-semibold text-[var(--color-text-tertiary)]">
 					{{ formatMessage(messages.target) }}
 				</h3>
-				<label class="mb-2 mt-3 block text-sm font-medium text-contrast">
+				<label class="mb-2 mt-3 block text-sm font-medium text-[var(--color-text-primary)]">
 					{{ formatMessage(messages.minecraft) }}
 				</label>
-				<div v-if="gameVersionsQuery.isPending.value" class="text-sm text-secondary">
+				<div
+					v-if="gameVersionsQuery.isPending.value"
+					class="text-sm text-[var(--color-text-tertiary)]"
+				>
 					{{ formatMessage(messages.loadingVersions) }}
 				</div>
-				<DropdownSelect
+				<Combobox
 					v-else-if="targetVersions.length"
 					v-model="selectedGameVersion"
 					class="max-w-full"
-					:name="formatMessage(messages.targetVersionInput)"
-					:options="targetVersions"
+					:options="targetVersions.map((value) => ({ value, label: value }))"
 					:disabled="flow.busy.value"
 				/>
-				<p v-else class="m-0 text-sm text-secondary">
+				<p v-else class="m-0 text-sm text-[var(--color-text-tertiary)]">
 					{{ formatMessage(messages.noNewerRelease) }}
 				</p>
 				<template v-if="isFabric && selectedGameVersion">
-					<label class="mb-2 mt-4 block text-sm font-medium text-contrast">
+					<label class="mb-2 mt-4 block text-sm font-medium text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.fabricVersion) }}
 					</label>
-					<DropdownSelect
+					<Combobox
 						v-model="selectedFabricVersion"
 						class="max-w-full"
-						:name="formatMessage(messages.fabricVersion)"
-						:options="fabricLoaderOptions"
-						:display-name="fabricLoaderOptionLabel"
+						:options="
+							fabricLoaderOptions.map((value) => ({ value, label: fabricLoaderOptionLabel(value) }))
+						"
 						:disabled="flow.busy.value"
-						auto-placement
 					/>
 					<p
 						v-if="
 							fabricLoaderVersionsQuery.isPending.value &&
 							fabricLoaderVersionsQuery.isFetching.value
 						"
-						class="mb-0 mt-2 text-sm text-secondary"
+						class="mb-0 mt-2 text-sm text-[var(--color-text-tertiary)]"
 					>
 						{{ formatMessage(messages.loadingFabricVersions) }}
 					</p>
@@ -69,14 +70,17 @@
 					>
 						{{ formatMessage(messages.fabricVersionsError) }}
 					</p>
-					<p v-else-if="manualFabricSelectionUnavailable" class="mb-0 mt-2 text-sm text-secondary">
+					<p
+						v-else-if="manualFabricSelectionUnavailable"
+						class="mb-0 mt-2 text-sm text-[var(--color-text-tertiary)]"
+					>
 						{{ formatMessage(messages.manualFabricVersionUnavailable) }}
 					</p>
 					<p v-else-if="noNonDowngradeFabricVersion" class="mb-0 mt-2 text-sm text-orange">
 						{{ formatMessage(messages.noNonDowngradeFabricVersion) }}
 					</p>
 				</template>
-				<p v-else-if="!isFabric" class="mb-0 mt-3 text-secondary">
+				<p v-else-if="!isFabric" class="mb-0 mt-3 text-[var(--color-text-tertiary)]">
 					{{ formatLoaderLabel(instance.loader) }}
 				</p>
 			</Card>
@@ -104,7 +108,11 @@
 			{{ errorMessage(flow.error.value) }}
 		</Admonition>
 
-		<div v-if="flow.busy.value" class="flex items-center gap-2 text-secondary" role="status">
+		<div
+			v-if="flow.busy.value"
+			class="flex items-center gap-2 text-[var(--color-text-tertiary)]"
+			role="status"
+		>
 			<SpinnerIcon class="size-5 animate-spin" aria-hidden="true" />
 			{{
 				formatMessage(messages.planningStatus, {
@@ -120,8 +128,8 @@ import { SpinnerIcon } from '@modrinth/assets'
 import {
 	Admonition,
 	Card,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	formatLoaderLabel,
 	loaderVersionsForGameVersion,
 	scopedLoaderMetadataQueryKey,

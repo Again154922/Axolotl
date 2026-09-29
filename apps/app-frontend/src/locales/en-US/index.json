@@ -2082,7 +2082,7 @@
     "message": "Close"
   },
   "app.headless-demo.dialog-description": {
-    "message": "This dialog content uses bg-surface-3, text-contrast, and border-surface-5. Overlay and focus ring stay readable in every theme."
+    "message": "This dialog content uses bg-surface-3, text-[var(--color-text-primary)], and border-surface-5. Overlay and focus ring stay readable in every theme."
   },
   "app.headless-demo.dialog-title": {
     "message": "Token-mapped dialog"
@@ -2121,7 +2121,7 @@
     "message": "Headless token demo"
   },
   "app.headless-demo.tooltip-content": {
-    "message": "Tooltip body mapped to surface-4 / text-contrast."
+    "message": "Tooltip body mapped to surface-4 / text-[var(--color-text-primary)]."
   },
   "app.headless-demo.tooltip-trigger": {
     "message": "Hover tooltip"
@@ -2168,11 +2168,41 @@
   "app.home.challenge.title": {
     "message": "Daily challenge"
   },
+  "app.home.greeting.account.nickname.hint": {
+    "message": "Replaces the account name in the greeting. Leave it empty to use the account name."
+  },
+  "app.home.greeting.account.nickname.label": {
+    "message": "Nickname"
+  },
+  "app.home.greeting.account.nickname.unavailable": {
+    "message": "A nickname replaces an account name, so it needs a signed-in Microsoft or Yggdrasil account."
+  },
+  "app.home.greeting.account.tab.nickname": {
+    "message": "Nickname"
+  },
+  "app.home.greeting.account.tab.title": {
+    "message": "Whole title"
+  },
+  "app.home.greeting.account.title": {
+    "message": "Customize greeting"
+  },
+  "app.home.greeting.account.title.hint": {
+    "message": "Replaces the whole heading, greeting included. Leave it empty for the automatic text."
+  },
+  "app.home.greeting.account.title.label": {
+    "message": "Title text"
+  },
+  "app.home.greeting.account.title.placeholder": {
+    "message": "Welcome back…"
+  },
   "app.home.greeting.afternoon": {
     "message": "Afternoon break, excellent timing.\nA short session can become a great one.\nThe world is ready for your next move.\nTime to check on that half-finished build.\nA little exploration goes a long way.\nThe next biome is calling.\nYour inventory has been waiting patiently.\nThe village market is still open.\nA good hour for a focused project.\nThe redstone probably behaves today.\nYour pickaxe is ready to work.\nA new route is waiting beyond spawn.\nThe afternoon is made for side quests.\nOne quick visit to your world?\nThe next chapter starts here.\nTake a moment and make something."
   },
   "app.home.greeting.dawn": {
     "message": "First light, fresh chunks.\nA new day is loading in.\nThe sunrise buff is active.\nMorning worlds feel brand new.\nCoffee first, diamonds second.\nYour base missed you overnight.\nA calm start makes a fine adventure.\nThe overworld is waking up.\nFresh air, fresh resource packs.\nToday is a good day to explore.\nThe village is already open for trade.\nA quiet morning suits a big build.\nNew day, new coordinates.\nThe creepers are not morning people either.\nStart small and see where it goes.\nYour next session is ready when you are."
+  },
+  "app.home.greeting.edit": {
+    "message": "Edit greeting"
   },
   "app.home.greeting.evening": {
     "message": "Evening is prime building time.\nThe day is winding down; the world is opening up.\nA familiar world makes a good landing spot.\nTime to return to your favorite project.\nThe sunset looks better from a new tower.\nYour base lights are waiting.\nA relaxed session sounds about right.\nThe villagers are closing shop soon.\nYour next build deserves an evening glow.\nA good time to wander without a plan.\nThe campfire is already lit.\nOne more room for the base?\nThe horizon is looking especially inviting.\nA quiet night starts with a good world.\nThe next block is yours to place.\nMake tonight's progress count."
@@ -9982,6 +10012,27 @@
   },
   "app.skins.apply-button": {
     "message": "Apply"
+  },
+  "app.skins.armor.close": {
+    "message": "Close"
+  },
+  "app.skins.armor.description": {
+    "message": "Try armour and trims on your skin. Nothing is stored until you save it."
+  },
+  "app.skins.armor.reset-to-saved": {
+    "message": "Reset to saved"
+  },
+  "app.skins.armor.restore-defaults": {
+    "message": "Restore defaults"
+  },
+  "app.skins.armor.save": {
+    "message": "Save"
+  },
+  "app.skins.armor.title": {
+    "message": "Armour and trims"
+  },
+  "app.skins.armor.unsaved": {
+    "message": "Unsaved changes"
   },
   "app.skins.create-skin": {
     "message": "Create skin"

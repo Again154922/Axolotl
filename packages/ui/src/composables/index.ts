@@ -17,6 +17,7 @@ export {
 	ARMOR_TRIM_MATERIALS,
 	ARMOR_TRIM_PATTERNS,
 	armorMaterialsForSlot,
+	cloneArmorPreviewConfig,
 	createDefaultArmorPreviewConfig,
 } from './skin-rendering/armor-preview-types'
 export * from './sticky-observer'

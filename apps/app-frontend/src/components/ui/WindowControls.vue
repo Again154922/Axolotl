@@ -21,23 +21,23 @@
 			><RestoreIcon v-if="isMaximized" />
 			<MaximizeIcon v-else />
 		</Button>
-		<ButtonStyled
-			type="transparent"
+		<Button
+			type="quiet"
 			color="red"
-			color-fill="none"
-			hover-color-fill="background"
+			interaction="filled"
 			circular
+			icon-only
+			class="relative expanded-button close-button"
+			@click="handleClose"
 		>
-			<button class="relative expanded-button close-button" @click="handleClose">
-				<XIcon />
-			</button>
-		</ButtonStyled>
+			<XIcon />
+		</Button>
 	</section>
 </template>
 
 <script setup>
 import { MaximizeIcon, MinimizeIcon, RestoreIcon, XIcon } from '@modrinth/assets'
-import { Button, ButtonStyled } from '@modrinth/ui'
+import { Button } from '@modrinth/ui'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { saveWindowState, StateFlags } from '@tauri-apps/plugin-window-state'
 import { computed, onMounted, onUnmounted, ref } from 'vue'

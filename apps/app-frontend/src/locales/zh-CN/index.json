@@ -2082,7 +2082,7 @@
     "message": "关闭"
   },
   "app.headless-demo.dialog-description": {
-    "message": "此对话框内容使用 bg-surface-3、text-contrast 与 border-surface-5。遮罩与焦点环在所有主题下保持可读。"
+    "message": "此对话框内容使用 surface-3、主文本与 surface-5 边框。遮罩与焦点环在所有主题下保持可读。"
   },
   "app.headless-demo.dialog-title": {
     "message": "令牌映射对话框"
@@ -2121,7 +2121,7 @@
     "message": "Headless 令牌演示"
   },
   "app.headless-demo.tooltip-content": {
-    "message": "提示内容映射到 surface-4 / text-contrast。"
+    "message": "提示内容映射到 surface-4 / 主文本。"
   },
   "app.headless-demo.tooltip-trigger": {
     "message": "悬停提示"
@@ -2168,11 +2168,41 @@
   "app.home.challenge.title": {
     "message": "每日小挑战"
   },
+  "app.home.greeting.account.nickname.hint": {
+    "message": "替换问候语中的账号名。留空则沿用账号名。"
+  },
+  "app.home.greeting.account.nickname.label": {
+    "message": "昵称"
+  },
+  "app.home.greeting.account.nickname.unavailable": {
+    "message": "昵称用于替换账号名，因此需要已登录的 Microsoft 或 Yggdrasil 账号。"
+  },
+  "app.home.greeting.account.tab.nickname": {
+    "message": "改昵称"
+  },
+  "app.home.greeting.account.tab.title": {
+    "message": "改整个标题"
+  },
+  "app.home.greeting.account.title": {
+    "message": "自定义问候语"
+  },
+  "app.home.greeting.account.title.hint": {
+    "message": "替换整个标题（含前面的问候语）。留空则使用自动文案。"
+  },
+  "app.home.greeting.account.title.label": {
+    "message": "标题文案"
+  },
+  "app.home.greeting.account.title.placeholder": {
+    "message": "欢迎回来……"
+  },
   "app.home.greeting.afternoon": {
     "message": "午后休息，时机正好。\n短短一局也可能很精彩。\n世界已准备好接住你的下一步。\n该去看看那座半成品建筑了。\n一点探索就能走很远。\n下一个生物群系正在呼唤。\n你的背包耐心等候很久了。\n村庄市场还没关门。\n这一小时适合专心做个项目。\n红石今天大概会听话。\n你的镐子准备开工。\n出生点外还有新路线。\n午后天生适合支线任务。\n要不要快速回世界看看？\n下一章从这里开始。\n花一点时间，做点东西。"
   },
   "app.home.greeting.dawn": {
     "message": "天刚亮，区块正新。\n新的一天正在加载。\n日出增益已生效。\n清晨的世界总像全新的。\n先喝咖啡，再挖钻石。\n你的基地想你一整晚了。\n从容开局，也能成就好冒险。\n主世界正在苏醒。\n新鲜空气，新鲜资源包。\n今天很适合去探索。\n村庄已经开门交易了。\n安静的早晨适合大工程。\n新的一天，新的坐标。\n苦力怕也不太像早起的人。\n先从小事开始，看看会去向何处。\n下一局已经准备好，等你出发。"
+  },
+  "app.home.greeting.edit": {
+    "message": "编辑问候语"
   },
   "app.home.greeting.evening": {
     "message": "傍晚正是建造的黄金时间。\n白天将尽，世界刚刚展开。\n熟悉的世界是个好去处。\n该回到你最爱的项目了。\n从新塔上看日落更美。\n基地的灯正等着你。\n轻松玩一局正合适。\n村民很快要收摊了。\n你的下一座建筑值得一层暮色。\n适合没有计划地四处走走。\n营火已经点好了。\n基地要不要再加一间房？\n地平线看起来格外诱人。\n安静的夜晚从好世界开始。\n下一块方块该你放下。\n让今晚的进度算数。"
@@ -9994,6 +10024,27 @@
   },
   "app.skins.apply-button": {
     "message": "应用"
+  },
+  "app.skins.armor.close": {
+    "message": "关闭"
+  },
+  "app.skins.armor.description": {
+    "message": "在皮肤上试穿盔甲与纹饰。未保存前不会写入任何内容。"
+  },
+  "app.skins.armor.reset-to-saved": {
+    "message": "重置为已保存"
+  },
+  "app.skins.armor.restore-defaults": {
+    "message": "恢复默认"
+  },
+  "app.skins.armor.save": {
+    "message": "保存"
+  },
+  "app.skins.armor.title": {
+    "message": "盔甲与纹饰"
+  },
+  "app.skins.armor.unsaved": {
+    "message": "有未保存的更改"
   },
   "app.skins.create-skin": {
     "message": "创建皮肤"

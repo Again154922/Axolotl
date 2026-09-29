@@ -24,7 +24,7 @@ Self-contained page layouts, currently all consumed by the desktop application:
 - **`shared/`** — Reusable layout modules with their own components, composables, providers, and types. Each module is a self-contained unit (e.g. `shared/content-tab/` contains the content/mods tab layout with its own `layout.vue`, `components/`, `composables/`, `providers/`, and `types.ts`).
 - **`wrapped/`** — Intended for page-level components mirroring route structures. It is currently empty (its hosting pages were removed); the website does not consume any shared layout, as it provides none of the DI contracts they require.
 
-Files inside `layouts/` use the `#ui/*` import alias (resolved via the `"imports"` field in `package.json`) to reference other `src/` modules like `#ui/components/base/ButtonStyled.vue` or `#ui/composables/i18n`.
+Files inside `layouts/` use the `#ui/*` import alias (resolved via the `"imports"` field in `package.json`) to reference other `src/` modules like `#ui/components/base/buttons/Button.vue` or `#ui/composables/i18n`.
 
 ### Platform independence
 
@@ -57,11 +57,11 @@ CSS custom properties are defined in `packages/assets/styles/variables.scss` wit
 
 **For text colors:**
 
-| Class            | Usage                            |
-| ---------------- | -------------------------------- |
-| `text-contrast`  | Primary headings                 |
-| `text-primary`   | Default body text                |
-| `text-secondary` | Reduced emphasis, secondary info |
+| Class                               | Usage                            |
+| ----------------------------------- | -------------------------------- |
+| `text-[var(--color-text-primary)]`  | Primary headings                 |
+| `text-[var(--color-text-default)]`  | Default body text                |
+| `text-[var(--color-text-tertiary)]` | Reduced emphasis, secondary info |
 
 **Brand and semantic colors** not all exposed as Figma variables — refer to `packages/assets/styles/variables.scss` for the full set:
 

@@ -35,6 +35,17 @@ function allow(group, entries) {
 	for (const [name, reason] of entries) allowlist.set(name, { group, reason })
 }
 
+// Tailwind's own utilities provide these. A coloured shadow is not a colour
+// utility: `shadow-<colour>` only stores the colour, and the declaration that
+// draws it has to switch `--tw-shadow` to the coloured variant, exactly as the
+// `shadow-*` rule that emits the variable does.
+allow('tailwind-internal', [
+	[
+		'tw-shadow-colored',
+		'packages/tooling-config/tailwind emits it from every shadow-* utility; a hand-written coloured shadow in DependencyGraphModal.vue switches --tw-shadow to it',
+	],
+])
+
 // Values applied through a Vue `:style` binding, `style="--x: …"`, or
 // `element.style.setProperty('--x', …)` at runtime, so no stylesheet declares them.
 allow('runtime-set', [
@@ -49,10 +60,6 @@ allow('runtime-set', [
 	[
 		'button-color',
 		'packages/ui/src/components/base/buttons/ButtonFrame.vue :style `--button-color`',
-	],
-	[
-		'connector-length',
-		'apps/app-frontend/src/components/instance/dependencies/DependencyGraphModal.vue :style `--connector-length`',
 	],
 	['current-value', 'packages/ui/src/components/base/Slider.vue :style `--current-value`'],
 	['min-value', 'packages/ui/src/components/base/Slider.vue :style `--min-value`'],
@@ -142,10 +149,6 @@ allow('declared-outside-scan-roots', [
 	[
 		'size-mobile-navbar-height',
 		'apps/website/src/assets/styles/global.scss declares `--size-mobile-navbar-height`',
-	],
-	[
-		'size-mobile-navbar-height-expanded',
-		'apps/website/src/assets/styles/global.scss declares `--size-mobile-navbar-height-expanded`',
 	],
 ])
 

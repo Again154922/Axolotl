@@ -16,7 +16,6 @@ import {
 	type BrowseInstallContext,
 	BrowseInstallHeader,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	defineMessages,
 	EmptyState,
@@ -775,7 +774,7 @@ onMounted(async () => {
 				</span>
 				<span
 					aria-hidden="true"
-					class="flex size-4 shrink-0 items-center justify-center text-secondary"
+					class="flex size-4 shrink-0 items-center justify-center text-[var(--color-text-tertiary)]"
 				>
 					<ChevronDownIcon class="size-4" />
 				</span>
@@ -787,26 +786,23 @@ onMounted(async () => {
 				</Button>
 				<template #menu>
 					<div class="flex w-48 flex-col gap-1 p-1">
-						<ButtonStyled
+						<Button
 							v-for="option in favoriteTypeOptions"
 							:key="option.id"
-							:type="filter === option.id ? 'filled' : 'transparent'"
+							:type="filter === option.id ? 'colored' : 'quiet'"
+							class="flex w-full !justify-start text-left"
+							:aria-pressed="filter === option.id"
+							@click="filter = option.id"
 						>
-							<button
-								class="flex w-full !justify-start text-left"
-								:aria-pressed="filter === option.id"
-								@click="filter = option.id"
-							>
-								{{ option.label }}
-							</button>
-						</ButtonStyled>
+							{{ option.label }}
+						</Button>
 					</div>
 				</template>
 			</PopoutMenu>
 		</div>
 
 		<div class="flex flex-wrap items-center gap-2">
-			<span class="text-sm font-medium text-secondary">{{
+			<span class="text-sm font-medium text-[var(--color-text-tertiary)]">{{
 				formatMessage(messages.recentlySaved)
 			}}</span>
 			<PopoutMenu :tooltip="formatMessage(messages.view)" placement="bottom-end" class="ml-auto">
@@ -815,20 +811,17 @@ onMounted(async () => {
 				</Button>
 				<template #menu>
 					<div class="flex w-44 flex-col gap-1 p-1">
-						<ButtonStyled
+						<Button
 							v-for="option in displayModeOptions"
 							:key="option.id"
-							:type="displayMode === option.id ? 'filled' : 'transparent'"
+							:type="displayMode === option.id ? 'colored' : 'quiet'"
+							class="flex w-full items-center gap-2 !justify-start text-left"
+							:aria-pressed="displayMode === option.id"
+							@click="setDisplayMode(option.id)"
 						>
-							<button
-								class="flex w-full items-center gap-2 !justify-start text-left"
-								:aria-pressed="displayMode === option.id"
-								@click="setDisplayMode(option.id)"
-							>
-								<component :is="option.icon" class="size-4" />
-								{{ option.label }}
-							</button>
-						</ButtonStyled>
+							<component :is="option.icon" class="size-4" />
+							{{ option.label }}
+						</Button>
 					</div>
 				</template>
 			</PopoutMenu>
@@ -873,41 +866,36 @@ onMounted(async () => {
 			>
 				<template #actions>
 					<div class="flex gap-2">
-						<ButtonStyled
+						<Button
 							v-if="!project.unavailable"
 							color="brand"
 							type="outlined"
-							:size="displayMode === 'compact' ? 'small' : 'standard'"
+							:size="displayMode === 'compact' ? '2xs' : 'md'"
+							:disabled="isInstalling(project)"
+							@click.stop="toggleProjectSelection(project)"
 						>
-							<button
-								:disabled="isInstalling(project)"
-								@click.stop="toggleProjectSelection(project)"
-							>
-								<SpinnerIcon v-if="isInstalling(project)" class="animate-spin" />
-								<CheckIcon v-else-if="isSelected(project)" />
-								<PlusIcon v-else />
-								{{ installLabel(project) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled
+							<SpinnerIcon v-if="isInstalling(project)" class="animate-spin" />
+							<CheckIcon v-else-if="isSelected(project)" />
+							<PlusIcon v-else />
+							{{ installLabel(project) }}
+						</Button>
+						<Button
+							v-tooltip="formatMessage(messages.remove)"
 							circular
+							icon-only
 							color="brand"
-							type="transparent"
-							:size="displayMode === 'compact' ? 'small' : 'standard'"
+							type="quiet"
+							:size="displayMode === 'compact' ? '2xs' : 'md'"
+							:disabled="contentFavorites.isPending(project.provider, project.projectId)"
+							:label="formatMessage(messages.remove)"
+							@click.stop="removeFavorite(project)"
 						>
-							<button
-								v-tooltip="formatMessage(messages.remove)"
-								:disabled="contentFavorites.isPending(project.provider, project.projectId)"
-								:aria-label="formatMessage(messages.remove)"
-								@click.stop="removeFavorite(project)"
-							>
-								<SpinnerIcon
-									v-if="contentFavorites.isPending(project.provider, project.projectId)"
-									class="animate-spin"
-								/>
-								<BookmarkFilledIcon v-else />
-							</button>
-						</ButtonStyled>
+							<SpinnerIcon
+								v-if="contentFavorites.isPending(project.provider, project.projectId)"
+								class="animate-spin"
+							/>
+							<BookmarkFilledIcon v-else />
+						</Button>
 					</div>
 				</template>
 			</ProjectCard>

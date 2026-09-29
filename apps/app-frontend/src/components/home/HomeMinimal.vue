@@ -11,7 +11,6 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	Card,
 	commonMessages,
 	defineMessages,
@@ -230,10 +229,14 @@ onUnmounted(() => {
 								:loader="selectedInstance.loader"
 							/>
 							<div class="flex min-w-0 flex-1 flex-col gap-1.5">
-								<h2 class="m-0 truncate text-xl font-bold text-contrast group-hover:underline">
+								<h2
+									class="m-0 truncate text-xl font-bold text-[var(--color-text-primary)] group-hover:underline"
+								>
 									{{ selectedInstance.name }}
 								</h2>
-								<div class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-sm text-secondary">
+								<div
+									class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-text-tertiary)]"
+								>
 									<span class="flex min-w-0 items-center gap-1.5 capitalize">
 										<GameIcon class="size-4 shrink-0" aria-hidden="true" />
 										<span class="truncate">
@@ -309,12 +312,12 @@ onUnmounted(() => {
 				<Card class="mb-0 mt-10 w-full text-left">
 					<div class="flex min-w-0 flex-wrap items-center gap-4">
 						<div
-							class="flex size-16 shrink-0 items-center justify-center rounded-lg bg-button-bg text-secondary"
+							class="flex size-16 shrink-0 items-center justify-center rounded-lg bg-surface-4 text-[var(--color-text-tertiary)]"
 						>
 							<ListIcon class="size-7" aria-hidden="true" />
 						</div>
 						<div class="min-w-48 flex-1">
-							<h2 class="m-0 text-lg font-bold text-contrast">
+							<h2 class="m-0 text-lg font-bold text-[var(--color-text-primary)]">
 								{{
 									formatMessage(
 										instances.length > 0 ? messages.chooseInstance : messages.noInstances,
@@ -322,16 +325,20 @@ onUnmounted(() => {
 								}}
 							</h2>
 						</div>
-						<ButtonStyled color="brand" size="large">
-							<button v-if="instances.length > 0" @click="emit('choose')">
-								<ListIcon aria-hidden="true" />
-								{{ formatMessage(messages.chooseInstance) }}
-							</button>
-							<button v-else @click="emit('create')">
-								<PlusIcon aria-hidden="true" />
-								{{ formatMessage(messages.createInstance) }}
-							</button>
-						</ButtonStyled>
+						<Button
+							type="colored"
+							color="brand"
+							size="xl"
+							@click="instances.length > 0 ? emit('choose') : emit('create')"
+						>
+							<ListIcon v-if="instances.length > 0" aria-hidden="true" />
+							<PlusIcon v-else aria-hidden="true" />
+							{{
+								formatMessage(
+									instances.length > 0 ? messages.chooseInstance : messages.createInstance,
+								)
+							}}
+						</Button>
 					</div>
 				</Card>
 			</template>

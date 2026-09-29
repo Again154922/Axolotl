@@ -128,48 +128,46 @@
 							@click="handleAddServerToInstance"
 							><PlusIcon />
 						</Button>
-						<ButtonStyled size="large" circular type="transparent">
-							<OverflowMenu
-								:tooltip="formatMessage(commonMessages.moreOptionsButton)"
-								:options="[
-									{
-										id: 'open-in-browser',
-										link: `https://modrinth.com/project/${data.slug}`,
-										external: true,
-									},
-									...(mcmodUrl
-										? [
-												{
-													id: 'open-in-mcmod',
-													link: mcmodUrl,
-													external: true,
-												},
-											]
-										: []),
-									{
-										divider: true,
-									},
-									{
-										id: 'report',
-										color: 'red',
-										hoverFilled: true,
-										link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
-									},
-								]"
-								:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-							>
-								<MoreVerticalIcon aria-hidden="true" />
-								<template #open-in-browser>
-									<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
-								</template>
-								<template #open-in-mcmod>
-									<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
-								</template>
-								<template #report>
-									<ReportIcon /> {{ formatMessage(commonMessages.reportButton) }}
-								</template>
-							</OverflowMenu>
-						</ButtonStyled>
+						<OverflowMenu
+							:tooltip="formatMessage(commonMessages.moreOptionsButton)"
+							:options="[
+								{
+									id: 'open-in-browser',
+									link: `https://modrinth.com/project/${data.slug}`,
+									external: true,
+								},
+								...(mcmodUrl
+									? [
+											{
+												id: 'open-in-mcmod',
+												link: mcmodUrl,
+												external: true,
+											},
+										]
+									: []),
+								{
+									divider: true,
+								},
+								{
+									id: 'report',
+									color: 'red',
+									hoverFilled: true,
+									link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
+								},
+							]"
+							:aria-label="formatMessage(commonMessages.moreOptionsButton)"
+						>
+							<MoreVerticalIcon aria-hidden="true" />
+							<template #open-in-browser>
+								<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
+							</template>
+							<template #open-in-mcmod>
+								<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
+							</template>
+							<template #report>
+								<ReportIcon /> {{ formatMessage(commonMessages.reportButton) }}
+							</template>
+						</OverflowMenu>
 					</template>
 					<template v-else #actions>
 						<Button type="quiet" size="xl" :disabled="translationLoading" @click="toggleTranslation"
@@ -219,98 +217,94 @@
 						</Button>
 						<!-- 开服功能暂有问题，隐藏该按钮
 						<Transition name="start-server">
-							<ButtonStyled
+							<Button
 								v-if="serverCapableModpack"
 								key="modpack-start-server"
-								size="large"
+								size="xl"
 								type="outlined"
-							>
-								<button
+
 									v-tooltip="formatMessage(messages.startServer)"
-									type="button"
+									native-type="button"
 									@click="openModpackServerFlow"
 								>
 									<ServerIcon />
 									{{ formatMessage(messages.startServer) }}
-								</button>
-							</ButtonStyled>
+								</Button>
 						</Transition>
 						-->
-						<ButtonStyled size="large" circular type="transparent">
-							<OverflowMenu
-								:tooltip="`More options`"
-								:options="[
-									{
-										id: 'follow',
-										disabled: true,
-										tooltip: 'Coming soon',
-										action: () => {},
-									},
-									...(favoriteSupported
-										? [
-												{
-													id: 'save',
-													disabled: favoritePending,
-													tooltip: formatMessage(
-														favoriteSaved ? messages.removeFromFavorites : messages.addToFavorites,
-													),
-													action: () => void toggleFavorite(),
-												},
-											]
-										: []),
-									...getDependentSearchActions(),
-									{
-										id: 'open-in-browser',
-										link: `https://modrinth.com/${data.project_type}/${data.slug}`,
-										external: true,
-									},
-									...(mcmodUrl
-										? [
-												{
-													id: 'open-in-mcmod',
-													link: mcmodUrl,
-													external: true,
-												},
-											]
-										: []),
-									{
-										divider: true,
-									},
-									{
-										id: 'report',
-										color: 'red',
-										hoverFilled: true,
-										link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
-									},
-								]"
-								:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-							>
-								<MoreVerticalIcon aria-hidden="true" />
-								<template #open-in-browser>
-									<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
-								</template>
-								<template #open-in-mcmod>
-									<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
-								</template>
-								<template #follow>
-									<HeartIcon /> {{ formatMessage(commonMessages.followButton) }}
-								</template>
-								<template v-if="favoriteSupported" #save>
-									<BookmarkFilledIcon v-if="favoriteSaved" class="text-brand" />
-									<BookmarkIcon v-else />
-									{{
-										formatMessage(
-											favoritePending
-												? messages.favoritesLoading
-												: favoriteSaved
-													? messages.removeFromFavorites
-													: messages.addToFavorites,
-										)
-									}}
-								</template>
-								<template #report> <ReportIcon /> Report </template>
-							</OverflowMenu>
-						</ButtonStyled>
+						<OverflowMenu
+							:tooltip="`More options`"
+							:options="[
+								{
+									id: 'follow',
+									disabled: true,
+									tooltip: 'Coming soon',
+									action: () => {},
+								},
+								...(favoriteSupported
+									? [
+											{
+												id: 'save',
+												disabled: favoritePending,
+												tooltip: formatMessage(
+													favoriteSaved ? messages.removeFromFavorites : messages.addToFavorites,
+												),
+												action: () => void toggleFavorite(),
+											},
+										]
+									: []),
+								...getDependentSearchActions(),
+								{
+									id: 'open-in-browser',
+									link: `https://modrinth.com/${data.project_type}/${data.slug}`,
+									external: true,
+								},
+								...(mcmodUrl
+									? [
+											{
+												id: 'open-in-mcmod',
+												link: mcmodUrl,
+												external: true,
+											},
+										]
+									: []),
+								{
+									divider: true,
+								},
+								{
+									id: 'report',
+									color: 'red',
+									hoverFilled: true,
+									link: `https://modrinth.com/report?item=project&itemID=${data.id}`,
+								},
+							]"
+							:aria-label="formatMessage(commonMessages.moreOptionsButton)"
+						>
+							<MoreVerticalIcon aria-hidden="true" />
+							<template #open-in-browser>
+								<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
+							</template>
+							<template #open-in-mcmod>
+								<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
+							</template>
+							<template #follow>
+								<HeartIcon /> {{ formatMessage(commonMessages.followButton) }}
+							</template>
+							<template v-if="favoriteSupported" #save>
+								<BookmarkFilledIcon v-if="favoriteSaved" class="text-brand" />
+								<BookmarkIcon v-else />
+								{{
+									formatMessage(
+										favoritePending
+											? messages.favoritesLoading
+											: favoriteSaved
+												? messages.removeFromFavorites
+												: messages.addToFavorites,
+									)
+								}}
+							</template>
+							<template #report> <ReportIcon /> Report </template>
+						</OverflowMenu>
 					</template>
 				</ProjectHeader>
 				<NavTabs
@@ -423,7 +417,6 @@ import {
 import {
 	BrowseInstallHeader,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	commonProjectSettingsMessages,
 	CreationFlowModal,
@@ -1449,38 +1442,6 @@ const handleOptionsClick = (args) => {
 </script>
 
 <style scoped lang="scss">
-.project-sidebar {
-	position: fixed;
-	width: calc(300px + 1.5rem);
-	min-height: calc(100vh - 3.25rem);
-	height: fit-content;
-	max-height: calc(100vh - 3.25rem);
-	padding: 1rem 0.5rem 1rem 1rem;
-	overflow-y: auto;
-	-ms-overflow-style: none;
-	scrollbar-width: none;
-
-	&::-webkit-scrollbar {
-		width: 0;
-		background: transparent;
-	}
-}
-
-.content-container {
-	display: flex;
-	flex-direction: column;
-	width: 100%;
-	padding: 1rem;
-	margin-left: calc(300px + 1rem);
-}
-
-.button-group {
-	display: flex;
-	flex-wrap: wrap;
-	flex-direction: row;
-	gap: 0.5rem;
-}
-
 .start-server-enter-active {
 	transition:
 		opacity 0.28s ease,
@@ -1501,103 +1462,6 @@ const handleOptionsClick = (args) => {
 .start-server-leave-to {
 	opacity: 0;
 	transform: translateY(4px) scale(0.97);
-}
-
-.stats {
-	.stat {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		width: fit-content;
-		gap: var(--gap-xs);
-		--stat-strong-size: 1.25rem;
-
-		strong {
-			font-size: var(--stat-strong-size);
-		}
-
-		p {
-			margin: 0;
-		}
-
-		svg {
-			min-height: var(--stat-strong-size);
-			min-width: var(--stat-strong-size);
-		}
-	}
-}
-
-.tabs {
-	.tab {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: background-color 0.2s ease-in-out;
-
-		&:hover {
-			background-color: var(--color-raised-bg);
-		}
-
-		&.router-view-active {
-			background-color: var(--color-raised-bg);
-		}
-	}
-}
-
-.links {
-	a {
-		display: inline-flex;
-		align-items: center;
-		border-radius: 1rem;
-		color: var(--color-base);
-
-		svg,
-		img {
-			height: 1rem;
-			width: 1rem;
-		}
-
-		span {
-			margin-left: 0.25rem;
-			text-decoration: underline;
-			line-height: 2rem;
-		}
-
-		&:focus-visible,
-		&:hover {
-			svg,
-			img,
-			span {
-				color: var(--color-contrast);
-			}
-		}
-
-		&:active {
-			svg,
-			img,
-			span {
-				color: var(--color-contrast);
-			}
-		}
-
-		&:not(:last-child)::after {
-			content: '•';
-			margin: 0 0.25rem;
-		}
-	}
-}
-
-.install-loading {
-	scale: 0.2;
-	height: 1rem;
-	width: 1rem;
-	margin-right: -1rem;
-
-	:deep(svg) {
-		color: var(--color-contrast);
-	}
 }
 
 .project-sidebar-section {

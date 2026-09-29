@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { GridIcon, RightArrowIcon } from '@modrinth/assets'
-import { ButtonStyled, defineMessages, injectNotificationManager, useVIntl } from '@modrinth/ui'
+import { ButtonLink, defineMessages, injectNotificationManager, useVIntl } from '@modrinth/ui'
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import type { HomeWidgetSize } from '@/components/home/home-dashboard'
 import { useHomeDashboardRuntime } from '@/components/home/home-dashboard-runtime'
@@ -59,12 +60,17 @@ async function updatePinned(instance: GameInstance, pinned: boolean) {
 			<h2>
 				{{ formatMessage(messages.pinnedInstances) }}
 			</h2>
-			<ButtonStyled v-if="dashboardSize !== '1x1'" type="transparent" size="small" class="ml-auto">
-				<router-link to="/library">
-					<span v-if="dashboardSize === '2x2'">{{ formatMessage(messages.viewAllInstances) }}</span>
-					<RightArrowIcon aria-hidden="true" />
-				</router-link>
-			</ButtonStyled>
+			<ButtonLink
+				v-if="dashboardSize !== '1x1'"
+				:as="RouterLink"
+				to="/library"
+				type="quiet"
+				size="2xs"
+				class="ml-auto"
+			>
+				<span v-if="dashboardSize === '2x2'">{{ formatMessage(messages.viewAllInstances) }}</span>
+				<RightArrowIcon aria-hidden="true" />
+			</ButtonLink>
 		</div>
 		<div
 			v-if="pinnedInstances.length > 0"
@@ -92,7 +98,7 @@ async function updatePinned(instance: GameInstance, pinned: boolean) {
 	min-width: 0;
 	overflow: hidden;
 	margin: 0;
-	color: var(--color-contrast);
+	color: var(--color-text-primary);
 	font-size: 1rem;
 	font-weight: 700;
 	letter-spacing: 0;
@@ -121,7 +127,7 @@ async function updatePinned(instance: GameInstance, pinned: boolean) {
 	flex-direction: column;
 	align-items: center;
 	gap: 0.5rem;
-	color: var(--color-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.8125rem;
 	line-height: 1.4;
 	text-align: center;

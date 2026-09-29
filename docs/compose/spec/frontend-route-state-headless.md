@@ -88,7 +88,7 @@ settings_dir / SQLite（权威持久化）
 - 视觉：一律 adapter + 现有 token（`surface-*`、brand、FormatJS 文案）；**禁止**引入第二主题真相源。
 - 顺序：
   1. **Demo 闸门**：隔离页验证 Dialog/Select/Tooltip → token 映射（light/dark/OLED/accent）
-  2. **叶子原语 adapter**：Button/Input/Checkbox/Switch/Tooltip（API 兼容 `ButtonStyled` 风格）
+  2. **叶子原语 adapter**：Button/Input/Checkbox/Switch/Tooltip（API 兼容 `Button` 风格）
   3. **浮层**：Dialog/Drawer/Select 对接 `MODALS.md` + `data-onboarding-id`
   4. **设置表单等低耦合区**局部替换；虚拟列表可叠 `@tanstack/vue-virtual`
 - **不替换**：ProjectCard/ContentCard、皮肤 3D、Instance 列表、Console、Files/Monaco、安装流、Tauri chrome、Onboarding 对话框语义。
@@ -123,6 +123,6 @@ settings_dir / SQLite（权威持久化）
 ### 阶段 2 — 渐进 Headless
 
 - [x] T7: 引入 `reka-ui`，新增隔离 demo 路由/页面验证 token 映射 — acceptance: demo 结构完成（`/headless-demo`）；light/dark/OLED **目视待用户确认** (covers: S2.5; depends: T1)
-- [x] T8: 叶子原语 adapter（≥ Tooltip + Button/Input 或 Checkbox）接入现有 `ButtonStyled` 风格 — acceptance: 至少一处生产 UI 使用 adapter；视觉与 token 一致 (covers: S2.5; depends: T7)
+- [x] T8: 叶子原语 adapter（≥ Tooltip + Button/Input 或 Checkbox）接入现有 `Button` 风格 — acceptance: 至少一处生产 UI 使用 adapter；视觉与 token 一致 (covers: S2.5; depends: T7)
 - [x] T9: Dialog/Select adapter 对接 `MODALS.md` 与 FormatJS — acceptance: 一处模态或下拉替换；`data-onboarding-id` 仍可命中 (covers: S2.5; depends: T8)
 - [x] T10: 设置表单等低耦合区至少一处理替换 + prepr — acceptance: `pnpm prepr:frontend:app` 过；无 MC 领域组件被替换 (covers: S2.5; depends: T9)

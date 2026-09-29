@@ -21,25 +21,31 @@
 			<div class="pointer-events-none flex size-5 items-center justify-center">
 				<component
 					:is="iconComponent"
-					class="size-5 group-hover:text-contrast group-focus:text-contrast"
+					class="size-5 group-hover:text-[var(--color-text-primary)] group-focus:text-[var(--color-text-primary)]"
 				/>
 			</div>
 			<div class="pointer-events-none flex flex-col truncate">
 				<span
-					class="pointer-events-none truncate group-hover:text-contrast group-focus:text-contrast"
+					class="pointer-events-none truncate group-hover:text-[var(--color-text-primary)] group-focus:text-[var(--color-text-primary)]"
 				>
 					{{ name }}
 				</span>
 			</div>
 		</div>
 		<div class="pointer-events-auto flex w-fit flex-shrink-0 items-center gap-4 @[800px]:gap-12">
-			<span class="hidden w-[100px] text-nowrap text-sm text-secondary @[800px]:block">
+			<span
+				class="hidden w-[100px] text-nowrap text-sm text-[var(--color-text-tertiary)] @[800px]:block"
+			>
 				{{ formattedSize }}
 			</span>
-			<span class="hidden w-[160px] text-nowrap text-sm text-secondary @[800px]:block">
+			<span
+				class="hidden w-[160px] text-nowrap text-sm text-[var(--color-text-tertiary)] @[800px]:block"
+			>
 				{{ formattedCreationDate }}
 			</span>
-			<span class="hidden w-[160px] text-nowrap text-sm text-secondary @[800px]:block">
+			<span
+				class="hidden w-[160px] text-nowrap text-sm text-[var(--color-text-tertiary)] @[800px]:block"
+			>
 				{{ formattedModifiedDate }}
 			</span>
 			<div class="grid min-w-[51px] shrink-0 items-center justify-items-end">
@@ -50,40 +56,38 @@
 					{{ formatMessage(commonMessages.actionsLabel) }}
 				</span>
 				<div class="col-start-1 row-start-1 flex justify-end">
-					<ButtonStyled circular type="transparent">
-						<TeleportOverflowMenu :options="menuOptions">
-							<MoreHorizontalIcon class="h-5 w-5 bg-transparent" />
-							<template #copy-filename
-								><ClipboardCopyIcon />
-								{{ formatMessage(commonMessages.copyFilenameButton) }}</template
-							>
-							<template #copy-full-path
-								><ClipboardCopyIcon />
-								{{ formatMessage(commonMessages.copyFullPathButton) }}</template
-							>
-							<template #open-in-folder
-								><FolderOpenIcon /> {{ formatMessage(commonMessages.openInFolderButton) }}</template
-							>
-							<template #extract
-								><PackageOpenIcon /> {{ formatMessage(commonMessages.extractButton) }}</template
-							>
-							<template #rename
-								><EditIcon /> {{ formatMessage(commonMessages.renameButton) }}</template
-							>
-							<template #move
-								><RightArrowIcon /> {{ formatMessage(commonMessages.moveButton) }}</template
-							>
-							<template #download
-								><DownloadIcon />
-								{{
-									ctx.downloadButtonLabel ?? formatMessage(commonMessages.downloadButton)
-								}}</template
-							>
-							<template #delete
-								><TrashIcon /> {{ formatMessage(commonMessages.deleteLabel) }}</template
-							>
-						</TeleportOverflowMenu>
-					</ButtonStyled>
+					<TeleportOverflowMenu :options="menuOptions">
+						<MoreHorizontalIcon class="h-5 w-5 bg-transparent" />
+						<template #copy-filename
+							><ClipboardCopyIcon />
+							{{ formatMessage(commonMessages.copyFilenameButton) }}</template
+						>
+						<template #copy-full-path
+							><ClipboardCopyIcon />
+							{{ formatMessage(commonMessages.copyFullPathButton) }}</template
+						>
+						<template #open-in-folder
+							><FolderOpenIcon /> {{ formatMessage(commonMessages.openInFolderButton) }}</template
+						>
+						<template #extract
+							><PackageOpenIcon /> {{ formatMessage(commonMessages.extractButton) }}</template
+						>
+						<template #rename
+							><EditIcon /> {{ formatMessage(commonMessages.renameButton) }}</template
+						>
+						<template #move
+							><RightArrowIcon /> {{ formatMessage(commonMessages.moveButton) }}</template
+						>
+						<template #download
+							><DownloadIcon />
+							{{
+								ctx.downloadButtonLabel ?? formatMessage(commonMessages.downloadButton)
+							}}</template
+						>
+						<template #delete
+							><TrashIcon /> {{ formatMessage(commonMessages.deleteLabel) }}</template
+						>
+					</TeleportOverflowMenu>
 				</div>
 			</div>
 		</div>
@@ -109,7 +113,6 @@ import {
 } from '@modrinth/assets'
 import { computed, ref } from 'vue'
 
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import Checkbox from '#ui/components/base/Checkbox.vue'
 import TeleportOverflowMenu from '#ui/components/base/TeleportOverflowMenu.vue'
 import { useFormatBytes } from '#ui/composables'

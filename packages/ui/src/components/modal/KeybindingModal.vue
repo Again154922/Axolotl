@@ -9,9 +9,13 @@
 		<div class="flex min-w-0 flex-col gap-4">
 			<div class="flex flex-wrap items-center justify-between gap-3">
 				<div class="flex min-w-0 flex-col gap-1">
-					<span class="text-sm text-secondary">{{ formatMessage(messages.current) }}</span>
+					<span class="text-sm text-[var(--color-text-tertiary)]">{{
+						formatMessage(messages.current)
+					}}</span>
 					<KeybindingChips v-if="props.binding" :binding="props.binding" />
-					<span v-else class="text-sm text-secondary">{{ formatMessage(messages.unset) }}</span>
+					<span v-else class="text-sm text-[var(--color-text-tertiary)]">{{
+						formatMessage(messages.unset)
+					}}</span>
 				</div>
 				<Button v-if="canRestoreDefault" type="outlined" size="2xs" @click="restoreDefault"
 					>{{ formatMessage(messages.restoreDefault) }}
@@ -31,19 +35,19 @@
 				@click="beginListening"
 			>
 				<template v-if="phase === 'listening'">
-					<span class="text-base font-semibold text-contrast">
+					<span class="text-base font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.listeningTitle) }}
 					</span>
 					<span v-if="liveParts.length" class="flex flex-wrap items-center justify-center gap-1">
 						<kbd
 							v-for="(part, index) in liveParts"
 							:key="`${index}-${part}`"
-							class="rounded-md border border-solid border-surface-4 bg-surface-3 px-2 py-0.5 font-mono text-sm text-contrast"
+							class="rounded-md border border-solid border-surface-4 bg-surface-3 px-2 py-0.5 font-mono text-sm text-[var(--color-text-primary)]"
 						>
 							{{ part }}
 						</kbd>
 					</span>
-					<span v-else class="text-sm text-secondary">
+					<span v-else class="text-sm text-[var(--color-text-tertiary)]">
 						{{ formatMessage(messages.listeningHint) }}
 					</span>
 					<span class="block h-1 w-full max-w-[16rem] overflow-hidden rounded-full bg-surface-4">
@@ -55,19 +59,21 @@
 					</span>
 				</template>
 				<template v-else-if="phase === 'verifying'">
-					<span class="text-base font-semibold text-contrast">
+					<span class="text-base font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(verified ? messages.verifiedTitle : messages.verifyingTitle) }}
 					</span>
 					<KeybindingChips v-if="candidate" :binding="candidate" />
-					<span v-if="!verified" class="text-sm text-secondary">
+					<span v-if="!verified" class="text-sm text-[var(--color-text-tertiary)]">
 						{{ formatMessage(messages.verifyingHint) }}
 					</span>
 				</template>
 				<template v-else>
-					<span class="text-base font-semibold text-contrast">
+					<span class="text-base font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.captureTitle) }}
 					</span>
-					<span class="text-sm text-secondary">{{ formatMessage(messages.captureHint) }}</span>
+					<span class="text-sm text-[var(--color-text-tertiary)]">{{
+						formatMessage(messages.captureHint)
+					}}</span>
 				</template>
 			</button>
 
@@ -75,24 +81,20 @@
 				<div
 					class="flex flex-col gap-2 rounded-xl border border-solid border-surface-4 bg-surface-2 p-3"
 				>
-					<span class="text-sm font-semibold text-contrast">
+					<span class="text-sm font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.modifiers) }}
 					</span>
 					<div class="flex flex-wrap gap-2">
-						<ButtonStyled
+						<Button
 							v-for="modifier in modifierOptions"
 							:key="modifier.field"
-							size="small"
+							size="2xs"
 							:type="modifierState[modifier.field] ? 'highlight' : 'outlined'"
+							:aria-pressed="modifierState[modifier.field]"
+							@click="modifierState[modifier.field] = !modifierState[modifier.field]"
 						>
-							<button
-								type="button"
-								:aria-pressed="modifierState[modifier.field]"
-								@click="modifierState[modifier.field] = !modifierState[modifier.field]"
-							>
-								{{ modifier.label }}
-							</button>
-						</ButtonStyled>
+							{{ modifier.label }}
+						</Button>
 					</div>
 				</div>
 
@@ -110,7 +112,7 @@
 				<p v-else-if="verified" class="m-0 text-sm text-green">
 					{{ formatMessage(messages.verifiedHint) }}
 				</p>
-				<p v-else-if="nothingCapturedText" class="m-0 text-sm text-secondary">
+				<p v-else-if="nothingCapturedText" class="m-0 text-sm text-[var(--color-text-tertiary)]">
 					{{ nothingCapturedText }}
 				</p>
 			</div>
@@ -122,7 +124,7 @@
 				<Button v-else type="outlined" @click="enterTree"
 					>{{ formatMessage(messages.useSpecial) }}
 				</Button>
-				<span v-if="phase === 'tree'" class="text-xs text-secondary">
+				<span v-if="phase === 'tree'" class="text-xs text-[var(--color-text-tertiary)]">
 					{{ formatMessage(messages.specialHint) }}
 				</span>
 			</div>
@@ -155,7 +157,6 @@ import {
 } from '../../utils/keybinding'
 import { KEYBINDING_CATALOG } from '../../utils/keybinding-catalog'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import KeybindingChips from '../base/KeybindingChips.vue'
 import KeybindingChoiceTree from './KeybindingChoiceTree.vue'
 import NewModal from './NewModal.vue'

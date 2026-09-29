@@ -13,10 +13,8 @@ import {
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
-import OverflowMenu, {
-	type Option as OverflowMenuOption,
-} from '#ui/components/base/OverflowMenu.vue'
+import type { Option as OverflowMenuOption } from '#ui/components/base/OverflowMenu.vue'
+import PopoutMenu from '#ui/components/base/PopoutMenu.vue'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { commonMessages, normalizeProjectType } from '#ui/utils/common-messages'
 
@@ -966,6 +964,14 @@ function promptUpdateSelected(event?: MouseEvent) {
 	}
 }
 
+function shareSelectedItems(
+	format: 'names' | 'file-names' | 'urls' | 'markdown',
+	hide: () => void,
+) {
+	ctx.shareItems?.(selectedItems.value, format)
+	hide()
+}
+
 async function confirmBulkUpdate() {
 	if (ctx.isBusy.value) return
 	const items = pendingBulkUpdateItems.value
@@ -1018,7 +1024,7 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 			>
 				<div class="universal-card flex flex-col items-center gap-4 p-6">
 					<h2 class="m-0 text-xl font-bold">{{ formatMessage(messages.failedToLoad) }}</h2>
-					<p class="text-secondary">{{ ctx.error.value.message }}</p>
+					<p class="text-[var(--color-text-tertiary)]">{{ ctx.error.value.message }}</p>
 					<Button type="colored" color="brand" @click="handleRefresh">{{
 						formatMessage(commonMessages.retryButton)
 					}}</Button>
@@ -1072,7 +1078,7 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 									:class="
 										selectedStatusFilters.length === 0
 											? 'text-brand'
-											: 'text-secondary hover:text-primary'
+											: 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-default)]'
 									"
 									:aria-pressed="selectedStatusFilters.length === 0"
 									@click="selectedStatusFilters = []"
@@ -1090,7 +1096,7 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 									:class="
 										selectedStatusFilters.includes(option.id)
 											? 'text-brand'
-											: 'text-secondary hover:text-primary'
+											: 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-default)]'
 									"
 									:aria-pressed="selectedStatusFilters.includes(option.id)"
 									@click="toggleStatusFilter(option.id)"
@@ -1176,83 +1182,76 @@ const confirmUnlinkModal = ref<InstanceType<typeof ConfirmUnlinkModal>>()
 			@disable="bulkDisable"
 		>
 			<template #actions>
-				<ButtonStyled
+				<Button
 					v-if="hasBulkUpdateSupport && selectedItems.some((m) => m.update != null)"
-					type="transparent"
+					v-tooltip="formatMessage(commonMessages.updateButton)"
+					type="quiet"
 					color="green"
-					color-fill="text"
-					hover-color-fill="background"
+					interaction="filled"
+					@click="promptUpdateSelected"
 				>
-					<button
-						v-tooltip="formatMessage(commonMessages.updateButton)"
-						@click="promptUpdateSelected"
-					>
-						<DownloadIcon />
-						<span class="bar-label">{{ formatMessage(commonMessages.updateButton) }}</span>
-					</button>
-				</ButtonStyled>
+					<DownloadIcon />
+					<span class="bar-label">{{ formatMessage(commonMessages.updateButton) }}</span>
+				</Button>
 
-				<ButtonStyled v-if="ctx.shareItems" type="transparent">
-					<OverflowMenu
-						:options="[
-							{
-								id: 'share-names',
-								action: () => ctx.shareItems!(selectedItems, 'names'),
-							},
-							{
-								id: 'share-file-names',
-								action: () => ctx.shareItems!(selectedItems, 'file-names'),
-							},
-							{
-								id: 'share-urls',
-								action: () => ctx.shareItems!(selectedItems, 'urls'),
-							},
-							{
-								id: 'share-markdown',
-								action: () => ctx.shareItems!(selectedItems, 'markdown'),
-							},
-						]"
-					>
+				<PopoutMenu v-if="ctx.shareItems" placement="top-end">
+					<Button type="quiet">
 						<ShareIcon />
 						<span class="bar-label">{{ formatMessage(messages.share) }}</span>
 						<DropdownIcon />
-						<template #share-names>
-							<TextCursorInputIcon />
-							{{ formatMessage(messages.shareProjectNames) }}
-						</template>
-						<template #share-file-names>
-							<FileIcon />
-							{{ formatMessage(messages.shareFileNames) }}
-						</template>
-						<template #share-urls>
-							<LinkIcon />
-							{{ formatMessage(messages.shareProjectLinks) }}
-						</template>
-						<template #share-markdown>
-							<CodeIcon />
-							{{ formatMessage(messages.shareMarkdownLinks) }}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+					</Button>
+					<template #menu="{ hide }">
+						<div class="flex flex-col gap-1 p-1">
+							<Button
+								type="quiet"
+								class="w-full !justify-start"
+								@click="shareSelectedItems('names', hide)"
+							>
+								<TextCursorInputIcon />
+								{{ formatMessage(messages.shareProjectNames) }}
+							</Button>
+							<Button
+								type="quiet"
+								class="w-full !justify-start"
+								@click="shareSelectedItems('file-names', hide)"
+							>
+								<FileIcon />
+								{{ formatMessage(messages.shareFileNames) }}
+							</Button>
+							<Button
+								type="quiet"
+								class="w-full !justify-start"
+								@click="shareSelectedItems('urls', hide)"
+							>
+								<LinkIcon />
+								{{ formatMessage(messages.shareProjectLinks) }}
+							</Button>
+							<Button
+								type="quiet"
+								class="w-full !justify-start"
+								@click="shareSelectedItems('markdown', hide)"
+							>
+								<CodeIcon />
+								{{ formatMessage(messages.shareMarkdownLinks) }}
+							</Button>
+						</div>
+					</template>
+				</PopoutMenu>
 			</template>
 
 			<template #actions-end>
 				<div class="mx-1 h-6 w-px bg-surface-5" />
 
-				<ButtonStyled
-					type="transparent"
+				<Button
+					v-tooltip="formatMessage(commonMessages.deleteLabel)"
+					type="quiet"
 					color="red"
-					color-fill="text"
-					hover-color-fill="background"
+					interaction="filled"
+					@click="showBulkDeleteModal"
 				>
-					<button
-						v-tooltip="formatMessage(commonMessages.deleteLabel)"
-						@click="showBulkDeleteModal"
-					>
-						<TrashIcon />
-						<span class="bar-label">{{ formatMessage(commonMessages.deleteLabel) }}</span>
-					</button>
-				</ButtonStyled>
+					<TrashIcon />
+					<span class="bar-label">{{ formatMessage(commonMessages.deleteLabel) }}</span>
+				</Button>
 			</template>
 		</ContentSelectionBar>
 

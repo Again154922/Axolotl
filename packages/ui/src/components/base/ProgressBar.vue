@@ -2,16 +2,24 @@
 import SpinnerIcon from '@modrinth/assets/icons/spinner.svg'
 import { computed } from 'vue'
 
+import { progressRatio } from './progress-bar.ts'
+
 const props = withDefaults(
 	defineProps<{
+		/** Current progress in the same units as `max`. */
 		progress: number
+		/** Positive total in any natural unit. Non-finite or non-positive totals render as zero. */
 		max?: number
 		color?: 'brand' | 'green' | 'red' | 'orange' | 'blue' | 'purple' | 'gray'
+		/** Renders an indeterminate bar and omits determinate values from the UI and accessibility tree. */
 		waiting?: boolean
 		fullWidth?: boolean
 		striped?: boolean
 		gradientBorder?: boolean
+		/** Optional visible text. Also names the progressbar unless `ariaLabel` is provided. */
 		label?: string
+		/** Accessible name when the visible label is absent or does not fully describe the task. */
+		ariaLabel?: string
 		labelClass?: string
 		showProgress?: boolean
 	}>(),
@@ -57,14 +65,19 @@ const colors = {
 	},
 }
 
-const percent = computed(() => props.progress / props.max)
+const normalizedRatio = computed(() => progressRatio(props.progress, props.max))
+const fillPercentage = computed(() => normalizedRatio.value * 100)
+const roundedPercentage = computed(() => Math.round(fillPercentage.value))
 </script>
 <template>
 	<div class="flex w-full flex-col gap-2" :class="fullWidth ? '' : 'max-w-[15rem]'">
-		<div v-if="label || showProgress" class="flex items-center justify-between">
+		<div v-if="label || (showProgress && !waiting)" class="flex items-center justify-between">
 			<span v-if="label" :class="labelClass">{{ label }}</span>
-			<div v-if="showProgress" class="flex items-center gap-1 text-sm text-secondary">
-				<span>{{ Math.round(percent * 100) }}%</span>
+			<div
+				v-if="showProgress && !waiting"
+				class="flex items-center gap-1 text-sm text-[var(--color-text-tertiary)]"
+			>
+				<span>{{ roundedPercentage }}%</span>
 				<slot name="progress-icon">
 					<SpinnerIcon class="size-5 animate-spin" aria-hidden="true" />
 				</slot>
@@ -72,10 +85,10 @@ const percent = computed(() => props.progress / props.max)
 		</div>
 		<div
 			role="progressbar"
-			:aria-valuenow="waiting ? undefined : Math.round(percent * 100)"
+			:aria-valuenow="waiting ? undefined : roundedPercentage"
 			aria-valuemin="0"
 			aria-valuemax="100"
-			:aria-label="label || undefined"
+			:aria-label="ariaLabel || label || undefined"
 			class="flex h-2 w-full overflow-hidden rounded-full"
 			:class="[colors[props.color].bg]"
 		>
@@ -87,7 +100,7 @@ const percent = computed(() => props.progress / props.max)
 					{ 'progress-bar--gradient-border': gradientBorder },
 					striped ? `progress-bar--striped--${color}` : '',
 				]"
-				:style="!waiting ? { width: `${percent * 100}%` } : {}"
+				:style="!waiting ? { width: `${fillPercentage}%` } : {}"
 			></div>
 		</div>
 	</div>

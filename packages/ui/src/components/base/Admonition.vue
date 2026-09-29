@@ -1,7 +1,7 @@
 <template>
 	<div
 		:class="[
-			'relative grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-2 rounded-2xl border border-solid p-4 text-contrast',
+			'relative grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-2 rounded-2xl border border-solid p-4 text-[var(--color-text-primary)]',
 			progress != null ? 'overflow-hidden pb-5' : '',
 			typeClasses[type],
 		]"
@@ -18,13 +18,15 @@
 				<span
 					v-if="normalizedTimestamp"
 					v-tooltip="timestampTooltip"
-					class="flex items-center gap-1.5 text-base font-medium leading-normal text-secondary"
+					class="flex items-center gap-1.5 text-base font-medium leading-normal text-[var(--color-text-tertiary)]"
 				>
 					<ClockIcon class="size-4" />
 					{{ relativeTimeLabel }}
 				</span>
 			</div>
-			<div class="font-normal text-contrast/85 leading-tight [overflow-wrap:anywhere]">
+			<div
+				class="font-normal text-[var(--color-text-primary)]/85 leading-tight [overflow-wrap:anywhere]"
+			>
 				<slot>{{ body }}</slot>
 			</div>
 			<div v-if="showActionsUnderneath || $slots.actions" class="mt-2">
@@ -36,17 +38,16 @@
 			class="col-start-3 row-start-1 flex shrink-0 items-center gap-2 self-start"
 		>
 			<slot name="top-right-actions" />
-			<ButtonStyled
+			<IconButton
 				v-if="dismissible"
-				circular
-				type="transparent"
+				label="Dismiss"
+				type="quiet"
 				:color="buttonColors[type]"
-				hover-color-fill="background"
+				interaction="filled"
+				@click="$emit('dismiss')"
 			>
-				<button type="button" aria-label="Dismiss" @click="$emit('dismiss')">
-					<XIcon />
-				</button>
-			</ButtonStyled>
+				<XIcon />
+			</IconButton>
 		</div>
 		<div
 			v-if="progress != null"
@@ -76,7 +77,7 @@ import { computed } from 'vue'
 
 import { useFormatDateTime, useRelativeTime } from '../../composables'
 import { getSeverityIcon } from '../../utils'
-import ButtonStyled from './ButtonStyled.vue'
+import IconButton from './buttons/IconButton.vue'
 
 const props = withDefaults(
 	defineProps<{
@@ -163,13 +164,15 @@ const buttonColors = {
 	moderation: 'orange',
 } as const
 
+// The track is the tone's own tint family rung (`--color-<tone>-bg`), so it
+// follows "Component opacity" the way the admonition body it sits on does.
 const progressTrackClasses = {
-	info: 'bg-brand-blue/20',
-	warning: 'bg-brand-orange/20',
-	'circle-warning': 'bg-brand-orange/20',
-	critical: 'bg-brand-red/20',
-	success: 'bg-brand-green/20',
-	moderation: 'bg-brand-orange/20',
+	info: 'bg-bg-blue',
+	warning: 'bg-bg-orange',
+	'circle-warning': 'bg-bg-orange',
+	critical: 'bg-bg-red',
+	success: 'bg-bg-green',
+	moderation: 'bg-bg-orange',
 }
 
 const progressFillClasses = {

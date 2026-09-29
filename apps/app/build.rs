@@ -189,6 +189,7 @@ fn main() {
                         "check_reachable",
                         "check_mojang_services",
                         "set_mojang_auth_use_mirror",
+                        "mojang_auth_use_mirror",
                         "login",
                         "browser_login",
                         "begin_device_login",

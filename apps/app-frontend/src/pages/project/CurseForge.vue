@@ -95,70 +95,63 @@
 							)
 						}}
 					</Button>
-					<ButtonStyled
-						v-if="data.site_url || mcmodUrl || favoriteSupported"
-						size="large"
-						circular
-						type="transparent"
+					<OverflowMenu
+						:tooltip="formatMessage(commonMessages.moreOptionsButton)"
+						:options="[
+							...(favoriteSupported
+								? [
+										{
+											id: 'save',
+											disabled: favoritePending,
+											tooltip: formatMessage(
+												favoriteSaved ? messages.removeFromFavorites : messages.addToFavorites,
+											),
+											action: () => toggleFavorite(),
+										},
+									]
+								: []),
+							...(data.site_url
+								? [
+										{
+											id: 'open-in-browser',
+											link: data.site_url,
+											external: true,
+										},
+									]
+								: []),
+							...(mcmodUrl
+								? [
+										{
+											id: 'open-in-mcmod',
+											link: mcmodUrl,
+											external: true,
+										},
+									]
+								: []),
+						]"
+						:aria-label="formatMessage(commonMessages.moreOptionsButton)"
 					>
-						<OverflowMenu
-							:tooltip="formatMessage(commonMessages.moreOptionsButton)"
-							:options="[
-								...(favoriteSupported
-									? [
-											{
-												id: 'save',
-												disabled: favoritePending,
-												tooltip: formatMessage(
-													favoriteSaved ? messages.removeFromFavorites : messages.addToFavorites,
-												),
-												action: () => toggleFavorite(),
-											},
-										]
-									: []),
-								...(data.site_url
-									? [
-											{
-												id: 'open-in-browser',
-												link: data.site_url,
-												external: true,
-											},
-										]
-									: []),
-								...(mcmodUrl
-									? [
-											{
-												id: 'open-in-mcmod',
-												link: mcmodUrl,
-												external: true,
-											},
-										]
-									: []),
-							]"
-							:aria-label="formatMessage(commonMessages.moreOptionsButton)"
-						>
-							<MoreVerticalIcon aria-hidden="true" />
-							<template #open-in-browser>
-								<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
-							</template>
-							<template #open-in-mcmod>
-								<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
-							</template>
-							<template v-if="favoriteSupported" #save>
-								<BookmarkFilledIcon v-if="favoriteSaved" class="text-brand" />
-								<BookmarkIcon v-else />
-								{{
-									formatMessage(
-										favoritePending
-											? messages.favoritesLoading
-											: favoriteSaved
-												? messages.removeFromFavorites
-												: messages.addToFavorites,
-									)
-								}}
-							</template>
-						</OverflowMenu>
-					</ButtonStyled>
+						<MoreVerticalIcon aria-hidden="true" />
+						<template #open-in-browser>
+							<ExternalIcon /> {{ formatMessage(commonMessages.openInBrowserButton) }}
+						</template>
+						<template #open-in-mcmod>
+							<BookOpenIcon /> {{ formatMessage(messages.openInMcmod) }}
+						</template>
+						<template v-if="favoriteSupported" #save>
+							<BookmarkFilledIcon v-if="favoriteSaved" class="text-brand" />
+							<BookmarkIcon v-else />
+							{{
+								formatMessage(
+									favoritePending
+										? messages.favoritesLoading
+										: favoriteSaved
+											? messages.removeFromFavorites
+											: messages.addToFavorites,
+								)
+							}}
+						</template>
+					</OverflowMenu>
 				</template>
 			</ProjectHeader>
 			<SelectedProjectsFloatingBar
@@ -214,18 +207,20 @@
 				:show-environment-column="themeStore.featureFlags.show_version_environment_column"
 			>
 				<template #actions="{ version }">
-					<ButtonStyled circular type="transparent" :color="isWorldMap ? 'brand' : 'green'">
-						<button
-							v-tooltip="
-								formatMessage(isWorldMap ? messages.addToAnInstance : commonMessages.installButton)
-							"
-							:disabled="installing"
-							@click.stop="installSelected(version.id)"
-						>
-							<PlusIcon v-if="isWorldMap" />
-							<DownloadIcon v-else />
-						</button>
-					</ButtonStyled>
+					<Button
+						v-tooltip="
+							formatMessage(isWorldMap ? messages.addToAnInstance : commonMessages.installButton)
+						"
+						circular
+						icon-only
+						type="quiet"
+						:color="isWorldMap ? 'brand' : 'green'"
+						:disabled="installing"
+						@click.stop="installSelected(version.id)"
+					>
+						<PlusIcon v-if="isWorldMap" />
+						<DownloadIcon v-else />
+					</Button>
 				</template>
 			</ProjectPageVersions>
 			<Card v-else>
@@ -265,7 +260,6 @@ import {
 import {
 	BrowseInstallHeader,
 	Button,
-	ButtonStyled,
 	Card,
 	commonMessages,
 	defineMessages,

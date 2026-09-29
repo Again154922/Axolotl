@@ -13,7 +13,6 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
 	defineMessages,
 	injectNotificationManager,
 	OverflowMenu,
@@ -592,44 +591,41 @@ defineExpose({ openWidgetPicker, setLayout })
 							</button>
 							<span class="home-widget-size-label">{{ widget.size }}</span>
 							<div class="home-widget-options">
-								<ButtonStyled circular size="small" type="transparent">
-									<OverflowMenu
-										:options="widgetOptions(widget, index)"
-										:tooltip="formatMessage(messages.options)"
+								<OverflowMenu
+									class="relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+									:options="widgetOptions(widget, index)"
+									:tooltip="formatMessage(messages.options)"
+								>
+									<MoreVerticalIcon />
+									<template #greeting-settings>
+										<PencilIcon /> {{ formatMessage(messages.greetingSettings) }}
+									</template>
+									<template
+										v-for="limit in HOME_RECENT_LIMIT_OPTIONS"
+										#[`recent-limit-${limit}`]
+										:key="`recent-limit-${limit}`"
 									>
-										<MoreVerticalIcon />
-										<template #greeting-settings>
-											<PencilIcon /> {{ formatMessage(messages.greetingSettings) }}
-										</template>
-										<template
-											v-for="limit in HOME_RECENT_LIMIT_OPTIONS"
-											#[`recent-limit-${limit}`]
-											:key="`recent-limit-${limit}`"
-										>
-											<ListIcon />
-											{{ formatMessage(messages.recentItems, { count: limit }) }}
-										</template>
-										<template
-											v-for="size in HOME_WIDGET_SIZE_OPTIONS[widget.kind]"
-											#[`size-${size}`]
-											:key="size"
-										>
-											<ExpandIcon /> {{ formatMessage(messages.size, { size }) }}
-										</template>
-										<template #move-earlier>
-											<ChevronUpIcon /> {{ formatMessage(messages.moveEarlier) }}
-										</template>
-										<template #move-later>
-											<ChevronDownIcon /> {{ formatMessage(messages.moveLater) }}
-										</template>
-										<template #replace>
-											<RefreshCwIcon /> {{ formatMessage(messages.replace) }}
-										</template>
-										<template #remove>
-											<TrashIcon /> {{ formatMessage(messages.remove) }}
-										</template>
-									</OverflowMenu>
-								</ButtonStyled>
+										<ListIcon />
+										{{ formatMessage(messages.recentItems, { count: limit }) }}
+									</template>
+									<template
+										v-for="size in HOME_WIDGET_SIZE_OPTIONS[widget.kind]"
+										#[`size-${size}`]
+										:key="size"
+									>
+										<ExpandIcon /> {{ formatMessage(messages.size, { size }) }}
+									</template>
+									<template #move-earlier>
+										<ChevronUpIcon /> {{ formatMessage(messages.moveEarlier) }}
+									</template>
+									<template #move-later>
+										<ChevronDownIcon /> {{ formatMessage(messages.moveLater) }}
+									</template>
+									<template #replace>
+										<RefreshCwIcon /> {{ formatMessage(messages.replace) }}
+									</template>
+									<template #remove> <TrashIcon /> {{ formatMessage(messages.remove) }} </template>
+								</OverflowMenu>
 							</div>
 						</div>
 						<div class="home-widget-content min-w-0 min-h-0 flex-1 overflow-hidden p-4">
@@ -686,7 +682,7 @@ defineExpose({ openWidgetPicker, setLayout })
 				v-if="config.widgets.length === 0"
 				class="flex min-h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-divider text-center"
 			>
-				<p class="m-0 text-secondary">{{ formatMessage(messages.empty) }}</p>
+				<p class="m-0 text-[var(--color-text-tertiary)]">{{ formatMessage(messages.empty) }}</p>
 				<Button @click="openWidgetPicker"><PlusIcon /> {{ formatMessage(messages.add) }}</Button>
 			</div>
 		</div>
@@ -719,17 +715,18 @@ defineExpose({ openWidgetPicker, setLayout })
 	position: absolute;
 	inset: 0;
 	content: '';
-	border: 1px solid color-mix(in srgb, var(--color-divider) 55%, transparent);
+	border: 1px solid
+		color-mix(in srgb, var(--color-divider) var(--opacity-ratio-keep-55), transparent);
 	border-radius: var(--radius-lg);
 	background-image:
 		linear-gradient(
 			to right,
-			color-mix(in srgb, var(--color-divider) 45%, transparent) 1px,
+			color-mix(in srgb, var(--color-divider) var(--opacity-ratio-keep-45), transparent) 1px,
 			transparent 1px
 		),
 		linear-gradient(
 			to bottom,
-			color-mix(in srgb, var(--color-divider) 45%, transparent) 1px,
+			color-mix(in srgb, var(--color-divider) var(--opacity-ratio-keep-45), transparent) 1px,
 			transparent 1px
 		);
 	background-size:
@@ -756,11 +753,7 @@ defineExpose({ openWidgetPicker, setLayout })
 	box-sizing: border-box;
 	border: 1px solid transparent;
 	border-radius: var(--radius-lg);
-	background: color-mix(
-		in srgb,
-		var(--color-raised-bg) var(--home-widget-bg-opacity, 100%),
-		transparent
-	);
+	background: color-mix(in srgb, var(--surface-3) var(--home-widget-bg-opacity, 100%), transparent);
 	box-shadow: var(--shadow-card);
 	transition:
 		border-color 120ms ease,
@@ -796,7 +789,7 @@ defineExpose({ openWidgetPicker, setLayout })
 	padding: 0.125rem;
 	border: 1px solid var(--color-divider);
 	border-radius: var(--radius-lg);
-	background: var(--color-raised-bg);
+	background: var(--surface-3);
 	box-shadow: var(--shadow-button);
 	overflow: hidden;
 	opacity: 0.9;
@@ -815,7 +808,7 @@ defineExpose({ openWidgetPicker, setLayout })
 	border: 0;
 	border-radius: 6px;
 	background: transparent;
-	color: var(--color-secondary);
+	color: var(--color-text-tertiary);
 	cursor: grab;
 	touch-action: none;
 	transition:
@@ -826,7 +819,7 @@ defineExpose({ openWidgetPicker, setLayout })
 .home-widget-size-label {
 	width: 0;
 	overflow: hidden;
-	color: var(--color-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.75rem;
 	font-weight: 600;
 	line-height: 1;
@@ -873,8 +866,8 @@ defineExpose({ openWidgetPicker, setLayout })
 
 .home-widget-drag-handle:hover,
 .home-widget-drag-handle:focus-visible {
-	background: var(--color-button-bg);
-	color: var(--color-contrast);
+	background: var(--surface-4);
+	color: var(--color-text-primary);
 	outline: none;
 }
 

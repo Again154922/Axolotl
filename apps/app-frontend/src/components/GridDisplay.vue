@@ -23,10 +23,9 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
+	Combobox,
 	commonMessages,
 	defineMessages,
-	DropdownSelect,
 	FloatingActionBar,
 	formatLoader,
 	injectNotificationManager,
@@ -830,25 +829,29 @@ async function handleInstanceDragEnd(event: {
 			</Button>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
-			<DropdownSelect
-				v-slot="{ selected }"
+			<Combobox
 				v-model="state.sortBy"
 				v-tooltip="{ content: formatMessage(messages.sortBy), triggers: ['hover'] }"
 				class="!w-auto"
-				name="Sort Dropdown"
-				:options="['Name', 'Last played', 'Date created', 'Date modified', 'Game version']"
-				:display-name="formatOption"
+				:options="
+					['Name', 'Last played', 'Date created', 'Date modified', 'Game version'].map((value) => ({
+						value,
+						label: formatOption(value),
+					}))
+				"
 				:placeholder="formatMessage(messages.select)"
 			>
-				<div class="flex items-center gap-1">
-					<ArrowUpDownIcon class="size-5 shrink-0 text-primary" />
-					<span class="font-semibold text-secondary">{{ selected }}</span>
-				</div>
-			</DropdownSelect>
+				<template #selected="{ label: selectedLabel }">
+					<div class="flex items-center gap-1">
+						<ArrowUpDownIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
+						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selectedLabel }}</span>
+					</div>
+				</template>
+			</Combobox>
 			<button
 				v-tooltip="{ content: sortDirectionLabel, triggers: ['hover'] }"
 				type="button"
-				class="flex h-[40px] w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border-none bg-button-bg p-0 text-button-text transition-all hover:bg-button-bg hover:text-contrast active:scale-[0.97]"
+				class="flex h-[40px] w-[40px] shrink-0 cursor-pointer items-center justify-center rounded-xl border-none bg-surface-4 p-0 text-button-text transition-all hover:bg-surface-4 hover:text-[var(--color-text-primary)] active:scale-[0.97]"
 				:aria-label="sortDirectionLabel"
 				:aria-pressed="isSortAscending"
 				@click="toggleSortDirection()"
@@ -857,40 +860,41 @@ async function handleInstanceDragEnd(event: {
 				<SortDescIcon v-else class="size-5" />
 			</button>
 			<div class="mx-2 h-6 w-px bg-surface-5" />
-			<DropdownSelect
-				v-slot="{ selected }"
+			<Combobox
 				v-model="state.group"
 				v-tooltip="{ content: formatMessage(messages.groupBy), triggers: ['hover'] }"
-				name="Group Dropdown"
-				:options="['Group', 'Loader', 'Game version', 'None']"
-				:display-name="formatOption"
+				:options="
+					['Group', 'Loader', 'Game version', 'None'].map((value) => ({
+						value,
+						label: formatOption(value),
+					}))
+				"
 				:placeholder="formatMessage(messages.select)"
 			>
-				<div class="flex items-center gap-1">
-					<LayersIcon class="size-5 shrink-0 text-primary" />
-					<span class="font-semibold text-secondary">{{ selected }}</span>
-				</div>
-			</DropdownSelect>
+				<template #selected="{ label: selectedLabel }">
+					<div class="flex items-center gap-1">
+						<LayersIcon class="size-5 shrink-0 text-[var(--color-text-default)]" />
+						<span class="font-semibold text-[var(--color-text-tertiary)]">{{ selectedLabel }}</span>
+					</div>
+				</template>
+			</Combobox>
 			<PopoutMenu :tooltip="formatMessage(messages.view)" placement="bottom-end">
 				<Button circular icon-only :aria-label="formatMessage(messages.view)"
 					><component :is="currentDisplayMode?.icon" />
 				</Button>
 				<template #menu>
 					<div class="flex w-44 flex-col gap-1 p-1">
-						<ButtonStyled
+						<Button
 							v-for="option in displayModeOptions"
 							:key="option.id"
-							:type="displayMode === option.id ? 'filled' : 'transparent'"
+							:type="displayMode === option.id ? 'base' : 'quiet'"
+							class="flex w-full items-center gap-2 !justify-start text-left"
+							:aria-pressed="displayMode === option.id"
+							@click="setDisplayMode(option.id)"
 						>
-							<button
-								class="flex w-full items-center gap-2 !justify-start text-left"
-								:aria-pressed="displayMode === option.id"
-								@click="setDisplayMode(option.id)"
-							>
-								<component :is="option.icon" class="size-4" />
-								{{ option.label }}
-							</button>
-						</ButtonStyled>
+							<component :is="option.icon" class="size-4" />
+							{{ option.label }}
+						</Button>
 					</div>
 				</template>
 			</PopoutMenu>
@@ -1016,13 +1020,15 @@ async function handleInstanceDragEnd(event: {
 			hide-when-modal-open
 		>
 			<div class="flex items-center gap-0.5">
-				<span class="px-3 py-2 text-base font-semibold text-contrast tabular-nums">
+				<span
+					class="px-3 py-2 text-base font-semibold text-[var(--color-text-primary)] tabular-nums"
+				>
 					{{ formatMessage(messages.selectedCount, { count: selectedInstanceIds.size }) }}
 				</span>
 				<div class="mx-0.5 h-6 w-px bg-surface-5" />
 				<Button
 					type="quiet"
-					class="!text-primary"
+					class="!text-[var(--color-text-default)]"
 					:disabled="busy"
 					@click="clearLibraryInstanceSelection"
 					><XIcon class="hidden cq-show-icon" />

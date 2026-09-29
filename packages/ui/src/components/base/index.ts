@@ -6,24 +6,23 @@ export { default as Avatar } from './Avatar.vue'
 export { default as Badge } from './Badge.vue'
 export { default as BigOptionButton } from './BigOptionButton.vue'
 export { default as BulletDivider } from './BulletDivider.vue'
-// `Button` is the current button system. The legacy runtime-props component is
-// only reachable as `LegacyButton` so that `import { Button }` can never
-// silently resolve to the generation that ignores `type`/`size`/`interaction`.
-export { default as LegacyButton } from './Button.vue'
 export { default as Button } from './buttons/Button.vue'
-export { default as NewButton } from './buttons/Button.vue'
+export { default as ButtonGroup } from './buttons/ButtonGroup.vue'
+export { default as ButtonLink } from './buttons/ButtonLink.vue'
 export { default as CheckCircleButton } from './buttons/CheckCircleButton.vue'
 export { default as IconButton } from './buttons/IconButton.vue'
 export type {
 	ButtonColor,
+	ButtonContentProps,
 	ButtonElementHandle,
 	ButtonInteraction,
+	ButtonLinkProps,
 	ButtonNativeType,
+	ButtonProps,
 	ButtonSize,
 	ButtonType,
 	ButtonVisualProps,
 } from './buttons/types'
-export { default as ButtonStyled } from './ButtonStyled.vue'
 export { default as Card } from './Card.vue'
 export { default as Checkbox } from './Checkbox.vue'
 export { default as Chips } from './Chips.vue'
@@ -35,10 +34,7 @@ export { default as Combobox } from './Combobox.vue'
 export { default as ContentPageHeader } from './ContentPageHeader.vue'
 export { default as CopyCode } from './CopyCode.vue'
 export { default as DatePicker } from './DatePicker.vue'
-export { default as DropArea } from './DropArea.vue'
-export { default as DropdownSelect } from './DropdownSelect.vue'
 export { default as EmptyState } from './EmptyState.vue'
-export { default as FileInput } from './FileInput.vue'
 export type { FileTreeSelectItem } from './FileTreeSelect.vue'
 export { default as FileTreeSelect } from './FileTreeSelect.vue'
 export type { FilterPillOption } from './FilterPills.vue'
@@ -66,7 +62,6 @@ export { default as MultiStageModal, resolveCtxFn } from './MultiStageModal.vue'
 export { default as NavTabs } from './NavTabs.vue'
 export type { Option as OverflowMenuOption } from './OverflowMenu.vue'
 export { default as OverflowMenu } from './OverflowMenu.vue'
-export { default as Page } from './Page.vue'
 export { default as Pagination } from './Pagination.vue'
 export { default as PopoutMenu } from './PopoutMenu.vue'
 export { default as ProgressBar } from './ProgressBar.vue'
@@ -74,11 +69,10 @@ export { default as RadioButtons } from './RadioButtons.vue'
 export { default as ReadyTransition } from './ReadyTransition.vue'
 export { default as ScrollablePanel } from './ScrollablePanel.vue'
 export { default as ScrollToTopButton } from './ScrollToTopButton.vue'
-export { default as SimpleBadge } from './SimpleBadge.vue'
 export { default as Slider } from './Slider.vue'
 export { default as SmartClickable } from './SmartClickable.vue'
 export { default as StatItem } from './StatItem.vue'
-export { default as Input } from './StyledInput.vue'
+export { default as StatusLabel } from './StatusLabel.vue'
 export { default as StyledInput } from './StyledInput.vue'
 export type { SortDirection, TableColumn } from './Table.vue'
 export { default as Table } from './Table.vue'

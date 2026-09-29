@@ -96,7 +96,7 @@
 
 							<div
 								v-if="linkedProjectV3"
-								class="flex gap-1.5 items-center font-medium text-primary"
+								class="flex gap-1.5 items-center font-medium text-[var(--color-text-default)]"
 							>
 								{{ formatMessage(messages.linkedTo) }}
 								<Avatar
@@ -107,7 +107,7 @@
 								/>
 								<router-link
 									:to="`/project/${linkedProjectV3.slug ?? linkedProjectV3.id}`"
-									class="hover:underline text-primary truncate"
+									class="hover:underline text-[var(--color-text-default)] truncate"
 								>
 									{{ linkedProjectV3.name }}
 								</router-link>
@@ -177,42 +177,37 @@
 							><PlayIcon />
 							{{ formatMessage(commonMessages.playButton) }}
 						</Button>
-						<div
-							v-else-if="playing === false && loading === false && isServerInstance"
-							class="joined-buttons"
-						>
+						<ButtonGroup v-else-if="playing === false && loading === false && isServerInstance">
 							<Button type="colored" color="brand" size="xl" @click="handlePlayServer()"
 								><PlayIcon />
 								{{ formatMessage(commonMessages.playButton) }}
 							</Button>
-							<ButtonStyled color="brand" size="large">
-								<OverflowMenu
-									:options="[
-										{
-											id: 'join_server',
-											action: () => handlePlayServer(),
-										},
-										{
-											id: 'launch_instance',
-											action: () => startInstance('InstancePage'),
-										},
-									]"
-								>
-									<div class="w-0 text-xl relative top-0.5 right-2.5">
-										<DropdownIcon />
-									</div>
+							<OverflowMenu
+								:options="[
+									{
+										id: 'join_server',
+										action: () => handlePlayServer(),
+									},
+									{
+										id: 'launch_instance',
+										action: () => startInstance('InstancePage'),
+									},
+								]"
+							>
+								<div class="w-0 text-xl relative top-0.5 right-2.5">
+									<DropdownIcon />
+								</div>
 
-									<template #join_server>
-										<PlayIcon />
-										{{ formatMessage(messages.joinServer) }}
-									</template>
-									<template #launch_instance>
-										<PlayIcon />
-										{{ formatMessage(messages.launchInstance) }}
-									</template>
-								</OverflowMenu>
-							</ButtonStyled>
-						</div>
+								<template #join_server>
+									<PlayIcon />
+									{{ formatMessage(messages.joinServer) }}
+								</template>
+								<template #launch_instance>
+									<PlayIcon />
+									{{ formatMessage(messages.launchInstance) }}
+								</template>
+							</OverflowMenu>
+						</ButtonGroup>
 						<Button
 							v-else-if="loading === true && playing === false"
 							type="colored"
@@ -230,49 +225,47 @@
 							@click="settingsModal?.show()"
 							><SettingsIcon />
 						</Button>
-						<ButtonStyled type="transparent" circular size="large">
-							<OverflowMenu
-								:options="[
-									{
-										id: 'open-folder',
-										action: () => {
-											if (instance) showInstanceInFolder(instance.id)
-										},
+						<OverflowMenu
+							:options="[
+								{
+									id: 'open-folder',
+									action: () => {
+										if (instance) showInstanceInFolder(instance.id)
 									},
-									{
-										id: 'export-mrpack',
-										action: () => exportModal?.show(),
-									},
-									{
-										id: 'create-shortcut',
-										action: () => createShortcut(),
-									},
-									...(canUpgradeInstance
-										? [{ id: 'upgrade-instance', action: () => openUpgrade() }]
-										: []),
-								]"
-							>
-								<MoreVerticalIcon />
-								<template #share-instance>
-									<UserPlusIcon /> {{ formatMessage(messages.shareInstance) }}
-								</template>
-								<template #host-a-server>
-									<ServerIcon /> {{ formatMessage(messages.createServer) }}
-								</template>
-								<template #open-folder>
-									<FolderOpenIcon /> {{ formatMessage(commonMessages.openFolderButton) }}
-								</template>
-								<template #export-mrpack>
-									<PackageIcon /> {{ formatMessage(messages.exportModpack) }}
-								</template>
-								<template #create-shortcut>
-									<ExternalIcon /> {{ formatMessage(messages.createShortcut) }}
-								</template>
-								<template #upgrade-instance>
-									<UpdatedIcon /> {{ formatMessage(messages.upgradeInstance) }}
-								</template>
-							</OverflowMenu>
-						</ButtonStyled>
+								},
+								{
+									id: 'export-mrpack',
+									action: () => exportModal?.show(),
+								},
+								{
+									id: 'create-shortcut',
+									action: () => createShortcut(),
+								},
+								...(canUpgradeInstance
+									? [{ id: 'upgrade-instance', action: () => openUpgrade() }]
+									: []),
+							]"
+						>
+							<MoreVerticalIcon />
+							<template #share-instance>
+								<UserPlusIcon /> {{ formatMessage(messages.shareInstance) }}
+							</template>
+							<template #host-a-server>
+								<ServerIcon /> {{ formatMessage(messages.createServer) }}
+							</template>
+							<template #open-folder>
+								<FolderOpenIcon /> {{ formatMessage(commonMessages.openFolderButton) }}
+							</template>
+							<template #export-mrpack>
+								<PackageIcon /> {{ formatMessage(messages.exportModpack) }}
+							</template>
+							<template #create-shortcut>
+								<ExternalIcon /> {{ formatMessage(messages.createShortcut) }}
+							</template>
+							<template #upgrade-instance>
+								<UpdatedIcon /> {{ formatMessage(messages.upgradeInstance) }}
+							</template>
+						</OverflowMenu>
 					</div>
 				</template>
 			</ContentPageHeader>
@@ -382,7 +375,7 @@ import {
 	Avatar,
 	Badge,
 	Button,
-	ButtonStyled,
+	ButtonGroup,
 	commonMessages,
 	ContentPageHeader,
 	defineMessages,
@@ -975,166 +968,6 @@ onUnmounted(() => {
 	}
 })
 </script>
-
-<style scoped lang="scss">
-.side-cards {
-	position: fixed;
-	width: 300px;
-	display: flex;
-	flex-direction: column;
-
-	min-height: calc(100vh - 3.25rem);
-	max-height: calc(100vh - 3.25rem);
-	overflow-y: auto;
-	-ms-overflow-style: none;
-	scrollbar-width: none;
-
-	&::-webkit-scrollbar {
-		width: 0;
-		background: transparent;
-	}
-
-	.card {
-		min-height: unset;
-		margin-bottom: 0;
-	}
-}
-
-.instance-nav {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	justify-content: center;
-	padding: 1rem;
-	gap: 0.5rem;
-	background: var(--color-raised-bg);
-	height: 100%;
-}
-
-.name {
-	font-size: 1.25rem;
-	color: var(--color-contrast);
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.instance-container {
-	display: flex;
-	flex-direction: row;
-	overflow: auto;
-	gap: 1rem;
-	min-height: 100%;
-	padding: 1rem;
-}
-
-.badge {
-	display: flex;
-	align-items: center;
-	font-weight: bold;
-	width: fit-content;
-	color: var(--color-orange);
-}
-
-.pages-list {
-	.btn {
-		font-size: 100%;
-		font-weight: 400;
-		background: inherit;
-		transition: all ease-in-out 0.1s;
-		width: 100%;
-		color: var(--color-text-default);
-		box-shadow: none;
-
-		&.router-link-exact-active {
-			box-shadow: var(--shadow-inset-lg);
-			background: var(--color-button-bg);
-			color: var(--color-contrast);
-		}
-
-		&:hover {
-			background-color: var(--color-button-bg);
-			color: var(--color-contrast);
-			box-shadow: var(--shadow-inset-lg);
-			text-decoration: none;
-		}
-
-		svg {
-			width: 1.3rem;
-			height: 1.3rem;
-		}
-	}
-}
-
-.instance-nav {
-	display: flex;
-	flex-direction: row;
-	align-items: flex-start;
-	justify-content: left;
-	padding: 1rem;
-	gap: 0.5rem;
-	height: min-content;
-	width: 100%;
-}
-
-.actions {
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	gap: 0.5rem;
-}
-
-.content {
-	margin: 0 1rem 0.5rem 20rem;
-	width: calc(100% - 20rem);
-	display: flex;
-	flex-direction: column;
-	overflow: auto;
-}
-
-.stats {
-	grid-area: stats;
-	display: flex;
-	flex-direction: column;
-	flex-wrap: wrap;
-	gap: var(--gap-md);
-
-	.stat {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		width: fit-content;
-		gap: var(--gap-xs);
-		--stat-strong-size: 1.25rem;
-
-		strong {
-			font-size: var(--stat-strong-size);
-		}
-
-		p {
-			margin: 0;
-		}
-
-		svg {
-			height: var(--stat-strong-size);
-			width: var(--stat-strong-size);
-		}
-	}
-
-	@media screen and (max-width: 750px) {
-		flex-direction: row;
-		column-gap: var(--gap-md);
-		margin-top: var(--gap-xs);
-	}
-
-	@media screen and (max-width: 600px) {
-		margin-top: 0;
-
-		.stat-label {
-			display: none;
-		}
-	}
-}
-</style>
 
 <style>
 .app-viewport:has(.instance-fixed-render) {

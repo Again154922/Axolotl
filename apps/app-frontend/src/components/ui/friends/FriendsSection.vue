@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { MoreVerticalIcon, TrashIcon, UserIcon, XIcon } from '@modrinth/assets'
-import {
-	Accordion,
-	Avatar,
-	Button,
-	ButtonStyled,
-	defineMessages,
-	OverflowMenu,
-	useVIntl,
-} from '@modrinth/ui'
+import { Accordion, Avatar, Button, defineMessages, OverflowMenu, useVIntl } from '@modrinth/ui'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { useTemplateRef } from 'vue'
 
@@ -114,7 +106,7 @@ const messages = defineMessages({
 		"
 	>
 		<template #title>
-			<h3 class="text-base text-primary font-medium m-0">
+			<h3 class="text-base text-[var(--color-text-default)] font-medium m-0">
 				{{ formatMessage(messages.heading, { title: heading, count: friends.length }) }}
 			</h3>
 		</template>
@@ -123,7 +115,7 @@ const messages = defineMessages({
 				<div
 					v-for="friend in friends"
 					:key="friend.username"
-					class="group grid items-center grid-cols-[auto_1fr_auto] gap-2 hover:bg-button-bg transition-colors rounded-full mr-1"
+					class="group grid items-center grid-cols-[auto_1fr_auto] gap-2 hover:bg-surface-4 transition-colors rounded-full mr-1"
 					@contextmenu.prevent.stop="
 						(event) => friendOptions?.showMenu(event, friend, createContextMenuOptions(friend))
 					"
@@ -145,7 +137,11 @@ const messages = defineMessages({
 					<div class="flex flex-col">
 						<span
 							class="text-sm m-0"
-							:class="friend.online || !friend.accepted ? 'text-contrast' : 'text-primary'"
+							:class="
+								friend.online || !friend.accepted
+									? 'text-[var(--color-text-primary)]'
+									: 'text-[var(--color-text-default)]'
+							"
 						>
 							{{ friend.username }}
 						</span>
@@ -154,32 +150,23 @@ const messages = defineMessages({
 						</span>
 						<span v-else-if="friend.status" class="m-0 text-xs">{{ friend.status }}</span>
 					</div>
-					<ButtonStyled v-if="friend.accepted" circular type="transparent">
-						<OverflowMenu
-							class="opacity-0 group-hover:opacity-100 transition-opacity"
-							:options="[
-								{
-									id: 'view-profile',
-									action: () => openProfile(friend.username),
-								},
-								{
-									id: 'remove-friend',
-									action: () => removeFriend(friend),
-									color: 'red',
-								},
-							]"
+					<OverflowMenu
+						v-if="friend.accepted"
+						type="button"
+						class="relative inline-flex size-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] opacity-0 transition-[background-color,color,filter,opacity,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] group-hover:opacity-100 [&>svg]:size-5"
+						:options="[
+							{ id: 'view-profile', action: () => openProfile(friend.username) },
+							{ id: 'remove-friend', action: () => removeFriend(friend), color: 'red' },
+						]"
+					>
+						<MoreVerticalIcon />
+						<template #view-profile
+							><UserIcon /> {{ formatMessage(messages.viewProfile) }}</template
 						>
-							<MoreVerticalIcon />
-							<template #view-profile>
-								<UserIcon />
-								{{ formatMessage(messages.viewProfile) }}
-							</template>
-							<template #remove-friend>
-								<TrashIcon />
-								{{ formatMessage(messages.removeFriend) }}
-							</template>
-						</OverflowMenu>
-					</ButtonStyled>
+						<template #remove-friend
+							><TrashIcon /> {{ formatMessage(messages.removeFriend) }}</template
+						>
+					</OverflowMenu>
 					<Button
 						v-else
 						v-tooltip="formatMessage(messages.cancelRequest)"

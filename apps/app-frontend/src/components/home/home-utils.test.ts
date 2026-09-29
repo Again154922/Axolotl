@@ -3,12 +3,31 @@ import test from 'node:test'
 
 import {
 	buildHeatmapDays,
+	getActivePlayerAccount,
 	getActivePlayerName,
 	getPlaytimeLevel,
 	getTimeBucket,
 	stableGreetingIndex,
 	toDateKey,
 } from './home-utils.ts'
+
+test('resolves the greeting account only when it can carry a name', () => {
+	const accounts = [
+		{ account_id: 'ms', account_type: 'microsoft', profile: { id: 'p1', name: 'Alex' } },
+		{ account_id: 'yg', account_type: 'yggdrasil', profile: { id: 'p2', name: 'Yin' } },
+		{ account_id: 'off', account_type: 'offline', profile: { id: 'p3', name: 'Steve' } },
+		{ account_id: 'noname', account_type: 'microsoft', profile: { id: 'p4' } },
+	]
+
+	assert.deepEqual(getActivePlayerAccount('ms', accounts), { id: 'ms', name: 'Alex' })
+	assert.deepEqual(getActivePlayerAccount('yg', accounts), { id: 'yg', name: 'Yin' })
+	// An offline account is selected the same way but has no profile name to greet.
+	assert.equal(getActivePlayerAccount('off', accounts), null)
+	assert.equal(getActivePlayerAccount('noname', accounts), null)
+	assert.equal(getActivePlayerAccount('gone', accounts), null)
+	assert.equal(getActivePlayerAccount(undefined, accounts), null)
+	assert.equal(getActivePlayerName('ms', accounts), 'Alex')
+})
 
 test('uses the six local greeting time buckets', () => {
 	const hour = (value: number) => new Date(2026, 6, 25, value, 0)

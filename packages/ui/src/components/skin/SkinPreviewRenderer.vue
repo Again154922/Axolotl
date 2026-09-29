@@ -11,14 +11,14 @@
 			:style="previewControlsPositionStyle"
 		>
 			<span
-				class="flex items-center justify-center gap-1.5 text-base font-medium leading-6 text-primary"
+				class="flex items-center justify-center gap-1.5 text-base font-medium leading-6 text-[var(--color-text-default)]"
 			>
 				<UnfoldHorizontalIcon class="size-5 shrink-0" />
 				{{ formatMessage(messages.dragToRotate) }}
 			</span>
 		</div>
 		<div
-			v-if="$slots.subtitle || armorPreview"
+			v-if="$slots.subtitle || showsArmorControls"
 			class="absolute left-0 right-0 z-10 flex max-h-[calc(100%_-_1rem)] min-h-0 items-center justify-center overflow-y-auto pointer-events-none"
 			:style="subtitlePositionStyle"
 		>
@@ -28,7 +28,7 @@
 				@click="ignoreControlClick"
 			>
 				<slot name="subtitle" />
-				<ArmorPreviewControls v-if="armorPreview" v-model="armorConfig" />
+				<ArmorPreviewControls v-if="showsArmorControls" v-model="armorConfig" />
 			</div>
 		</div>
 		<div
@@ -99,7 +99,7 @@
 		</TresCanvas>
 
 		<div v-if="showLoading" class="absolute inset-0 flex items-center justify-center">
-			<div class="text-primary">Loading...</div>
+			<div class="text-[var(--color-text-default)]">Loading...</div>
 		</div>
 	</div>
 </template>
@@ -168,6 +168,11 @@ const props = withDefaults(
 		initialRotation?: number
 		animationConfig?: SkinPreviewAnimationConfig
 		armorPreview?: boolean
+		/**
+		 * Whether the preview draws the armour controls itself. A page that lays
+		 * them out alongside its own controls turns this off and hosts them.
+		 */
+		armorControls?: boolean
 	}>(),
 	{
 		variant: 'CLASSIC',
@@ -185,6 +190,7 @@ const props = withDefaults(
 			transitionDuration: 0.2,
 		}),
 		armorPreview: false,
+		armorControls: true,
 	},
 )
 
@@ -194,6 +200,7 @@ const slots = useSlots()
 const nametagText = computed(() => props.nametag)
 const hasSubtitle = computed(() => Boolean(slots.subtitle))
 const hasNametagBadge = computed(() => Boolean(slots['nametag-badge']))
+const showsArmorControls = computed(() => Boolean(props.armorPreview) && props.armorControls)
 const isSubtitleWrapped = ref(false)
 const selectedModelSrc = computed(() =>
 	props.variant === 'SLIM' ? SlimPlayerModel : ClassicPlayerModel,

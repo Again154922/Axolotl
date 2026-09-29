@@ -9,16 +9,18 @@
 			><XIcon />
 			{{ formatMessage(commonMessages.clearButton) }}
 		</Button>
-		<ButtonStyled v-if="showDelete" type="transparent" hover-color-fill="background" color="red">
-			<button
-				v-tooltip="deleteDisabled ? deleteDisabledTooltip : undefined"
-				:disabled="deleteDisabled"
-				@click="emit('delete')"
-			>
-				<TrashIcon />
-				{{ formatMessage(commonMessages.deleteLabel) }}
-			</button>
-		</ButtonStyled>
+		<Button
+			v-if="showDelete"
+			v-tooltip="deleteDisabled ? deleteDisabledTooltip : undefined"
+			type="quiet"
+			color="red"
+			interaction="filled"
+			:disabled="deleteDisabled"
+			@click="emit('delete')"
+		>
+			<TrashIcon />
+			{{ formatMessage(commonMessages.deleteLabel) }}
+		</Button>
 		<Button
 			v-if="hasLogs"
 			v-tooltip="shareDisabled ? shareDisabledTooltip : undefined"
@@ -48,7 +50,6 @@ import {
 } from '@modrinth/assets'
 
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import { defineMessages, useVIntl } from '#ui/composables/i18n'
 import { commonMessages } from '#ui/utils/common-messages'
 

@@ -21,9 +21,9 @@ import {
 } from '@modrinth/server'
 import {
 	Accordion,
-	ButtonStyled,
+	Button,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	injectNotificationManager,
 	type MessageDescriptor,
 	StyledInput,
@@ -606,31 +606,37 @@ defineExpose({ save, cancel, isDirty })
 		<div class="flex items-center justify-between gap-3">
 			<div class="flex min-w-0 items-center gap-2.5">
 				<div
-					class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-contrast"
+					class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-[var(--color-text-primary)]"
 				>
 					<FileTextIcon class="size-4" />
 				</div>
 				<div class="min-w-0">
-					<h3 class="m-0 truncate text-base font-semibold text-contrast">
+					<h3 class="m-0 truncate text-base font-semibold text-[var(--color-text-primary)]">
 						{{ formatMessage(messages.title) }}
 					</h3>
 				</div>
 			</div>
 			<div class="flex items-center gap-2">
-				<ButtonStyled :type="mode === 'form' ? 'highlight' : 'transparent'" size="small">
-					<button type="button" @click="switchMode('form')">
-						{{ formatMessage(messages.formMode) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled :type="mode === 'text' ? 'highlight' : 'transparent'" size="small">
-					<button type="button" @click="switchMode('text')">
-						{{ formatMessage(messages.textMode) }}
-					</button>
-				</ButtonStyled>
+				<Button
+					:type="mode === 'form' ? 'highlight' : 'quiet'"
+					size="2xs"
+					native-type="button"
+					@click="switchMode('form')"
+				>
+					{{ formatMessage(messages.formMode) }}
+				</Button>
+				<Button
+					:type="mode === 'text' ? 'highlight' : 'quiet'"
+					size="2xs"
+					native-type="button"
+					@click="switchMode('text')"
+				>
+					{{ formatMessage(messages.textMode) }}
+				</Button>
 			</div>
 		</div>
 
-		<p v-if="isMissing" class="m-0 text-secondary">
+		<p v-if="isMissing" class="m-0 text-[var(--color-text-tertiary)]">
 			{{ formatMessage(messages.missing) }}
 		</p>
 
@@ -647,18 +653,18 @@ defineExpose({ save, cancel, isDirty })
 					<template #button="{ open }">
 						<span class="flex min-w-0 flex-1 items-center gap-3">
 							<span
-								class="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-3 text-secondary transition-colors group-hover:text-primary"
+								class="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-3 text-[var(--color-text-tertiary)] transition-colors group-hover:text-[var(--color-text-default)]"
 							>
 								<component :is="section.icon" class="size-4" />
 							</span>
 							<span
-								class="min-w-0 flex-1 truncate text-sm font-semibold text-primary group-hover:text-contrast"
+								class="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--color-text-default)] group-hover:text-[var(--color-text-primary)]"
 							>
 								{{ formatMessage(section.title) }}
 							</span>
 						</span>
 						<DropdownIcon
-							class="ml-auto size-4 shrink-0 text-secondary transition-transform duration-300 group-hover:text-primary"
+							class="ml-auto size-4 shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-300 group-hover:text-[var(--color-text-default)]"
 							:class="open && 'rotate-180'"
 						/>
 					</template>
@@ -671,7 +677,7 @@ defineExpose({ save, cancel, isDirty })
 								class="flex min-h-9 min-w-0 items-center justify-between gap-3"
 							>
 								<label
-									class="truncate text-sm font-medium text-primary"
+									class="truncate text-sm font-medium text-[var(--color-text-default)]"
 									:for="`server-prop-${item.key}`"
 								>
 									<span v-tooltip="item.key">{{ fieldLabel(item.key) }}</span>
@@ -686,7 +692,7 @@ defineExpose({ save, cancel, isDirty })
 
 							<div v-else class="flex min-w-0 flex-col gap-1.5">
 								<label
-									class="truncate text-sm font-medium text-primary"
+									class="truncate text-sm font-medium text-[var(--color-text-default)]"
 									:for="`server-prop-${item.key}`"
 								>
 									<span v-tooltip="item.key">{{ fieldLabel(item.key) }}</span>
@@ -701,11 +707,10 @@ defineExpose({ save, cancel, isDirty })
 									@update:model-value="setFieldValue(item.key, $event)"
 								/>
 
-								<DropdownSelect
+								<Combobox
 									v-else-if="item.field.kind === 'enum'"
 									:model-value="item.value"
-									:options="item.field.options ?? []"
-									:name="`server-prop-${item.key}`"
+									:options="(item.field.options ?? []).map((value) => ({ value, label: value }))"
 									class="!w-full"
 									@update:model-value="setFieldValue(item.key, $event)"
 								/>

@@ -10,11 +10,11 @@ import GitGraphIcon from '@modrinth/assets/icons/git-graph.svg?component'
 import IssuesIcon from '@modrinth/assets/icons/issues.svg?component'
 import SearchIcon from '@modrinth/assets/icons/search.svg?component'
 import TrashIcon from '@modrinth/assets/icons/trash.svg?component'
+import { Combobox, type ComboboxOption } from '@modrinth/ui'
 import Accordion from '@modrinth/ui/src/components/base/Accordion.vue'
 import Avatar from '@modrinth/ui/src/components/base/Avatar.vue'
 import Button from '@modrinth/ui/src/components/base/buttons/Button.vue'
 import Checkbox from '@modrinth/ui/src/components/base/Checkbox.vue'
-import DropdownSelect from '@modrinth/ui/src/components/base/DropdownSelect.vue'
 import IntlFormatted from '@modrinth/ui/src/components/base/IntlFormatted.vue'
 import { defineMessages, useVIntl } from '@modrinth/ui/src/composables/i18n.ts'
 
@@ -34,7 +34,6 @@ interface UpdateServerDownloadMetadata {
 
 type OSType = 'Mac' | 'Windows' | 'Linux' | null
 type ReleaseChannel = 'release' | 'beta'
-const releaseChannelOptions: ReleaseChannel[] = ['release', 'beta']
 
 const downloadWindows = ref<HTMLAnchorElement | null>(null)
 const downloadMac = ref<HTMLAnchorElement | null>(null)
@@ -687,6 +686,17 @@ const messages = defineMessages({
 	},
 })
 
+const releaseChannelComboboxOptions = computed<ComboboxOption<ReleaseChannel>[]>(() => [
+	{
+		value: 'release',
+		label: formatMessage(messages.downloadChannelRelease),
+	},
+	{
+		value: 'beta',
+		label: formatMessage(messages.downloadChannelBeta),
+	},
+])
+
 const config = useRuntimeConfig()
 const siteUrl = config.public.siteUrl
 const canonicalUrl = `${siteUrl}/`
@@ -1115,21 +1125,12 @@ useHead(() => ({
 				<label id="download-channel-label" for="download-channel">
 					{{ formatMessage(messages.downloadChannelLabel) }}
 				</label>
-				<DropdownSelect
+				<Combobox
 					id="download-channel"
 					v-model="releaseChannel"
-					:options="releaseChannelOptions"
-					name="download-channel"
-					:display-name="
-						(channel) =>
-							formatMessage(
-								channel === 'release'
-									? messages.downloadChannelRelease
-									: messages.downloadChannelBeta,
-							)
-					"
+					class="w-full max-w-80"
+					:options="releaseChannelComboboxOptions"
 					aria-labelledby="download-channel-label"
-					auto-placement
 				/>
 				<div class="download-channel-version" aria-live="polite">
 					<span v-if="latestVersion">
@@ -1178,7 +1179,8 @@ useHead(() => ({
 					<div class="title">
 						<LinuxLogo />
 						<div class="flex">
-							{{ formatMessage(messages.linux) }}<span class="text-sm text-secondary">*</span>
+							{{ formatMessage(messages.linux)
+							}}<span class="text-sm text-[var(--color-text-tertiary)]">*</span>
 						</div>
 					</div>
 					<div class="description apple">
@@ -1192,7 +1194,7 @@ useHead(() => ({
 						<Accordion
 							class="mt-2 flex flex-col items-center"
 							content-class="flex flex-col items-start gap-2 mt-2 text-sm"
-							button-class="text-sm text-secondary bg-transparent p-0 w-fit text-left m-0 active:scale-[0.98] transition-transform"
+							button-class="text-sm text-[var(--color-text-tertiary)] bg-transparent p-0 w-fit text-left m-0 active:scale-[0.98] transition-transform"
 						>
 							<template #title="{ open }">
 								{{ formatMessage(open ? messages.hideOtherPackages : messages.showOtherPackages) }}
@@ -1200,18 +1202,28 @@ useHead(() => ({
 							<span class="grid grid-cols-[auto_1fr] gap-2 text-left text-orange"
 								><IssuesIcon class="mt-1" /> {{ formatMessage(messages.notRecommended) }}</span
 							>
-							<a v-if="linuxLinks.deb" :href="linuxLinks.deb" download="" class="text-primary">
+							<a
+								v-if="linuxLinks.deb"
+								:href="linuxLinks.deb"
+								download=""
+								class="text-[var(--color-text-default)]"
+							>
 								<DownloadIcon />
 								<span>{{ formatMessage(messages.downloadTheDEB) }}</span>
 							</a>
-							<span v-else class="download-unavailable text-primary">
+							<span v-else class="download-unavailable text-[var(--color-text-default)]">
 								{{ linkUnavailableLabel }}
 							</span>
-							<a v-if="linuxLinks.rpm" :href="linuxLinks.rpm" download="" class="text-primary">
+							<a
+								v-if="linuxLinks.rpm"
+								:href="linuxLinks.rpm"
+								download=""
+								class="text-[var(--color-text-default)]"
+							>
 								<DownloadIcon />
 								<span>{{ formatMessage(messages.downloadTheRPM) }}</span>
 							</a>
-							<span v-else class="download-unavailable text-primary">
+							<span v-else class="download-unavailable text-[var(--color-text-default)]">
 								{{ linkUnavailableLabel }}
 							</span>
 						</Accordion>
@@ -1244,7 +1256,7 @@ useHead(() => ({
 					</template>
 				</IntlFormatted>
 			</p>
-			<p class="max-w-[50rem] text-xs text-secondary">
+			<p class="max-w-[50rem] text-xs text-[var(--color-text-tertiary)]">
 				*<IntlFormatted :message-id="messages.linuxDisclaimer">
 					<template #issues-link="{ children }">
 						<a
@@ -1789,10 +1801,6 @@ useHead(() => ({
 			color: var(--landing-color-subheading);
 			margin: 0;
 		}
-
-		a {
-			text-decoration: underline;
-		}
 	}
 }
 
@@ -1890,10 +1898,6 @@ useHead(() => ({
 			color: var(--color-contrast);
 		}
 
-		:deep(.animated-dropdown) {
-			width: min(20rem, 100%);
-		}
-
 		p {
 			margin: 0;
 			color: var(--color-secondary);
@@ -1988,30 +1992,6 @@ useHead(() => ({
 					cursor: default;
 				}
 			}
-
-			:deep(.animated-dropdown) {
-				color: var(--color-brand);
-				width: 16rem;
-				white-space: nowrap;
-
-				.selected {
-					border: 1px solid var(--color-brand);
-					background-color: var(--color-accent-contrast);
-				}
-
-				.options {
-					border: 1px solid var(--color-brand);
-					border-radius: 0 0 var(--radius-md) var(--radius-md);
-				}
-
-				.option {
-					background-color: var(--color-accent-contrast);
-				}
-
-				.selected-option {
-					background-color: var(--color-brand);
-				}
-			}
 		}
 	}
 
@@ -2043,13 +2023,6 @@ useHead(() => ({
 				font-weight: 700;
 				text-decoration: underline;
 				text-underline-offset: 0.15rem;
-			}
-
-			a + a::before {
-				content: '·';
-				margin-right: 1rem;
-				color: var(--color-secondary);
-				font-weight: 400;
 			}
 		}
 	}
@@ -2197,11 +2170,11 @@ useHead(() => ({
 	}
 
 	.search-bar {
-		background: var(--color-raised-bg) !important;
+		background: var(--surface-3) !important;
 		border: 2px solid var(--color-brand) !important;
 
 		.mini-input {
-			background: var(--color-raised-bg) !important;
+			background: var(--surface-3) !important;
 			border: 2px solid var(--color-bg);
 		}
 	}

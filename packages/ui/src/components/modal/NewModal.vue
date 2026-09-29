@@ -36,7 +36,11 @@
 					>
 						<div class="flex text-wrap break-words items-center gap-3 min-w-0">
 							<slot name="title">
-								<span v-if="header" :id="headerId" class="text-2xl font-semibold text-contrast">
+								<span
+									v-if="header"
+									:id="headerId"
+									class="text-2xl font-semibold text-[var(--color-text-primary)]"
+								>
 									{{ header }}
 								</span>
 							</slot>
@@ -58,7 +62,7 @@
 						v-tooltip="closeLabel"
 						circular
 						icon-only
-						class="absolute top-4 right-4 z-10"
+						class="!absolute top-4 right-4 z-10"
 						:aria-label="closeLabel"
 						:disabled="disableClose"
 						@click="hide"
@@ -471,12 +475,6 @@ defineOptions({
 	&.noblur {
 		backdrop-filter: none;
 		filter: none;
-	}
-}
-
-.modrinth-parent__no-modal-blurs {
-	.modal-overlay {
-		backdrop-filter: none;
 	}
 }
 

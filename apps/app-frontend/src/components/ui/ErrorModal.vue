@@ -12,7 +12,7 @@ import {
 } from '@modrinth/assets'
 import {
 	Button,
-	ButtonStyled,
+	ButtonLink,
 	Collapsible,
 	commonMessages,
 	defineMessages,
@@ -480,11 +480,9 @@ async function exportLogs() {
 				</template>
 			</div>
 			<div class="flex items-center gap-2">
-				<ButtonStyled>
-					<a :href="supportLink" @click="errorModal.hide()">
-						<ChatIcon /> {{ formatMessage(messages.getSupport) }}
-					</a>
-				</ButtonStyled>
+				<ButtonLink :href="supportLink" @click="errorModal.hide()">
+					<ChatIcon /> {{ formatMessage(messages.getSupport) }}
+				</ButtonLink>
 				<Button :disabled="exportingLogs" @click="exportLogs"
 					><DownloadIcon /> {{ formatMessage(messages.exportLogs) }}
 				</Button>
@@ -501,12 +499,14 @@ async function exportLogs() {
 							class="flex items-center justify-between w-full bg-transparent border-0 py-4 cursor-pointer"
 							@click="errorCollapsed = !errorCollapsed"
 						>
-							<span class="flex items-center gap-2 text-contrast font-extrabold m-0">
+							<span
+								class="flex items-center gap-2 text-[var(--color-text-primary)] font-extrabold m-0"
+							>
 								<WrenchIcon class="h-4 w-4" />
 								{{ formatMessage(messages.debugInformation) }}
 							</span>
 							<DropdownIcon
-								class="h-5 w-5 text-secondary transition-transform"
+								class="h-5 w-5 text-[var(--color-text-tertiary)] transition-transform"
 								:class="{ 'rotate-180': !errorCollapsed }"
 							/>
 						</button>
@@ -539,12 +539,22 @@ async function exportLogs() {
 
 <style>
 .light-mode {
-	--color-orange-bg: rgba(255, 163, 71, 0.2);
+	--color-orange-bg-opaque: rgb(255 163 71);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
 }
 
 .dark-mode,
 .oled-mode {
-	--color-orange-bg: rgba(224, 131, 37, 0.2);
+	--color-orange-bg-opaque: rgb(224 131 37);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20, 20%),
+		transparent
+	);
 }
 </style>
 

@@ -129,7 +129,8 @@ watch(
 	aspect-ratio: 31 / 40;
 	border-color: var(--surface-4);
 	border-radius: var(--radius-xl);
-	background: var(--surface-3);
+	// Hosts that do not publish the card token keep the surface this painted before.
+	background: var(--surface-card, var(--surface-3));
 	isolation: isolate;
 	box-shadow:
 		0 1px 1px rgba(0, 0, 0, 0.25),

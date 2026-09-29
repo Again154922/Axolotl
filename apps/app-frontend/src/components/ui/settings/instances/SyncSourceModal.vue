@@ -6,8 +6,8 @@ import {
 	CheckCircleButton,
 	commonMessages,
 	defineMessages,
-	Input,
 	NewModal,
+	StyledInput,
 	useVIntl,
 } from '@modrinth/ui'
 import { computed, ref, useTemplateRef } from 'vue'
@@ -101,12 +101,14 @@ defineExpose({ show, hide })
 		:disable-close="pending"
 		:on-after-hide="() => emit('close')"
 	>
-		<p class="m-0 border-0 border-b border-solid border-surface-5 p-6 text-primary">
+		<p
+			class="m-0 border-0 border-b border-solid border-surface-5 p-6 text-[var(--color-text-default)]"
+		>
 			{{ description }}
 		</p>
 
 		<div class="flex h-[400px] flex-col gap-3 overflow-y-auto bg-surface-2 px-6 py-4">
-			<Input
+			<StyledInput
 				v-model="search"
 				:icon="SearchIcon"
 				type="search"
@@ -117,17 +119,17 @@ defineExpose({ show, hide })
 			/>
 
 			<div v-if="loading" class="flex flex-1 items-center justify-center" aria-busy="true">
-				<SpinnerIcon class="size-5 animate-spin text-secondary" />
+				<SpinnerIcon class="size-5 animate-spin text-[var(--color-text-tertiary)]" />
 			</div>
 			<div v-else-if="error" class="flex flex-1 flex-col items-center justify-center gap-3">
-				<p role="alert" class="m-0 text-center text-primary">
+				<p role="alert" class="m-0 text-center text-[var(--color-text-default)]">
 					{{ formatMessage(messages.loadError) }}
 				</p>
 				<Button @click="emit('retry')">{{ formatMessage(messages.retry) }}</Button>
 			</div>
 			<div
 				v-else-if="filteredSources.length === 0"
-				class="flex flex-1 items-center justify-center text-secondary"
+				class="flex flex-1 items-center justify-center text-[var(--color-text-tertiary)]"
 			>
 				{{ formatMessage(messages.empty) }}
 			</div>

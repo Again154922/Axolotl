@@ -31,7 +31,6 @@ import {
 	BrowsePageLayout,
 	BrowseSidebar,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	CreationFlowModal,
 	defineMessages,
@@ -3247,7 +3246,7 @@ provideBrowseManager({
 					</span>
 					<span
 						aria-hidden="true"
-						class="flex size-4 shrink-0 items-center justify-center text-secondary"
+						class="flex size-4 shrink-0 items-center justify-center text-[var(--color-text-tertiary)]"
 					>
 						<ChevronDownIcon class="size-4" />
 					</span>
@@ -3259,19 +3258,16 @@ provideBrowseManager({
 					</Button>
 					<template #menu>
 						<div class="flex w-min flex-col gap-1 p-1">
-							<ButtonStyled
+							<Button
 								v-for="option in sourceOptions"
 								:key="option.id"
-								:type="contentSource === option.id ? 'filled' : 'transparent'"
+								:type="contentSource === option.id ? 'colored' : 'quiet'"
+								class="flex w-full items-center gap-2 !justify-start text-left"
+								@click="selectContentSource(option.id)"
 							>
-								<button
-									class="flex w-full items-center gap-2 !justify-start text-left"
-									@click="selectContentSource(option.id)"
-								>
-									<component :is="option.icon" class="h-4 w-4" />
-									{{ formatMessage(option.label) }}
-								</button>
-							</ButtonStyled>
+								<component :is="option.icon" class="h-4 w-4" />
+								{{ formatMessage(option.label) }}
+							</Button>
 						</div>
 					</template>
 				</PopoutMenu>
@@ -3293,11 +3289,11 @@ provideBrowseManager({
 					aria-live="polite"
 				>
 					<SparklesIcon class="size-3.5 shrink-0 text-brand" />
-					<p class="m-0 text-secondary">
+					<p class="m-0 text-[var(--color-text-tertiary)]">
 						{{ formatMessage(messages.fuzzySearchPrefix, searchNotice) }}
 						<button
 							type="button"
-							class="font-medium text-contrast underline-offset-2 hover:text-brand hover:underline"
+							class="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:text-brand hover:underline"
 							@click="searchState.query.value = searchNotice.used"
 						>
 							{{ searchNotice.used }}

@@ -44,9 +44,10 @@
 								class="flex w-max items-center"
 							>
 								<button
-									class="bg-transparent active:scale-95 font-bold text-secondary p-0 w-max py-3 px-1"
+									class="bg-transparent active:scale-95 font-bold text-[var(--color-text-tertiary)] p-0 w-max py-3 px-1"
 									:class="{
-										'!text-contrast font-bold': resolveCtxFn(currentStage.id, context) === stage.id,
+										'!text-[var(--color-text-primary)] font-bold':
+											resolveCtxFn(currentStage.id, context) === stage.id,
 										'font-bold': resolveCtxFn(currentStage.id, context) !== stage.id,
 										'opacity-50 cursor-not-allowed': cannotNavigateToStage(index),
 									}"
@@ -57,7 +58,7 @@
 								</button>
 								<ChevronRightIcon
 									v-if="index < breadcrumbStages.length - 1"
-									class="h-5 w-5 text-secondary"
+									class="h-5 w-5 text-[var(--color-text-tertiary)]"
 									stroke-width="3"
 								/>
 							</div>
@@ -68,9 +69,11 @@
 						:class="showRightShadow ? 'opacity-100' : 'opacity-0'"
 					/>
 				</div>
-				<span v-else class="min-w-0 flex-1 text-lg font-bold text-contrast sm:text-xl">{{
-					resolvedTitle
-				}}</span>
+				<span
+					v-else
+					class="min-w-0 flex-1 text-lg font-bold text-[var(--color-text-primary)] sm:text-xl"
+					>{{ resolvedTitle }}</span
+				>
 			</div>
 		</template>
 
@@ -105,36 +108,37 @@
 					@click="cancelButton.onClick"
 					>{{ cancelButton.label }}
 				</Button>
-				<ButtonStyled v-if="rightButtonConfig" :color="rightButtonConfig.color">
-					<button
-						v-tooltip="rightButtonConfig.tooltip"
-						:data-onboarding-id="rightButtonConfig.onboardingId"
-						class="!shadow-none"
-						:class="rightButtonConfig.buttonClass"
-						:disabled="rightButtonConfig.disabled || rightButtonConfig.loading"
-						@click="rightButtonConfig.onClick"
-					>
-						<SpinnerIcon
-							v-if="rightButtonConfig.loading && rightButtonConfig.iconPosition === 'before'"
-							class="animate-spin"
-						/>
-						<component
-							:is="rightButtonConfig.icon"
-							v-else-if="rightButtonConfig.iconPosition === 'before'"
-							:class="rightButtonConfig.iconClass"
-						/>
-						{{ rightButtonConfig.label }}
-						<SpinnerIcon
-							v-if="rightButtonConfig.loading && rightButtonConfig.iconPosition === 'after'"
-							class="animate-spin"
-						/>
-						<component
-							:is="rightButtonConfig.icon"
-							v-else-if="rightButtonConfig.iconPosition === 'after'"
-							:class="rightButtonConfig.iconClass"
-						/>
-					</button>
-				</ButtonStyled>
+				<Button
+					v-if="rightButtonConfig"
+					v-tooltip="rightButtonConfig.tooltip"
+					:type="rightButtonConfig.color === 'standard' ? 'base' : 'colored'"
+					:color="rightButtonConfig.color === 'standard' ? undefined : rightButtonConfig.color"
+					:data-onboarding-id="rightButtonConfig.onboardingId"
+					:class="rightButtonConfig.buttonClass"
+					:disabled="rightButtonConfig.disabled"
+					:loading="rightButtonConfig.loading"
+					@click="rightButtonConfig.onClick"
+				>
+					<SpinnerIcon
+						v-if="rightButtonConfig.loading && rightButtonConfig.iconPosition === 'before'"
+						class="animate-spin"
+					/>
+					<component
+						:is="rightButtonConfig.icon"
+						v-else-if="rightButtonConfig.iconPosition === 'before'"
+						:class="rightButtonConfig.iconClass"
+					/>
+					{{ rightButtonConfig.label }}
+					<SpinnerIcon
+						v-if="rightButtonConfig.loading && rightButtonConfig.iconPosition === 'after'"
+						class="animate-spin"
+					/>
+					<component
+						:is="rightButtonConfig.icon"
+						v-else-if="rightButtonConfig.iconPosition === 'after'"
+						:class="rightButtonConfig.iconClass"
+					/>
+				</Button>
 			</div>
 		</template>
 	</NewModal>
@@ -142,17 +146,18 @@
 
 <script lang="ts">
 import { ChevronLeftIcon, ChevronRightIcon, SpinnerIcon } from '@modrinth/assets'
-import { ButtonStyled, commonMessages, NewModal, useVIntl } from '@modrinth/ui'
+import { commonMessages, NewModal, useVIntl } from '@modrinth/ui'
 import type { Component } from 'vue'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import Button from '#ui/components/base/buttons/Button.vue'
+import type { ButtonColor } from '#ui/components/base/buttons/types'
 
 export interface StageButtonConfig {
 	label?: string
 	icon?: Component | null
 	iconPosition?: 'before' | 'after'
-	color?: InstanceType<typeof ButtonStyled>['$props']['color']
+	color?: ButtonColor | 'standard'
 	disabled?: boolean
 	loading?: boolean
 	tooltip?: string
@@ -444,11 +449,11 @@ progress::-webkit-progress-bar {
 }
 
 progress::-webkit-progress-value {
-	@apply bg-contrast;
+	@apply bg-[var(--color-text-primary)];
 }
 
 progress::-moz-progress-bar {
-	@apply bg-contrast;
+	@apply bg-[var(--color-text-primary)];
 }
 
 .scrollbar-hide {

@@ -10,7 +10,6 @@ import {
 import {
 	Avatar,
 	Button,
-	ButtonStyled,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,
@@ -207,8 +206,8 @@ onUnmounted(() => unlisten())
 			class="grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-2 rounded-lg transition-colors"
 			:class="
 				flat
-					? 'px-2 py-2 hover:bg-button-bg'
-					: 'card-shadow bg-bg-raised p-3 pl-4 hover:brightness-90'
+					? 'px-2 py-2 hover:bg-surface-4'
+					: 'card-shadow bg-surface-2 p-3 pl-4 hover:brightness-90'
 			"
 			@click="seeInstance"
 			@mouseenter="checkProcess"
@@ -220,7 +219,9 @@ onUnmounted(() => unlisten())
 				:loader="instance.loader"
 				:alt="instance.name"
 			/>
-			<div class="h-full flex items-center font-bold text-contrast leading-normal">
+			<div
+				class="h-full flex items-center font-bold text-[var(--color-text-primary)] leading-normal"
+			>
 				<span class="line-clamp-2">{{ instance.name }}</span>
 			</div>
 			<div class="flex items-center">
@@ -243,23 +244,28 @@ onUnmounted(() => unlisten())
 					disabled
 					><SpinnerIcon class="animate-spin" />
 				</Button>
-				<ButtonStyled v-else :color="first ? 'brand' : 'standard'" circular>
-					<button
-						v-tooltip="
-							offline && !installed
-								? formatMessage(messages.offlineInstalledOnly)
-								: formatMessage(commonMessages.playButton)
-						"
-						:disabled="offline && !installed"
-						@click="(e) => play(e, 'InstanceCard')"
-						@mousehover="checkProcess"
-					>
-						<!-- Translate for optical centering -->
-						<PlayIcon class="translate-x-[1px]" />
-					</button>
-				</ButtonStyled>
+				<Button
+					v-else
+					v-tooltip="
+						offline && !installed
+							? formatMessage(messages.offlineInstalledOnly)
+							: formatMessage(commonMessages.playButton)
+					"
+					:type="first ? 'colored' : 'base'"
+					:color="first ? 'brand' : undefined"
+					circular
+					icon-only
+					:disabled="offline && !installed"
+					@click="(e) => play(e, 'InstanceCard')"
+					@mousehover="checkProcess"
+				>
+					<!-- Translate for optical centering -->
+					<PlayIcon class="translate-x-[1px]" />
+				</Button>
 			</div>
-			<div class="flex items-center col-span-3 gap-1 text-secondary font-semibold">
+			<div
+				class="flex items-center col-span-3 gap-1 text-[var(--color-text-tertiary)] font-semibold"
+			>
 				<TimerIcon />
 				<span class="text-sm">
 					<template v-if="instance.last_played">
@@ -295,7 +301,7 @@ onUnmounted(() => unlisten())
 				/>
 				<div
 					v-if="modLoading || installing"
-					class="pointer-events-none absolute inset-0 flex items-center justify-center bg-surface-1/30"
+					class="instance-loading-overlay pointer-events-none absolute inset-0 flex items-center justify-center"
 				>
 					<SpinnerIcon
 						v-tooltip="
@@ -303,7 +309,7 @@ onUnmounted(() => unlisten())
 								? formatMessage(messages.loading)
 								: formatMessage(commonMessages.installingLabel)
 						"
-						class="size-[30%] animate-spin text-contrast"
+						class="size-[30%] animate-spin text-[var(--color-text-primary)]"
 						tabindex="-1"
 					/>
 				</div>
@@ -361,10 +367,14 @@ onUnmounted(() => unlisten())
 				</div>
 			</div>
 			<div class="flex w-full min-w-0 flex-col items-start justify-center gap-1 px-0.5">
-				<p class="m-0 w-full truncate text-base font-semibold leading-5 text-contrast">
+				<p
+					class="m-0 w-full truncate text-base font-semibold leading-5 text-[var(--color-text-primary)]"
+				>
 					{{ instance.name }}
 				</p>
-				<p class="m-0 w-full truncate text-sm font-medium capitalize leading-[18px] text-primary">
+				<p
+					class="m-0 w-full truncate text-sm font-medium capitalize leading-[18px] text-[var(--color-text-default)]"
+				>
 					{{ instance.loader }} {{ instance.game_version }}
 				</p>
 			</div>
@@ -375,8 +385,8 @@ onUnmounted(() => unlisten())
 			class="button-base flex gap-3 group"
 			:class="
 				flat
-					? 'rounded-lg bg-transparent px-2 py-2 hover:bg-button-bg'
-					: 'rounded-xl bg-bg-raised p-4'
+					? 'rounded-lg bg-transparent px-2 py-2 hover:bg-surface-4'
+					: 'rounded-xl bg-surface-2 p-4'
 			"
 			@click="seeInstance"
 			@mouseenter="checkProcess"
@@ -448,10 +458,14 @@ onUnmounted(() => unlisten())
 				</div>
 			</div>
 			<div class="flex flex-col gap-1">
-				<p class="m-0 text-md font-bold text-contrast leading-tight line-clamp-1">
+				<p
+					class="m-0 text-md font-bold text-[var(--color-text-primary)] leading-tight line-clamp-1"
+				>
 					{{ instance.name }}
 				</p>
-				<div class="flex items-center col-span-3 gap-1 text-secondary font-semibold mt-auto">
+				<div
+					class="flex items-center col-span-3 gap-1 text-[var(--color-text-tertiary)] font-semibold mt-auto"
+				>
 					<GameIcon class="shrink-0" />
 					<span class="text-sm capitalize">
 						{{ instance.loader }} {{ instance.game_version }}
@@ -461,3 +475,9 @@ onUnmounted(() => unlisten())
 		</div>
 	</div>
 </template>
+
+<style scoped>
+.instance-loading-overlay {
+	background-color: color-mix(in srgb, var(--surface-1) var(--opacity-ratio-keep-30), transparent);
+}
+</style>

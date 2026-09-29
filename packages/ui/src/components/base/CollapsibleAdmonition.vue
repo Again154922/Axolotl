@@ -3,7 +3,7 @@
 		<div
 			v-if="!dismissed"
 			:data-type="type"
-			class="collapsible-admonition flex flex-col rounded-2xl border border-solid text-contrast overflow-hidden"
+			class="collapsible-admonition flex flex-col rounded-2xl border border-solid text-[var(--color-text-primary)] overflow-hidden"
 		>
 			<div
 				class="flex w-full cursor-pointer items-center gap-6 p-4"
@@ -12,29 +12,32 @@
 			>
 				<div class="flex flex-1 items-center gap-3">
 					<TriangleAlertIcon :class="['h-5 w-5 flex-none', iconClasses[type]]" />
-					<span class="text-base font-semibold text-contrast">
+					<span class="text-base font-semibold text-[var(--color-text-primary)]">
 						<slot name="header">{{ header }}</slot>
 					</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<ButtonStyled circular type="highlight-colored-text" :color="buttonColors[type]">
-						<button aria-label="Toggle" @click.stop="expanded = !expanded">
-							<ChevronDownIcon
-								class="h-4 w-4 transition-transform duration-300"
-								:class="expanded && 'rotate-180'"
-							/>
-						</button>
-					</ButtonStyled>
-					<ButtonStyled
-						v-if="dismissible"
-						circular
-						type="highlight-colored-text"
+					<IconButton
+						label="Toggle"
+						type="chip-text"
 						:color="buttonColors[type]"
+						:aria-expanded="expanded"
+						@click.stop="expanded = !expanded"
 					>
-						<button aria-label="Dismiss" @click.stop="handleDismiss">
-							<XIcon class="h-4 w-4" />
-						</button>
-					</ButtonStyled>
+						<ChevronDownIcon
+							class="h-4 w-4 transition-transform duration-300"
+							:class="expanded && 'rotate-180'"
+						/>
+					</IconButton>
+					<IconButton
+						v-if="dismissible"
+						label="Dismiss"
+						type="chip-text"
+						:color="buttonColors[type]"
+						@click.stop="handleDismiss"
+					>
+						<XIcon class="h-4 w-4" />
+					</IconButton>
 				</div>
 			</div>
 
@@ -49,7 +52,7 @@
 							:key="index"
 							class="collapsible-admonition__item collapsible-admonition__item--bordered flex flex-col gap-1 p-4"
 						>
-							<p class="m-0 text-base font-semibold text-contrast">
+							<p class="m-0 text-base font-semibold text-[var(--color-text-primary)]">
 								{{ item.title }}
 							</p>
 							<div
@@ -58,7 +61,7 @@
 								class="flex items-start gap-1.5"
 							>
 								<LightBulbIcon :class="['mt-0.5 h-5 w-5 flex-none', iconClasses[type]]" />
-								<span class="text-base text-contrast/85">{{ desc }}</span>
+								<span class="text-base text-[var(--color-text-primary)]/85">{{ desc }}</span>
 							</div>
 						</div>
 					</slot>
@@ -72,7 +75,7 @@
 import { ChevronDownIcon, LightBulbIcon, TriangleAlertIcon, XIcon } from '@modrinth/assets'
 import { ref } from 'vue'
 
-import ButtonStyled from './ButtonStyled.vue'
+import IconButton from './buttons/IconButton.vue'
 
 export interface CollapsibleAdmonitionItem {
 	title: string
@@ -130,51 +133,55 @@ const buttonColors: Record<string, 'blue' | 'orange' | 'red' | 'green'> = {
 
 <style scoped>
 .collapsible-admonition[data-type='critical'] {
-	border-color: color-mix(in srgb, var(--color-red) 60%, transparent);
+	border-color: color-mix(in srgb, var(--color-red) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='critical'] .collapsible-admonition__item {
-	background: color-mix(in srgb, var(--color-red) 10%, transparent);
+	background: var(--color-red-bg);
 }
 
 .collapsible-admonition[data-type='critical'] .collapsible-admonition__item--bordered {
-	border-top: 1px solid color-mix(in srgb, var(--color-red) 60%, transparent);
+	border-top: 1px solid
+		color-mix(in srgb, var(--color-red) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='info'] {
-	border-color: color-mix(in srgb, var(--color-blue) 60%, transparent);
+	border-color: color-mix(in srgb, var(--color-blue) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='info'] .collapsible-admonition__item {
-	background: color-mix(in srgb, var(--color-blue) 10%, transparent);
+	background: var(--color-blue-bg);
 }
 
 .collapsible-admonition[data-type='info'] .collapsible-admonition__item--bordered {
-	border-top: 1px solid color-mix(in srgb, var(--color-blue) 60%, transparent);
+	border-top: 1px solid
+		color-mix(in srgb, var(--color-blue) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='warning'] {
-	border-color: color-mix(in srgb, var(--color-orange) 60%, transparent);
+	border-color: color-mix(in srgb, var(--color-orange) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='warning'] .collapsible-admonition__item {
-	background: color-mix(in srgb, var(--color-orange) 10%, transparent);
+	background: var(--color-orange-bg);
 }
 
 .collapsible-admonition[data-type='warning'] .collapsible-admonition__item--bordered {
-	border-top: 1px solid color-mix(in srgb, var(--color-orange) 60%, transparent);
+	border-top: 1px solid
+		color-mix(in srgb, var(--color-orange) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='success'] {
-	border-color: color-mix(in srgb, var(--color-green) 60%, transparent);
+	border-color: color-mix(in srgb, var(--color-green) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition[data-type='success'] .collapsible-admonition__item {
-	background: color-mix(in srgb, var(--color-green) 10%, transparent);
+	background: var(--color-green-bg);
 }
 
 .collapsible-admonition[data-type='success'] .collapsible-admonition__item--bordered {
-	border-top: 1px solid color-mix(in srgb, var(--color-green) 60%, transparent);
+	border-top: 1px solid
+		color-mix(in srgb, var(--color-green) var(--opacity-ratio-keep-60), transparent);
 }
 
 .collapsible-admonition-enter-active,

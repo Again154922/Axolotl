@@ -10,24 +10,10 @@ import {
 } from './visual-harness'
 
 /**
- * Pins the shared `ProgressBar`'s rendered geometry and colour before the
- * app-local `apps/app-frontend/src/components/ui/ProgressBar.vue` is migrated
- * onto it.
- *
- * The two components are not interchangeable by signature, so the migration
- * cannot be mechanical and a silent visual change is the real risk:
- *
- * - shared: `progress` is a **fraction** of a separate `max` (default `1`), so
- *   half-filled is `:progress="0.5"` or `:progress="50" :max="100"`.
- * - app-local: `progress` is a **0-100 percentage** with no `max`, so the same
- *   half-filled bar is `:progress="50"`.
- *
- * The group below spells the app-local number out as a shared prop pair
- * (`{ progress: 50, max: 100 }`) and asserts it renders identically to the
- * fraction (`{ progress: 0.5, max: 1 }`) — that equivalence *is* the migration
- * recipe, verified rather than described. The app-local component is not
- * imported here: it lives in the desktop app, which this platform-agnostic
- * package must not depend on.
+ * Pins the shared `ProgressBar`'s value contract, rendered geometry, and colour.
+ * `progress` and `max` use the same units: ratios (`0.5/1`), percentages
+ * (`50/100`), and natural units (`256/512`) are equivalent. Values are safely
+ * normalized before reaching CSS or ARIA.
  *
  * Everything asserted is measured off a real browser layout (the track and its
  * filled child are positioned by `getBoundingClientRect`), not read back from
@@ -37,10 +23,7 @@ import {
 
 const COLORS = ['brand', 'green', 'red', 'orange', 'blue', 'purple', 'gray'] as const
 
-/**
- * The same visual state, written in each API. `{ progress: 50, max: 100 }` is
- * the shape an app-local `progress: 50` call site becomes.
- */
+/** The same visual state expressed as ratios, percentage pairs, and natural units. */
 const SAME_VISUAL_STATE = [
 	{
 		ratio: 0,
@@ -62,6 +45,7 @@ const SAME_VISUAL_STATE = [
 		spellings: [
 			{ progress: 0.5, max: 1 },
 			{ progress: 50, max: 100 },
+			{ progress: 256, max: 512 },
 		],
 	},
 	{
@@ -81,7 +65,7 @@ const SAME_VISUAL_STATE = [
 	},
 ]
 
-/** The app-local component is also `h-2`, so the bar height is part of the contract. */
+/** The shared component's stable track height. */
 const TRACK_HEIGHT_PX = 8
 
 async function settle(): Promise<void> {
@@ -101,8 +85,8 @@ async function measure(props: Record<string, unknown>, theme: Theme = 'dark') {
 		trackWidth: trackBox.width,
 		trackHeight: trackBox.height,
 		fillWidth: fillBox.width,
-		// The filled proportion is what a migration has to preserve; reading it
-		// off the boxes means a component that ignores `progress` fails here.
+		// Reading the proportion from layout means a component that ignores or
+		// unsafely normalizes `progress` fails here.
 		ratio: trackBox.width === 0 ? 0 : fillBox.width / trackBox.width,
 		fillColor: getComputedStyle(fill).backgroundColor,
 		ariaValueNow: track.getAttribute('aria-valuenow'),
@@ -194,10 +178,7 @@ describe('progress bar mapping', () => {
 			}
 		})
 
-		it('reports the proportion as the 0-100 percentage the app-local API takes', async () => {
-			// The app-local `progress` is a whole percentage, so the number the
-			// shared component publishes must be that same 0-100 value, not the
-			// fraction — otherwise every migrated call site is off by 100x.
+		it('reports the normalized proportion as a 0-100 ARIA value', async () => {
 			for (const { progress, max } of [
 				{ progress: 0.5, max: 1 },
 				{ progress: 50, max: 100 },
@@ -210,7 +191,7 @@ describe('progress bar mapping', () => {
 			}
 		})
 
-		it('shows the same percentage in the optional label', async () => {
+		it('shows the same percentage in the optional display', async () => {
 			const wrapper = await mountThemed(
 				ProgressBar,
 				{ progress: 0.4, max: 1, showProgress: true },
@@ -219,6 +200,46 @@ describe('progress bar mapping', () => {
 			await settle()
 
 			expect((wrapper.element as HTMLElement).textContent?.trim()).toBe('40%')
+			wrapper.unmount()
+		})
+
+		it('clamps invalid and out-of-range values before rendering CSS or ARIA', async () => {
+			for (const { progress, max, expectedRatio, expectedAria } of [
+				{ progress: -25, max: 100, expectedRatio: 0, expectedAria: '0' },
+				{ progress: 125, max: 100, expectedRatio: 1, expectedAria: '100' },
+				{ progress: 1, max: 0, expectedRatio: 0, expectedAria: '0' },
+				{ progress: Number.NaN, max: 100, expectedRatio: 0, expectedAria: '0' },
+				{ progress: Number.POSITIVE_INFINITY, max: 100, expectedRatio: 0, expectedAria: '0' },
+				{ progress: 50, max: Number.NaN, expectedRatio: 0, expectedAria: '0' },
+				{ progress: 50, max: Number.POSITIVE_INFINITY, expectedRatio: 0, expectedAria: '0' },
+			]) {
+				const bar = await measure({ progress, max })
+
+				expect(bar.ratio).toBe(expectedRatio)
+				expect(bar.ariaValueNow).toBe(expectedAria)
+			}
+		})
+
+		it('keeps waiting progress indeterminate and suppresses numeric display', async () => {
+			const wrapper = await mountThemed(
+				ProgressBar,
+				{
+					progress: 75,
+					max: 100,
+					waiting: true,
+					showProgress: true,
+					label: 'Preparing files',
+					ariaLabel: 'Installation progress',
+				},
+				'dark',
+			)
+			await settle()
+
+			const track = wrapper.element.querySelector('[role="progressbar"]') as HTMLElement
+			expect(track.hasAttribute('aria-valuenow')).toBe(false)
+			expect(track.getAttribute('aria-label')).toBe('Installation progress')
+			expect((wrapper.element as HTMLElement).textContent).toContain('Preparing files')
+			expect((wrapper.element as HTMLElement).textContent).not.toContain('75%')
 			wrapper.unmount()
 		})
 	})

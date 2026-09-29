@@ -60,7 +60,7 @@
 				</div>
 				<div
 					v-else
-					class="flex w-full flex-col gap-3 overflow-hidden rounded-2xl bg-bg-raised shadow-xl border-surface-5 border-solid border p-4"
+					class="flex w-full flex-col gap-3 overflow-hidden rounded-2xl bg-surface-3 shadow-xl border-surface-5 border-solid border p-4"
 				>
 					<div class="flex flex-col gap-2 w-full">
 						<div class="flex items-center justify-between gap-2.5">
@@ -68,7 +68,7 @@
 								<component
 									:is="item.titleLogo"
 									v-if="item.titleLogo"
-									class="h-7 w-auto min-w-0 max-w-full text-contrast"
+									class="h-7 w-auto min-w-0 max-w-full text-[var(--color-text-primary)]"
 								/>
 								<template v-else>
 									<div
@@ -77,7 +77,7 @@
 											'text-red': item.type === 'error',
 											'text-orange': item.type === 'warning',
 											'text-green': item.type === 'download',
-											'text-contrast': item.type === 'success',
+											'text-[var(--color-text-primary)]': item.type === 'success',
 											'text-blue':
 												!item.type ||
 												!['error', 'warning', 'success', 'download'].includes(item.type),
@@ -89,7 +89,7 @@
 										<XCircleIcon v-else-if="item.type === 'error'" class="h-5 w-5" />
 										<InfoIcon v-else class="h-5 w-5" />
 									</div>
-									<div class="text-contrast font-semibold m-0 grow">
+									<div class="text-[var(--color-text-primary)] font-semibold m-0 grow">
 										{{ item.title }}
 									</div>
 								</template>
@@ -98,7 +98,7 @@
 								><XIcon />
 							</Button>
 						</div>
-						<span v-if="item.text" class="text-primary">
+						<span v-if="item.text" class="text-[var(--color-text-default)]">
 							{{ item.text }}
 						</span>
 						<component
@@ -113,7 +113,7 @@
 							:key="progressItem.id"
 							class="flex flex-col gap-2"
 						>
-							<div class="text-contrast truncate">
+							<div class="text-[var(--color-text-primary)] truncate">
 								{{ progressItem.title }}
 							</div>
 							<ProgressBar
@@ -124,7 +124,10 @@
 								:gradient-border="false"
 								full-width
 							/>
-							<div v-if="progressItem.text" class="text-sm text-secondary truncate">
+							<div
+								v-if="progressItem.text"
+								class="text-sm text-[var(--color-text-tertiary)] truncate"
+							>
 								{{ progressItem.text }}
 							</div>
 						</div>
@@ -148,16 +151,20 @@
 							@click="handleErrorAction(item)"
 							><DownloadIcon /> {{ errorActionLabel || formatMessage(messages.exportErrorLogs) }}
 						</Button>
-						<ButtonStyled
+						<Button
 							v-for="(btn, idx) in item.buttons"
 							:key="idx"
-							:color="btn.color || (idx === 0 ? 'brand' : undefined)"
+							:type="resolvedButtonColor(btn.color, idx) === 'standard' ? 'base' : 'colored'"
+							:color="
+								resolvedButtonColor(btn.color, idx) === 'standard'
+									? undefined
+									: resolvedButtonColor(btn.color, idx)
+							"
+							@click="handleButtonClick(item.id, btn)"
 						>
-							<button @click="handleButtonClick(item.id, btn)">
-								<component :is="btn.icon" v-if="btn.icon" />
-								{{ btn.label }}
-							</button>
-						</ButtonStyled>
+							<component :is="btn.icon" v-if="btn.icon" />
+							{{ btn.label }}
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -186,7 +193,6 @@ import {
 	type PopupNotificationProgressItem,
 } from '../../providers'
 import Button from '../base/buttons/Button.vue'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import ProgressBar from '../base/ProgressBar.vue'
 import NotificationToast from '../notifications/NotificationToast.vue'
 
@@ -279,6 +285,10 @@ async function handleProgressItemButtonClick(
 	if (!btn.keepOpen) {
 		await progressItem.onDismiss?.()
 	}
+}
+
+function resolvedButtonColor(color: PopupNotificationButton['color'], index: number) {
+	return color ?? (index === 0 ? 'brand' : 'standard')
 }
 
 async function handleButtonClick(id: string | number, btn: PopupNotificationButton) {

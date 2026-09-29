@@ -30,7 +30,9 @@ html.accent-pink.light-mode {
 	--color-text-default: #493944;
 	--color-text-tertiary: #75616e;
 	--color-pink: #c72f6c;
-	--color-pink-highlight: rgb(199 47 108 / 14%);
+	--color-pink-highlight-opaque: rgb(199 47 108);
+	--color-pink-highlight: color-mix(in srgb, var(--color-pink-highlight-opaque) 14%, transparent);
+	--color-brand-highlight: color-mix(in srgb, var(--color-pink-highlight-opaque) 14%, transparent);
 	--color-brand-shadow: rgb(199 47 108 / 30%);
 	--landing-color-heading: #281b24;
 	--landing-color-subheading: #65515e;
@@ -48,7 +50,9 @@ html.accent-pink.dark-mode {
 	--color-text-default: #ddd3da;
 	--color-text-tertiary: #aa9ca6;
 	--color-pink: #ff82b2;
-	--color-pink-highlight: rgb(255 130 178 / 18%);
+	--color-pink-highlight-opaque: rgb(255 130 178);
+	--color-pink-highlight: color-mix(in srgb, var(--color-pink-highlight-opaque) 18%, transparent);
+	--color-brand-highlight: color-mix(in srgb, var(--color-pink-highlight-opaque) 18%, transparent);
 	--color-brand-shadow: rgb(255 130 178 / 30%);
 	--landing-color-heading: #fff8fc;
 	--landing-color-subheading: #bdb0ba;
@@ -58,7 +62,9 @@ html.accent-pink.dark-mode {
 
 html.accent-pink.oled-mode {
 	--color-pink: #ff82b2;
-	--color-pink-highlight: rgb(255 130 178 / 18%);
+	--color-pink-highlight-opaque: rgb(255 130 178);
+	--color-pink-highlight: color-mix(in srgb, var(--color-pink-highlight-opaque) 18%, transparent);
+	--color-brand-highlight: color-mix(in srgb, var(--color-pink-highlight-opaque) 18%, transparent);
 	--color-brand-shadow: rgb(255 130 178 / 30%);
 }
 

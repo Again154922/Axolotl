@@ -29,10 +29,9 @@ import {
 import {
 	Admonition,
 	Button,
-	ButtonStyled,
 	Checkbox,
+	Combobox,
 	defineMessages,
-	DropdownSelect,
 	injectNotificationManager,
 	type MessageDescriptor,
 	PopoutMenu,
@@ -2301,10 +2300,10 @@ function clampWorldCoordinate(value: number) {
 	<main class="seed-map-page mx-auto flex h-full min-h-0 w-full max-w-[110rem] flex-col gap-3 p-4">
 		<header class="flex min-h-9 items-center justify-between gap-3">
 			<div class="min-w-0">
-				<h1 class="m-0 truncate text-xl font-bold text-contrast">
+				<h1 class="m-0 truncate text-xl font-bold text-[var(--color-text-primary)]">
 					{{ formatMessage(messages.title) }}
 				</h1>
-				<p class="m-0 truncate text-xs text-secondary">
+				<p class="m-0 truncate text-xs text-[var(--color-text-tertiary)]">
 					{{ editionLabel(workspace.edition) }} {{ workspace.gameVersion }} ·
 					{{ dimensionLabel(workspace.dimension) }}
 				</p>
@@ -2330,21 +2329,18 @@ function clampWorldCoordinate(value: number) {
 				<div class="control-group seed-map-edition">
 					<span class="control-label">{{ formatMessage(messages.edition) }}</span>
 					<div class="seed-map-dropdown min-w-0">
-						<DropdownSelect
+						<Combobox
 							v-model="workspace.edition"
-							:options="editionOptions"
-							:display-name="editionLabel"
-							name="Seed map edition"
+							:options="editionOptions.map((value) => ({ value, label: editionLabel(value) }))"
 						/>
 					</div>
 				</div>
 				<div class="control-group seed-map-version">
 					<span class="control-label">{{ formatMessage(messages.gameVersion) }}</span>
 					<div class="seed-map-dropdown min-w-0">
-						<DropdownSelect
+						<Combobox
 							v-model="workspace.gameVersion"
-							:options="availableVersions"
-							name="Seed map version"
+							:options="availableVersions.map((value) => ({ value, label: value }))"
 						/>
 					</div>
 				</div>
@@ -2366,62 +2362,63 @@ function clampWorldCoordinate(value: number) {
 							@click="randomizeSeed"
 							><RefreshCwIcon />
 						</Button>
-						<ButtonStyled circular type="outlined">
-							<PopoutMenu
-								:aria-label="formatMessage(messages.history)"
-								dropdown-class="seed-map-history-popout"
-								placement="bottom-end"
-							>
-								<HistoryIcon />
-								<template #menu>
-									<div class="seed-history-menu">
-										<div class="seed-history-heading">
-											<strong>{{ formatMessage(messages.history) }}</strong>
-											<ButtonStyled size="small" type="transparent">
-												<button :disabled="historyEntries.length === 0" @click="clearHistory">
-													{{ formatMessage(messages.clearHistory) }}
-												</button>
-											</ButtonStyled>
-										</div>
-										<p v-if="historyEntries.length === 0" class="seed-history-empty">
-											{{ formatMessage(messages.historyEmpty) }}
-										</p>
-										<div v-else class="seed-history-list">
-											<div v-for="entry in historyEntries" :key="entry.id" class="seed-history-row">
-												<button class="seed-history-load" @click="applyHistoryEntry(entry)">
-													<span class="seed-history-seed">{{ entry.seed }}</span>
-													<span class="seed-history-meta">
-														<template v-if="entry.gameVersion">{{ entry.gameVersion }} · </template>
-														<template v-if="entry.edition === 'java-large-biomes'"
-															>{{ formatMessage(messages.javaLargeBiomes) }} · </template
-														>{{ historySourceLabel(entry) }} ·
-														{{ formatRelativeTime(new Date(entry.lastViewedAt).toISOString())
-														}}<span
-															v-if="entry.completedFeatures.length + entry.completedOres.length > 0"
-															class="seed-history-progress"
-															>✓
-															{{
-																entry.completedFeatures.length + entry.completedOres.length
-															}}</span
-														>
-													</span>
-												</button>
-												<ButtonStyled circular size="small" type="transparent">
-													<button
-														v-tooltip="formatMessage(messages.removeHistoryEntry)"
-														class="seed-history-remove"
-														:aria-label="formatMessage(messages.removeHistoryEntry)"
-														@click="removeHistory(entry.id)"
+						<PopoutMenu
+							:aria-label="formatMessage(messages.history)"
+							dropdown-class="seed-map-history-popout"
+							placement="bottom-end"
+						>
+							<HistoryIcon />
+							<template #menu>
+								<div class="seed-history-menu">
+									<div class="seed-history-heading">
+										<strong>{{ formatMessage(messages.history) }}</strong>
+										<Button
+											size="2xs"
+											type="quiet"
+											:disabled="historyEntries.length === 0"
+											@click="clearHistory"
+										>
+											{{ formatMessage(messages.clearHistory) }}
+										</Button>
+									</div>
+									<p v-if="historyEntries.length === 0" class="seed-history-empty">
+										{{ formatMessage(messages.historyEmpty) }}
+									</p>
+									<div v-else class="seed-history-list">
+										<div v-for="entry in historyEntries" :key="entry.id" class="seed-history-row">
+											<button class="seed-history-load" @click="applyHistoryEntry(entry)">
+												<span class="seed-history-seed">{{ entry.seed }}</span>
+												<span class="seed-history-meta">
+													<template v-if="entry.gameVersion">{{ entry.gameVersion }} · </template>
+													<template v-if="entry.edition === 'java-large-biomes'"
+														>{{ formatMessage(messages.javaLargeBiomes) }} · </template
+													>{{ historySourceLabel(entry) }} ·
+													{{ formatRelativeTime(new Date(entry.lastViewedAt).toISOString())
+													}}<span
+														v-if="entry.completedFeatures.length + entry.completedOres.length > 0"
+														class="seed-history-progress"
+														>✓
+														{{ entry.completedFeatures.length + entry.completedOres.length }}</span
 													>
-														<TrashIcon />
-													</button>
-												</ButtonStyled>
-											</div>
+												</span>
+											</button>
+											<Button
+												v-tooltip="formatMessage(messages.removeHistoryEntry)"
+												circular
+												icon-only
+												size="2xs"
+												type="quiet"
+												class="seed-history-remove"
+												:label="formatMessage(messages.removeHistoryEntry)"
+												@click="removeHistory(entry.id)"
+											>
+												<TrashIcon />
+											</Button>
 										</div>
 									</div>
-								</template>
-							</PopoutMenu>
-						</ButtonStyled>
+								</div>
+							</template>
+						</PopoutMenu>
 						<Button
 							v-tooltip="formatMessage(messages.importFromInstance)"
 							type="outlined"
@@ -2441,21 +2438,18 @@ function clampWorldCoordinate(value: number) {
 						role="group"
 						:aria-label="formatMessage(messages.dimension)"
 					>
-						<ButtonStyled
+						<Button
 							v-for="dimension in dimensions"
 							:key="dimension"
-							size="small"
-							:type="workspace.dimension === dimension ? 'standard' : 'transparent'"
-							:color="workspace.dimension === dimension ? 'brand' : 'standard'"
+							size="2xs"
+							:type="workspace.dimension === dimension ? 'colored' : 'quiet'"
+							:color="workspace.dimension === dimension ? 'brand' : undefined"
+							class="dimension-option"
+							:aria-pressed="workspace.dimension === dimension"
+							@click="workspace.dimension = dimension"
 						>
-							<button
-								class="dimension-option"
-								:aria-pressed="workspace.dimension === dimension"
-								@click="workspace.dimension = dimension"
-							>
-								{{ dimensionLabel(dimension) }}
-							</button>
-						</ButtonStyled>
+							{{ dimensionLabel(dimension) }}
+						</Button>
 					</div>
 				</div>
 				<div class="control-group coordinate-group min-w-80">
@@ -2480,11 +2474,9 @@ function clampWorldCoordinate(value: number) {
 				>
 					<span class="control-label">{{ formatMessage(messages.depth) }}</span>
 					<div class="seed-map-dropdown min-w-0">
-						<DropdownSelect
+						<Combobox
 							:model-value="workspace.elevation as SeedMapElevation"
-							:options="elevationOptions"
-							:display-name="elevationLabel"
-							name="Seed map elevation"
+							:options="elevationOptions.map((value) => ({ value, label: elevationLabel(value) }))"
 							@update:model-value="setElevation"
 						/>
 					</div>
@@ -2520,32 +2512,26 @@ function clampWorldCoordinate(value: number) {
 						)
 					}}</span>
 					<div class="layer-mode-switch" role="group" :aria-label="formatMessage(messages.layers)">
-						<ButtonStyled
-							size="small"
-							:type="workspace.displayMode === 'structures' ? 'standard' : 'transparent'"
-							:color="workspace.displayMode === 'structures' ? 'brand' : 'standard'"
+						<Button
+							size="2xs"
+							:type="workspace.displayMode === 'structures' ? 'colored' : 'quiet'"
+							:color="workspace.displayMode === 'structures' ? 'brand' : undefined"
+							:aria-pressed="workspace.displayMode === 'structures'"
+							@click="setDisplayMode('structures')"
 						>
-							<button
-								:aria-pressed="workspace.displayMode === 'structures'"
-								@click="setDisplayMode('structures')"
-							>
-								<LandmarkIcon />{{ formatMessage(messages.structures) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled
-							size="small"
-							:type="workspace.displayMode === 'ores' ? 'standard' : 'transparent'"
-							:color="workspace.displayMode === 'ores' ? 'brand' : 'standard'"
+							<LandmarkIcon />{{ formatMessage(messages.structures) }}
+						</Button>
+						<Button
+							v-tooltip="oreModeSupported ? undefined : formatMessage(messages.oresRequireModern)"
+							size="2xs"
+							:type="workspace.displayMode === 'ores' ? 'colored' : 'quiet'"
+							:color="workspace.displayMode === 'ores' ? 'brand' : undefined"
+							:aria-pressed="workspace.displayMode === 'ores'"
+							:disabled="!oreModeSupported"
+							@click="setDisplayMode('ores')"
 						>
-							<button
-								v-tooltip="oreModeSupported ? undefined : formatMessage(messages.oresRequireModern)"
-								:aria-pressed="workspace.displayMode === 'ores'"
-								:disabled="!oreModeSupported"
-								@click="setDisplayMode('ores')"
-							>
-								<PickaxeIcon />{{ formatMessage(messages.ores) }}
-							</button>
-						</ButtonStyled>
+							<PickaxeIcon />{{ formatMessage(messages.ores) }}
+						</Button>
 					</div>
 					<div class="flex items-center gap-1">
 						<Button
@@ -2572,52 +2558,45 @@ function clampWorldCoordinate(value: number) {
 				</div>
 				<div class="layer-options">
 					<template v-if="workspace.displayMode === 'structures'">
-						<ButtonStyled
+						<Button
 							v-for="feature in dimensionFeatures"
 							:key="feature.kind"
-							type="standard"
-							:color="workspace.visibleFeatures.includes(feature.kind) ? 'brand' : 'standard'"
+							v-tooltip="featureTooltip(feature.kind, feature.maxScale)"
+							type="colored"
+							:color="workspace.visibleFeatures.includes(feature.kind) ? 'brand' : undefined"
+							class="layer-option w-10 p-1"
+							:class="{
+								'opacity-[0.68]': tileScale > feature.maxScale,
+								named: showLayerNames,
+							}"
+							:aria-pressed="workspace.visibleFeatures.includes(feature.kind)"
+							@click="toggleFeature(feature.kind)"
 						>
-							<button
-								v-tooltip="featureTooltip(feature.kind, feature.maxScale)"
-								class="layer-option w-10 p-1"
-								:class="{
-									'opacity-[0.68]': tileScale > feature.maxScale,
-									named: showLayerNames,
-								}"
-								:aria-pressed="workspace.visibleFeatures.includes(feature.kind)"
-								@click="toggleFeature(feature.kind)"
-							>
-								<img
-									v-if="featureImageSource(feature.kind)"
-									:src="featureImageSource(feature.kind)"
-									alt=""
-								/><component :is="featureIcons[feature.kind]" v-else /><span
-									v-if="showLayerNames"
-									>{{ featureLabel(feature.kind) }}</span
-								>
-							</button>
-						</ButtonStyled>
+							<img
+								v-if="featureImageSource(feature.kind)"
+								:src="featureImageSource(feature.kind)"
+								alt=""
+							/><component :is="featureIcons[feature.kind]" v-else /><span v-if="showLayerNames">{{
+								featureLabel(feature.kind)
+							}}</span>
+						</Button>
 					</template>
 					<template v-else>
-						<ButtonStyled
+						<Button
 							v-for="ore in dimensionOres"
 							:key="ore.kind"
-							type="standard"
-							:color="workspace.selectedOres.includes(ore.kind) ? 'brand' : 'standard'"
+							v-tooltip="oreLabel(ore.kind)"
+							type="colored"
+							:color="workspace.selectedOres.includes(ore.kind) ? 'brand' : undefined"
+							class="layer-option w-10 p-1"
+							:class="{ named: showLayerNames }"
+							:aria-pressed="workspace.selectedOres.includes(ore.kind)"
+							@click="toggleOre(ore.kind)"
 						>
-							<button
-								v-tooltip="oreLabel(ore.kind)"
-								class="layer-option w-10 p-1"
-								:class="{ named: showLayerNames }"
-								:aria-pressed="workspace.selectedOres.includes(ore.kind)"
-								@click="toggleOre(ore.kind)"
-							>
-								<img :src="ore.image" alt="" /><span v-if="showLayerNames">{{
-									oreLabel(ore.kind)
-								}}</span>
-							</button>
-						</ButtonStyled>
+							<img :src="ore.image" alt="" /><span v-if="showLayerNames">{{
+								oreLabel(ore.kind)
+							}}</span>
+						</Button>
 					</template>
 					<span
 						v-if="workspace.displayMode === 'ores' && dimensionOres.length === 0"
@@ -2625,24 +2604,21 @@ function clampWorldCoordinate(value: number) {
 					>
 						{{ formatMessage(messages.noOresInEnd) }}
 					</span>
-					<ButtonStyled
+					<Button
 						v-if="workspace.dimension === 'overworld'"
-						type="standard"
-						:color="workspace.showSpawn ? 'brand' : 'standard'"
+						v-tooltip="formatMessage(messages.spawnPoint)"
+						type="colored"
+						:color="workspace.showSpawn ? 'brand' : undefined"
+						class="layer-option w-10 p-1"
+						:class="{ named: showLayerNames }"
+						:aria-pressed="workspace.showSpawn"
+						@click="workspace.showSpawn = !workspace.showSpawn"
 					>
-						<button
-							v-tooltip="formatMessage(messages.spawnPoint)"
-							class="layer-option w-10 p-1"
-							:class="{ named: showLayerNames }"
-							:aria-pressed="workspace.showSpawn"
-							@click="workspace.showSpawn = !workspace.showSpawn"
+						<img :src="`${structureAssetRoot}/spawn_point.webp`" alt="" /><span
+							v-if="showLayerNames"
+							>{{ formatMessage(messages.spawnPoint) }}</span
 						>
-							<img :src="`${structureAssetRoot}/spawn_point.webp`" alt="" /><span
-								v-if="showLayerNames"
-								>{{ formatMessage(messages.spawnPoint) }}</span
-							>
-						</button>
-					</ButtonStyled>
+					</Button>
 				</div>
 				<div v-if="layersExpanded" class="layer-expanded-panel">
 					<div class="layer-bulk-actions">
@@ -2875,7 +2851,7 @@ function clampWorldCoordinate(value: number) {
 				<div v-if="selection && selectionVisible" class="map-popup" :style="selectionStyle">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
-							<strong class="block truncate text-sm text-contrast">
+							<strong class="block truncate text-sm text-[var(--color-text-primary)]">
 								<i
 									v-if="selection.biome !== undefined && !selectedMarker"
 									class="popup-biome-dot"
@@ -2894,7 +2870,7 @@ function clampWorldCoordinate(value: number) {
 														: formatMessage(messages.location))
 								}}
 							</strong>
-							<span class="text-xs text-secondary"
+							<span class="text-xs text-[var(--color-text-tertiary)]"
 								>X {{ selection.x
 								}}<template v-if="selection.ore">, Y {{ selection.ore.y }}</template
 								>, Z {{ selection.z
@@ -2981,7 +2957,9 @@ function clampWorldCoordinate(value: number) {
 
 				<div v-if="advancedOpen" class="advanced-panel">
 					<div class="flex items-center justify-between gap-3">
-						<strong class="text-sm text-contrast">{{ formatMessage(messages.mapSettings) }}</strong
+						<strong class="text-sm text-[var(--color-text-primary)]">{{
+							formatMessage(messages.mapSettings)
+						}}</strong
 						><Button
 							type="quiet"
 							size="2xs"
@@ -3002,10 +2980,17 @@ function clampWorldCoordinate(value: number) {
 					/></label>
 					<div class="mt-3 border-t border-surface-5 pt-3">
 						<div class="mb-2 flex items-center justify-between">
-							<strong class="text-sm text-contrast">{{ formatMessage(messages.markers) }}</strong
-							><span class="text-xs text-secondary">{{ workspace.markers.length }}</span>
+							<strong class="text-sm text-[var(--color-text-primary)]">{{
+								formatMessage(messages.markers)
+							}}</strong
+							><span class="text-xs text-[var(--color-text-tertiary)]">{{
+								workspace.markers.length
+							}}</span>
 						</div>
-						<p v-if="!workspace.markers.length" class="m-0 text-xs text-secondary">
+						<p
+							v-if="!workspace.markers.length"
+							class="m-0 text-xs text-[var(--color-text-tertiary)]"
+						>
 							{{ formatMessage(messages.noMarkers) }}
 						</p>
 						<div v-else class="marker-list flex flex-col gap-1">
@@ -3042,29 +3027,25 @@ function clampWorldCoordinate(value: number) {
 					<div
 						class="map-bottom-actions max-sm:w-full max-sm:flex-wrap max-sm:justify-start max-sm:ml-0"
 					>
-						<ButtonStyled
-							:type="terrainEnabled ? 'highlight-colored-text' : 'outlined'"
+						<Button
+							:type="terrainEnabled ? 'chip-text' : 'outlined'"
 							color="brand"
-							><button
-								class="map-action"
-								:disabled="!terrainSupported"
-								:aria-pressed="terrainEnabled"
-								@click="terrainEnabled = !terrainEnabled"
-							>
-								<LayersIcon />{{ formatMessage(messages.terrain) }}
-							</button></ButtonStyled
+							class="map-action"
+							:disabled="!terrainSupported"
+							:aria-pressed="terrainEnabled"
+							@click="terrainEnabled = !terrainEnabled"
 						>
-						<ButtonStyled
-							:type="workspace.showGrid ? 'highlight-colored-text' : 'outlined'"
+							<LayersIcon />{{ formatMessage(messages.terrain) }}
+						</Button>
+						<Button
+							:type="workspace.showGrid ? 'chip-text' : 'outlined'"
 							color="brand"
-							><button
-								class="map-action"
-								:aria-pressed="workspace.showGrid"
-								@click="workspace.showGrid = !workspace.showGrid"
-							>
-								<GridIcon />{{ formatMessage(messages.showGrid) }}
-							</button></ButtonStyled
+							class="map-action"
+							:aria-pressed="workspace.showGrid"
+							@click="workspace.showGrid = !workspace.showGrid"
 						>
+							<GridIcon />{{ formatMessage(messages.showGrid) }}
+						</Button>
 						<Button
 							v-if="workspace.displayMode === 'structures'"
 							type="outlined"
@@ -3091,7 +3072,7 @@ function clampWorldCoordinate(value: number) {
 	border-radius: var(--radius-sm);
 	background: var(--surface-2);
 	padding: 0.35rem 0.55rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.7rem;
 	font-variant-numeric: tabular-nums;
 	font-weight: 700;
@@ -3138,13 +3119,13 @@ function clampWorldCoordinate(value: number) {
 }
 
 .control-label {
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.7rem;
 	font-weight: 700;
 	line-height: 1;
 }
 
-:deep(.seed-map-dropdown .animated-dropdown) {
+:deep(.seed-map-dropdown [data-combobox]) {
 	width: 100%;
 	max-width: none;
 }
@@ -3180,7 +3161,7 @@ function clampWorldCoordinate(value: number) {
 .seed-history-empty {
 	margin: 0;
 	padding: 1.25rem 0.5rem;
-	color: var(--color-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.78rem;
 	text-align: center;
 }
@@ -3245,7 +3226,7 @@ function clampWorldCoordinate(value: number) {
 
 .seed-history-seed {
 	overflow: hidden;
-	color: var(--color-contrast);
+	color: var(--color-text-primary);
 	font-size: 0.82rem;
 	font-variant-numeric: tabular-nums;
 	font-weight: 700;
@@ -3255,7 +3236,7 @@ function clampWorldCoordinate(value: number) {
 
 .seed-history-meta {
 	overflow: hidden;
-	color: var(--color-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.68rem;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -3274,8 +3255,8 @@ function clampWorldCoordinate(value: number) {
 }
 
 .seed-history-remove {
-	--_text: var(--color-secondary);
-	--_icon: var(--color-secondary);
+	--_text: var(--color-text-tertiary);
+	--_icon: var(--color-text-tertiary);
 	--_hover-bg: var(--color-red-highlight);
 	--_hover-text: var(--color-red);
 	--_hover-icon: var(--color-red);
@@ -3319,18 +3300,18 @@ function clampWorldCoordinate(value: number) {
 	border-radius: 50%;
 }
 
-.dimension-control :deep(.btn-wrapper > button.dimension-option) {
+.dimension-control > :deep([data-button].dimension-option) {
 	height: 100%;
 	min-width: 5.5rem;
 	justify-content: center;
 	border-radius: 0;
 }
 
-.dimension-control :deep(.btn-wrapper:first-child button) {
+.dimension-control > :deep([data-button].dimension-option:first-child) {
 	border-radius: calc(var(--radius-md) - 1px) 0 0 calc(var(--radius-md) - 1px);
 }
 
-.dimension-control :deep(.btn-wrapper:last-child button) {
+.dimension-control > :deep([data-button].dimension-option:last-child) {
 	border-radius: 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0;
 }
 
@@ -3349,7 +3330,7 @@ function clampWorldCoordinate(value: number) {
 	position: absolute;
 	z-index: 2;
 	left: 0.65rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.7rem;
 	font-weight: 800;
 	pointer-events: none;
@@ -3434,7 +3415,7 @@ function clampWorldCoordinate(value: number) {
 	justify-content: space-between;
 	gap: 0.25rem;
 	padding-left: 0.25rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.75rem;
 	font-weight: 800;
 	text-transform: uppercase;
@@ -3519,7 +3500,7 @@ function clampWorldCoordinate(value: number) {
 
 .layer-checklist-label small {
 	margin-left: auto;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.68rem;
 	font-variant-numeric: tabular-nums;
 }
@@ -3528,7 +3509,7 @@ function clampWorldCoordinate(value: number) {
 	display: inline-flex;
 	align-items: center;
 	padding: 0.35rem 0.5rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.75rem;
 }
 
@@ -3552,7 +3533,7 @@ function clampWorldCoordinate(value: number) {
 }
 
 .ore-range-heading span {
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -3565,7 +3546,7 @@ function clampWorldCoordinate(value: number) {
 	min-width: 0;
 	flex-direction: column;
 	gap: 0.4rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.7rem;
 	font-weight: 700;
 }
@@ -3658,13 +3639,13 @@ function clampWorldCoordinate(value: number) {
 	border-radius: var(--radius-md);
 	background: var(--surface-3);
 	padding: 0.35rem 0.55rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.72rem;
 	font-weight: 700;
 }
 
-.map-status > button {
-	color: var(--color-text-secondary);
+.map-status > :deep(button) {
+	color: var(--color-text-tertiary);
 }
 
 .map-status > button svg {
@@ -3753,7 +3734,7 @@ function clampWorldCoordinate(value: number) {
 }
 
 .marker-jump small {
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.65rem;
 }
 
@@ -3777,7 +3758,7 @@ function clampWorldCoordinate(value: number) {
 	border-radius: var(--radius-sm);
 	background: var(--surface-4);
 	padding: 0.2rem 0.4rem;
-	color: var(--color-text-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.68rem;
 	font-weight: 700;
 }
@@ -3813,22 +3794,6 @@ function clampWorldCoordinate(value: number) {
 .map-bottom-biomes {
 	min-width: min(20rem, 100%);
 	flex: 1 1 20rem;
-}
-
-.map-pill {
-	display: flex;
-	height: 2.5rem;
-	flex: 0 0 auto;
-	align-items: center;
-	gap: 0.5rem;
-	border: 1px solid var(--surface-5);
-	border-radius: var(--radius-md);
-	background: var(--surface-4);
-	padding: 0 0.6rem;
-	color: var(--color-text-primary);
-	font-size: 0.75rem;
-	font-weight: 700;
-	white-space: nowrap;
 }
 
 .map-bottom-actions {

@@ -59,7 +59,7 @@ const translationOnlyClass = computed(() =>
 }
 
 :deep(.ax-translation-style-weakened) {
-	color: var(--color-secondary) !important;
+	color: var(--color-text-tertiary) !important;
 }
 
 :deep(.ax-translation-style-blur) {
@@ -98,11 +98,15 @@ const translationOnlyClass = computed(() =>
 :deep(.ax-translation-style-background) {
 	padding: 2px 4px;
 	border-radius: 4px;
-	background-color: color-mix(in srgb, var(--color-brand) 15%, transparent);
+	background-color: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-15),
+		transparent
+	);
 }
 
 .ax-translation-only.ax-translation-style-weakened {
-	color: var(--color-secondary) !important;
+	color: var(--color-text-tertiary) !important;
 }
 
 .ax-translation-only.ax-translation-style-blur {
@@ -141,7 +145,11 @@ const translationOnlyClass = computed(() =>
 .ax-translation-only.ax-translation-style-background {
 	padding: 2px 4px;
 	border-radius: 4px;
-	background-color: color-mix(in srgb, var(--color-brand) 15%, transparent);
+	background-color: color-mix(
+		in srgb,
+		var(--color-brand) var(--opacity-ratio-keep-15),
+		transparent
+	);
 }
 
 @keyframes translation-float-in {

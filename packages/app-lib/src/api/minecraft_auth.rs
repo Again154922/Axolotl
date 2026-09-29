@@ -16,15 +16,37 @@ pub use crate::state::{MinecraftDeviceLoginFlow, MinecraftDeviceLoginPoll};
 use crate::util::fetch::INSECURE_REQWEST_CLIENT;
 use crate::util::mojang::{mojang_service_url, should_use_mojang_mirror};
 
+/// Budget for the Mojang reachability probes.
+///
+/// These probes decide whether Mojang requests go out directly or through the
+/// Fallen mirror, and the frontend repeats the check every few minutes while
+/// the launcher sits idle. Latency to these hosts on a proxied connection was
+/// measured between roughly one and six seconds, so a budget inside that band
+/// reports a healthy service as unreachable and latches the mirror for the
+/// rest of the session — which then logs a connection failure every time the
+/// idle check runs.
+const REACHABILITY_TIMEOUT: Duration = Duration::from_secs(12);
+
+/// The client used for reachability probes: the app's configured client, so a
+/// proxy the user configured is honoured exactly as it is for every other
+/// request. Before the app state exists (very early startup) the plain client
+/// is the only option.
+fn reachability_client() -> reqwest::Client {
+    match State::get_if_initialized() {
+        Some(state) => state.configured_http_client(),
+        None => INSECURE_REQWEST_CLIENT.clone(),
+    }
+}
+
 #[tracing::instrument]
 pub async fn check_reachable() -> crate::Result<()> {
     let url = mojang_service_url(
         "https://sessionserver.mojang.com/session/minecraft/hasJoined",
         should_use_mojang_mirror(),
     );
-    let resp = INSECURE_REQWEST_CLIENT
+    let resp = reachability_client()
         .get(url.as_ref())
-        .timeout(Duration::from_secs(5))
+        .timeout(REACHABILITY_TIMEOUT)
         .send()
         .await?;
     if resp.status() == StatusCode::NO_CONTENT {
@@ -46,6 +68,11 @@ pub async fn set_mojang_auth_use_mirror(
         );
     }
     Ok(())
+}
+
+/// Whether Mojang service requests currently go out through the Fallen proxy.
+pub fn mojang_auth_use_mirror() -> bool {
+    should_use_mojang_mirror()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -71,11 +98,13 @@ const MOJANG_SERVICES: [(&str, &str); 5] = [
 
 #[tracing::instrument]
 pub async fn check_mojang_services() -> Vec<MojangServiceStatus> {
-    futures::future::join_all(MOJANG_SERVICES.map(
-        |(service, url)| async move {
-            let reachable = INSECURE_REQWEST_CLIENT
+    let client = reachability_client();
+    futures::future::join_all(MOJANG_SERVICES.map(|(service, url)| {
+        let client = client.clone();
+        async move {
+            let reachable = client
                 .get(url)
-                .timeout(Duration::from_secs(5))
+                .timeout(REACHABILITY_TIMEOUT)
                 .send()
                 .await
                 .is_ok();
@@ -84,8 +113,8 @@ pub async fn check_mojang_services() -> Vec<MojangServiceStatus> {
                 url,
                 reachable,
             }
-        },
-    ))
+        }
+    }))
     .await
 }
 
@@ -282,4 +311,17 @@ pub async fn users(offline_mode: bool) -> crate::Result<Vec<MinecraftUser>> {
         hydrated_users.push(MinecraftUser::from_credentials(credentials).await);
     }
     Ok(hydrated_users)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The probes run against hosts that answer in one to six seconds on a
+    /// proxied connection, so a budget inside that range declares a healthy
+    /// service unreachable and switches the launcher to the mirror for good.
+    #[test]
+    fn reachability_budget_leaves_room_for_a_slow_but_working_connection() {
+        assert!(REACHABILITY_TIMEOUT > Duration::from_secs(6));
+    }
 }

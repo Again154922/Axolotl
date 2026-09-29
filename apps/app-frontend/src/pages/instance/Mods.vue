@@ -12,12 +12,12 @@
 			<template #header>
 				<span class="inline-flex items-center gap-2">
 					{{ formatMessage(messages.postUpgradeNoticeTitle) }}
-					<span class="rounded-full bg-brand-orange/20 px-2 py-0.5 text-sm tabular-nums">{{
+					<span class="rounded-full bg-bg-orange px-2 py-0.5 text-sm tabular-nums">{{
 						postUpgradeNotice.warnings.length
 					}}</span>
 				</span>
 			</template>
-			<div class="border-0 border-t border-solid border-brand-orange/60 bg-bg-orange p-4">
+			<div class="border-0 border-t border-solid mods-admonition-body bg-bg-orange p-4">
 				<p class="m-0">{{ formatMessage(messages.postUpgradeNoticeBody) }}</p>
 				<div class="mt-3 flex justify-end">
 					<Button type="colored" color="orange" size="2xs" @click="dismissPostUpgradeNotice"
@@ -35,12 +35,12 @@
 			<template #header>
 				<span class="inline-flex items-center gap-2">
 					{{ formatMessage(messages.skippedFilesWarningTitle) }}
-					<span class="rounded-full bg-brand-orange/20 px-2 py-0.5 text-sm tabular-nums">
+					<span class="rounded-full bg-bg-orange px-2 py-0.5 text-sm tabular-nums">
 						{{ skippedManualDownloads.length }}
 					</span>
 				</span>
 			</template>
-			<div class="border-0 border-t border-solid border-brand-orange/60 bg-bg-orange p-4">
+			<div class="border-0 border-t border-solid mods-admonition-body bg-bg-orange p-4">
 				<p class="m-0">{{ skippedFilesWarningBody }}</p>
 				<ul class="mb-0 mt-2 flex list-none flex-col gap-1 p-0">
 					<li
@@ -57,7 +57,10 @@
 						</button>
 					</li>
 				</ul>
-				<p v-if="hiddenSkippedManualDownloadCount > 0" class="mb-0 mt-2 text-secondary">
+				<p
+					v-if="hiddenSkippedManualDownloadCount > 0"
+					class="mb-0 mt-2 text-[var(--color-text-tertiary)]"
+				>
 					{{
 						formatMessage(messages.skippedFilesWarningMore, {
 							count: hiddenSkippedManualDownloadCount,
@@ -81,27 +84,33 @@
 			<template #header>
 				<span class="inline-flex items-center gap-2">
 					{{ formatMessage(messages.missingFilesWarningTitle) }}
-					<span class="rounded-full bg-brand-orange/20 px-2 py-0.5 text-sm tabular-nums">
+					<span class="rounded-full bg-bg-orange px-2 py-0.5 text-sm tabular-nums">
 						{{ missingPackMembers.length }}
 					</span>
 				</span>
 			</template>
 			<div class="bg-bg-orange px-4 pb-4 pt-3">
-				<p class="m-0 text-sm leading-6 text-secondary">
+				<p class="m-0 text-sm leading-6 text-[var(--color-text-tertiary)]">
 					{{ formatMessage(messages.missingFilesWarningBody) }}
 				</p>
 				<ul class="m-0 mt-2 flex max-h-64 list-none flex-col gap-1 overflow-y-auto p-0">
 					<li
 						v-for="item in missingPackMembers"
 						:key="item.memberId ?? item.expectedRelativePath"
-						class="flex min-h-14 min-w-0 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-5/40"
+						class="mods-missing-row flex min-h-14 min-w-0 items-center gap-3 rounded-lg px-2 py-2 transition-colors"
 					>
 						<FileIcon class="size-5 shrink-0 text-brand-orange" aria-hidden="true" />
 						<span class="flex min-w-0 flex-1 flex-col gap-0.5">
-							<span class="truncate font-medium text-contrast" :title="item.expectedRelativePath">
+							<span
+								class="truncate font-medium text-[var(--color-text-primary)]"
+								:title="item.expectedRelativePath"
+							>
 								{{ fileNameFromPath(item.expectedRelativePath) }}
 							</span>
-							<code class="truncate text-xs text-secondary" :title="item.expectedRelativePath">
+							<code
+								class="truncate text-xs text-[var(--color-text-tertiary)]"
+								:title="item.expectedRelativePath"
+							>
 								{{ item.expectedRelativePath }}
 							</code>
 						</span>
@@ -130,7 +139,7 @@
 			class="mb-4"
 		>
 			<template #header>{{ formatMessage(messages.contentRefreshWarningTitle) }}</template>
-			<div class="border-0 border-t border-solid border-brand-orange/60 bg-bg-orange p-4">
+			<div class="border-0 border-t border-solid mods-admonition-body bg-bg-orange p-4">
 				<p class="m-0">{{ formatMessage(messages.contentRefreshWarningBody) }}</p>
 			</div>
 		</CollapsibleAdmonition>
@@ -3145,5 +3154,15 @@ onUnmounted(() => {
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
+}
+</style>
+
+<style scoped>
+.mods-admonition-body {
+	border-color: color-mix(in srgb, var(--color-orange) var(--opacity-ratio-keep-60), transparent);
+}
+
+.mods-missing-row:hover {
+	background-color: color-mix(in srgb, var(--surface-5) var(--opacity-ratio-keep-40), transparent);
 }
 </style>

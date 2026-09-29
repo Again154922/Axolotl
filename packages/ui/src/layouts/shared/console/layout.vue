@@ -73,16 +73,16 @@
 			<div class="flex items-center gap-2">
 				<ConsoleFilterPills v-model="activeFilters" @toggle="handleFilterToggle" />
 				<div class="ml-auto flex items-center gap-2">
-					<ButtonStyled type="transparent" :highlighted="wrapLines">
-						<button
-							:aria-pressed="wrapLines"
-							:title="formatMessage(consoleMessages.toggleWrap)"
-							@click="wrapLines = !wrapLines"
-						>
-							<WrapTextIcon />
-							{{ formatMessage(consoleMessages.wrapLabel) }}
-						</button>
-					</ButtonStyled>
+					<Button
+						:type="wrapLines ? 'chip' : 'quiet'"
+						:color="wrapLines ? 'brand' : undefined"
+						:aria-pressed="wrapLines"
+						:title="formatMessage(consoleMessages.toggleWrap)"
+						@click="wrapLines = !wrapLines"
+					>
+						<WrapTextIcon />
+						{{ formatMessage(consoleMessages.wrapLabel) }}
+					</Button>
 					<div class="w-28">
 						<Combobox
 							:model-value="logFontSize"
@@ -122,7 +122,7 @@
 				<Transition name="terminal-loading-fade">
 					<div
 						v-if="resolvedLoading"
-						class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-surface-3/80 px-8"
+						class="console-loading-scrim pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-8"
 						aria-hidden="true"
 					>
 						<LoadingIndicator />
@@ -197,7 +197,6 @@ import { computed, isRef, nextTick, onBeforeUnmount, ref } from 'vue'
 
 import Admonition from '#ui/components/base/Admonition.vue'
 import Button from '#ui/components/base/buttons/Button.vue'
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
 import type { CollapsibleAdmonitionItem } from '#ui/components/base/CollapsibleAdmonition.vue'
 import CollapsibleAdmonition from '#ui/components/base/CollapsibleAdmonition.vue'
 import type { ComboboxOption } from '#ui/components/base/Combobox.vue'
@@ -938,5 +937,11 @@ async function handleShare() {
 .modrinth-console-fullscreen-active .app-grid-navbar,
 .modrinth-console-fullscreen-active .app-grid-statusbar {
 	z-index: 0 !important;
+}
+</style>
+
+<style scoped>
+.console-loading-scrim {
+	background-color: color-mix(in srgb, var(--surface-3) var(--opacity-ratio-keep-80), transparent);
 }
 </style>

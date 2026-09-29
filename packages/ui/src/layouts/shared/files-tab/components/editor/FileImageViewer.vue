@@ -4,7 +4,7 @@
 	>
 		<div v-if="state.hasError" class="flex flex-col items-center justify-center gap-4">
 			<TriangleAlertIcon class="size-8 text-red" />
-			<p class="m-0 text-secondary">
+			<p class="m-0 text-[var(--color-text-tertiary)]">
 				{{ state.errorMessage || formatMessage(messages.invalidImage) }}
 			</p>
 		</div>
@@ -22,7 +22,7 @@
 
 		<div
 			v-if="isReady"
-			class="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl bg-surface-3/80 p-1.5 backdrop-blur-sm"
+			class="image-viewer-toolbar absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl p-1.5 backdrop-blur-sm"
 		>
 			<Button v-tooltip="formatMessage(messages.zoomIn)" type="quiet" @click="zoomIn"
 				><ZoomInIcon />
@@ -170,3 +170,9 @@ onUnmounted(() => {
 	if (imageObjectUrl.value) URL.revokeObjectURL(imageObjectUrl.value)
 })
 </script>
+
+<style scoped>
+.image-viewer-toolbar {
+	background-color: color-mix(in srgb, var(--surface-3) var(--opacity-ratio-keep-80), transparent);
+}
+</style>

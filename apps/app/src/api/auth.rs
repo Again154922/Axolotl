@@ -16,6 +16,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             check_reachable,
             check_mojang_services,
             set_mojang_auth_use_mirror,
+            mojang_auth_use_mirror,
             login,
             browser_login,
             begin_device_login,
@@ -60,6 +61,13 @@ pub async fn set_mojang_auth_use_mirror(
         minecraft_auth::set_mojang_auth_use_mirror(use_mirror, automatic)
             .await?,
     )
+}
+
+/// Whether the launcher currently routes Mojang service requests through the
+/// Fallen proxy.
+#[tauri::command]
+pub fn mojang_auth_use_mirror() -> bool {
+    minecraft_auth::mojang_auth_use_mirror()
 }
 
 #[derive(Deserialize, Serialize)]

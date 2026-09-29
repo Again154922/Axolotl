@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import '@modrinth/ui/styles/tailwind-utilities.css';
+@import '@modrinth/assets/styles/opacity.scss';
 
 @font-face {
 	font-family: 'bundled-minecraft-font-mrapp';
@@ -45,14 +45,6 @@
 	color-scheme: dark;
 	--view-width: calc(100% - 5rem);
 	--expanded-view-width: calc(100% - 13rem);
-	--medal-promotion-bg: #000;
-	--medal-promotion-bg-orange: rgba(208, 246, 255, 0.25);
-	--medal-promotion-text-orange: #42abff;
-	--medal-promotion-bg-gradient: linear-gradient(
-		90deg,
-		rgba(66, 170, 255, 0.15),
-		rgba(0, 0, 0, 0) 100%
-	);
 }
 
 body {
@@ -80,6 +72,29 @@ html body {
 	--surface-3-opaque: var(--surface-3);
 	--surface-4-opaque: var(--surface-4);
 	--surface-5-opaque: var(--surface-5);
+
+	// A card sits directly on the page rather than on another panel, so it
+	// follows the component opacity as it is set. The palettes below override
+	// this with the translucent mix; everywhere else a card keeps painting the
+	// plain surface it always painted.
+	--surface-card: var(--surface-3);
+
+	// The baselines the ratio scale is measured against (see opacity.scss).
+	// Declared opaque so the plain themes, and any host that has not adopted the
+	// model, keep painting exactly what they painted before.
+	--opacity-baseline: 100%;
+	--opacity-baseline-page: 100%;
+
+	// Content surfaces carry text, so they keep a readable floor instead of
+	// following the ratio scale; outside the palettes they are the plain
+	// surfaces they have always been.
+	--surface-content: var(--surface-3-opaque);
+	--surface-content-alt: var(--surface-1-5-opaque);
+	--surface-bar: var(--surface-3-opaque);
+	--surface-content-muted: var(--surface-2-opaque);
+	--surface-content-selected: var(--surface-2-5-opaque);
+
+	@include opacity-scale;
 }
 
 // Declared on `body`, not on the root: the opaque snapshots above live on the
@@ -91,37 +106,172 @@ html.transparent-window body {
 	// interpolate toward opaque so that stacked panels keep their contrast at
 	// low settings; at 100% every layer lands back on fully opaque.
 	--window-alpha: var(--transparent-window-alpha, 55%);
-	--window-alpha-1-5: calc(var(--window-alpha) + (100% - var(--window-alpha)) * 0.16);
-	--window-alpha-2: calc(var(--window-alpha) + (100% - var(--window-alpha)) * 0.3);
-	--window-alpha-chrome: calc(var(--window-alpha) + (100% - var(--window-alpha)) * 0.38);
-	--window-alpha-3: calc(var(--window-alpha) + (100% - var(--window-alpha)) * 0.55);
-	--window-alpha-4: calc(var(--window-alpha) + (100% - var(--window-alpha)) * 0.6);
-	--window-alpha-5: calc(var(--window-alpha) + (100% - var(--window-alpha)) * 0.78);
 
-	--surface-1: color-mix(in srgb, var(--surface-1-opaque) var(--window-alpha), transparent);
-	--surface-1-5: color-mix(in srgb, var(--surface-1-5-opaque) var(--window-alpha-1-5), transparent);
-	--surface-2: color-mix(in srgb, var(--surface-2-opaque) var(--window-alpha-2), transparent);
-	--surface-2-5: color-mix(
+	// The baselines the ratios are measured against. The window mode has a single
+	// layer, so the page and the components above it share one. The scale is
+	// emitted here rather than on the root: `var()` substitution happens on the
+	// element that declares a property, so a rung declared elsewhere would bake in
+	// that element's baseline and never follow these.
+	--opacity-baseline: var(--window-alpha);
+	--opacity-baseline-page: var(--window-alpha);
+
+	// Content surfaces are a stack rather than one blanket transparency: the
+	// deeper a layer sits, the more of the baseline it keeps, so a card reads as
+	// a solid sheet over a darker row while the whole stack still follows the
+	// setting. At a 100% baseline every layer is opaque, as it always was.
+	--surface-content: color-mix(
 		in srgb,
-		var(--surface-2-5-opaque) var(--window-alpha-chrome),
+		var(--surface-3-opaque) var(--opacity-ratio-content),
 		transparent
 	);
-	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--window-alpha-3), transparent);
-	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--window-alpha-4), transparent);
-	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--window-alpha-5), transparent);
+	--surface-content-selected: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-content-selected),
+		transparent
+	);
+	--surface-content-muted: color-mix(
+		in srgb,
+		var(--surface-2-opaque) var(--opacity-ratio-content-muted),
+		transparent
+	);
+	--surface-content-alt: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-content-alt),
+		transparent
+	);
+	--surface-bar: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-bar), transparent);
 
-	// The semantic aliases resolve against the root surfaces at declaration
-	// time, so overriding the primitives above does not reach them.
-	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--window-alpha), transparent);
-	--color-raised-bg: color-mix(in srgb, var(--surface-3-opaque) var(--window-alpha-3), transparent);
-	--color-button-bg: color-mix(in srgb, var(--surface-4-opaque) var(--window-alpha-4), transparent);
-	--color-divider: color-mix(in srgb, var(--surface-5-opaque) var(--window-alpha-5), transparent);
+	@include opacity-scale;
+
+	// The ratio goes through a variable: `color-mix()` rejects a `calc()` in its
+	// percentage slot, and an invalid argument drops the surface entirely.
+	--surface-1: color-mix(
+		in srgb,
+		var(--surface-1-opaque) var(--opacity-baseline-page),
+		transparent
+	);
+	--surface-1-5: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-1-5),
+		transparent
+	);
+	--surface-2: color-mix(in srgb, var(--surface-2-opaque) var(--opacity-ratio-2), transparent);
+	--surface-2-5: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-chrome),
+		transparent
+	);
+	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-3), transparent);
+	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--opacity-ratio-4), transparent);
+	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
+
+	// A card sits directly on the page rather than on another panel, so it takes
+	// the component opacity as it is set: ratio 0, no interpolated floor of its
+	// own. At 0% a `--surface-3` card would still be 55% opaque, which is why the
+	// background behind the cards never used to come through.
+	--surface-card: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--opacity-ratio-card),
+		transparent
+	);
+
+	// Compatibility aliases with remaining consumers still resolve against the
+	// body palette instead of the opaque root values.
+	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--opacity-baseline-page), transparent);
+	--color-divider: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
 	--color-divider-dark: color-mix(
 		in srgb,
-		var(--surface-5-opaque) var(--window-alpha-5),
+		var(--surface-5-opaque) var(--opacity-ratio-5),
 		transparent
 	);
 	--color-tooltip-bg: var(--surface-3-opaque);
+
+	// The tint families need the same treatment as the surfaces above, and for
+	// the same reason: the mix that turns an opaque base into a tint lives in
+	// `variables.scss` on the root, and `var()` substitution happens on the
+	// element that declares it, so those tints would keep the root's 100%
+	// baseline no matter what this one is set to. The bases carry no rung, so
+	// they are inherited as they are.
+	--color-red-highlight: color-mix(
+		in srgb,
+		var(--color-red-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-orange-highlight: color-mix(
+		in srgb,
+		var(--color-orange-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-green-highlight: color-mix(
+		in srgb,
+		var(--color-green-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-blue-highlight: color-mix(
+		in srgb,
+		var(--color-blue-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-purple-highlight: color-mix(
+		in srgb,
+		var(--color-purple-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	// The highlight family renders at 25% of the baseline in the theme this
+	// palette paints by default; the light theme's pink tint is the one at 22%
+	// (`variables.scss`), and a single rule cannot tell the two apart. The light
+	// palette re-declares its value below, next to the `-bg` rungs.
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-gray-highlight: color-mix(
+		in srgb,
+		var(--color-gray-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+
+	// The `-bg` tint rungs are the dark/oled values (20%); the light palette
+	// re-declares them at 10% in the scoped block below.
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+
+	// The brand tint follows the accent colour, which is why it takes the base
+	// the theme and accent selected rather than a tone of its own.
+	--color-brand-highlight: color-mix(
+		in srgb,
+		var(--color-brand-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
 }
 
 // The custom-background path needs the same treatment as the transparent window
@@ -156,69 +306,230 @@ html.has-custom-background body {
 	--custom-bg-page-alpha: var(--custom-bg-page-alpha-setting, 100%);
 	--custom-bg-component-alpha: var(--custom-bg-component-alpha-setting, 100%);
 
-	// Deeper surfaces interpolate toward opaque so stacked panels keep their
-	// contrast instead of showing through each other.
-	--custom-bg-alpha-1-5: calc(
-		var(--custom-bg-page-alpha) + (100% - var(--custom-bg-page-alpha)) * 0.16
-	);
-	--custom-bg-alpha-2: calc(
-		var(--custom-bg-component-alpha) + (100% - var(--custom-bg-component-alpha)) * 0.3
-	);
-	--custom-bg-alpha-chrome: calc(
-		var(--custom-bg-component-alpha) + (100% - var(--custom-bg-component-alpha)) * 0.38
-	);
-	--custom-bg-alpha-3: calc(
-		var(--custom-bg-component-alpha) + (100% - var(--custom-bg-component-alpha)) * 0.55
-	);
-	--custom-bg-alpha-4: calc(
-		var(--custom-bg-component-alpha) + (100% - var(--custom-bg-component-alpha)) * 0.6
-	);
-	--custom-bg-alpha-5: calc(
-		var(--custom-bg-component-alpha) + (100% - var(--custom-bg-component-alpha)) * 0.78
-	);
+	// The page layer follows "Background visibility"; everything above it follows
+	// "Component opacity". The ratios below are measured against those two
+	// baselines, so lowering one lets the image through every layer above it. The
+	// scale is emitted in this same rule on purpose: `var()` substitution happens
+	// on the element that declares a property, so a rung declared anywhere else
+	// would bake in that element's baseline instead of following these.
+	--opacity-baseline: var(--custom-bg-component-alpha);
+	--opacity-baseline-page: var(--custom-bg-page-alpha);
 
-	// The page layer follows "Background visibility"; everything above it
-	// follows "Component opacity".
-	--surface-1: color-mix(in srgb, var(--surface-1-opaque) var(--custom-bg-page-alpha), transparent);
+	// Content surfaces are a stack rather than one blanket transparency: the
+	// deeper a layer sits, the more of the baseline it keeps, so a card reads as
+	// a solid sheet over a darker row while the whole stack still follows the
+	// setting. At a 100% baseline every layer is opaque, as it always was.
+	--surface-content: color-mix(
+		in srgb,
+		var(--surface-3-opaque) var(--opacity-ratio-content),
+		transparent
+	);
+	--surface-content-selected: color-mix(
+		in srgb,
+		var(--surface-2-5-opaque) var(--opacity-ratio-content-selected),
+		transparent
+	);
+	--surface-content-muted: color-mix(
+		in srgb,
+		var(--surface-2-opaque) var(--opacity-ratio-content-muted),
+		transparent
+	);
+	--surface-content-alt: color-mix(
+		in srgb,
+		var(--surface-1-5-opaque) var(--opacity-ratio-content-alt),
+		transparent
+	);
+	--surface-bar: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-bar), transparent);
+
+	@include opacity-scale;
+
+	// Interpolation and a variable both matter here: Sass leaves a custom
+	// property value as written, and `color-mix()` rejects a `calc()` in its
+	// percentage slot, so each ratio has to arrive through a variable.
+	--surface-1: color-mix(
+		in srgb,
+		var(--surface-1-opaque) var(--opacity-baseline-page),
+		transparent
+	);
 	--surface-1-5: color-mix(
 		in srgb,
-		var(--surface-1-5-opaque) var(--custom-bg-alpha-1-5),
+		var(--surface-1-5-opaque) var(--opacity-ratio-1-5),
 		transparent
 	);
-	--surface-2: color-mix(in srgb, var(--surface-2-opaque) var(--custom-bg-alpha-2), transparent);
+	--surface-2: color-mix(in srgb, var(--surface-2-opaque) var(--opacity-ratio-2), transparent);
 	--surface-2-5: color-mix(
 		in srgb,
-		var(--surface-2-5-opaque) var(--custom-bg-alpha-chrome),
+		var(--surface-2-5-opaque) var(--opacity-ratio-chrome),
 		transparent
 	);
-	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--custom-bg-alpha-3), transparent);
-	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--custom-bg-alpha-4), transparent);
-	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--custom-bg-alpha-5), transparent);
+	--surface-3: color-mix(in srgb, var(--surface-3-opaque) var(--opacity-ratio-3), transparent);
+	--surface-4: color-mix(in srgb, var(--surface-4-opaque) var(--opacity-ratio-4), transparent);
+	--surface-5: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
 
-	// The semantic aliases resolve against the root surfaces at declaration time,
-	// so overriding the primitives above does not reach them.
-	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--custom-bg-page-alpha), transparent);
-	--color-raised-bg: color-mix(
+	// A card sits directly on the page rather than on another panel, so it takes
+	// the component opacity as it is set: ratio 0, no interpolated floor of its
+	// own. At 0% a `--surface-3` card would still be 55% opaque, which is why the
+	// background behind the cards never used to come through.
+	--surface-card: color-mix(
 		in srgb,
-		var(--surface-3-opaque) var(--custom-bg-alpha-3),
+		var(--surface-3-opaque) var(--opacity-ratio-card),
 		transparent
 	);
-	--color-button-bg: color-mix(
-		in srgb,
-		var(--surface-4-opaque) var(--custom-bg-alpha-4),
-		transparent
-	);
-	--color-divider: color-mix(
-		in srgb,
-		var(--surface-5-opaque) var(--custom-bg-alpha-5),
-		transparent
-	);
+
+	// Compatibility aliases with remaining consumers still resolve against the
+	// body palette instead of the opaque root values.
+	--color-bg: color-mix(in srgb, var(--surface-1-opaque) var(--opacity-baseline-page), transparent);
+	--color-divider: color-mix(in srgb, var(--surface-5-opaque) var(--opacity-ratio-5), transparent);
 	--color-divider-dark: color-mix(
 		in srgb,
-		var(--surface-5-opaque) var(--custom-bg-alpha-5),
+		var(--surface-5-opaque) var(--opacity-ratio-5),
 		transparent
 	);
 	--color-tooltip-bg: var(--surface-3-opaque);
+
+	// The tint families need the same treatment as the surfaces above, and for
+	// the same reason: the mix that turns an opaque base into a tint lives in
+	// `variables.scss` on the root, and `var()` substitution happens on the
+	// element that declares it, so those tints would keep the root's 100%
+	// baseline no matter what this one is set to. The bases carry no rung, so
+	// they are inherited as they are.
+	--color-red-highlight: color-mix(
+		in srgb,
+		var(--color-red-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-orange-highlight: color-mix(
+		in srgb,
+		var(--color-orange-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-green-highlight: color-mix(
+		in srgb,
+		var(--color-green-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-blue-highlight: color-mix(
+		in srgb,
+		var(--color-blue-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-purple-highlight: color-mix(
+		in srgb,
+		var(--color-purple-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	// The highlight family renders at 25% of the baseline in the theme this
+	// palette paints by default; the light theme's pink tint is the one at 22%
+	// (`variables.scss`), and a single rule cannot tell the two apart. The light
+	// palette re-declares its value below, next to the `-bg` rungs.
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+	--color-gray-highlight: color-mix(
+		in srgb,
+		var(--color-gray-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+
+	// The `-bg` tint rungs are the dark/oled values (20%); the light palette
+	// re-declares them at 10% in the scoped block below.
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-20),
+		transparent
+	);
+
+	// The brand tint follows the accent colour, which is why it takes the base
+	// the theme and accent selected rather than a tone of its own.
+	--color-brand-highlight: color-mix(
+		in srgb,
+		var(--color-brand-highlight-opaque) var(--opacity-ratio-keep-25),
+		transparent
+	);
+}
+
+// The `-bg` tint rung and the pink highlight rung are theme-specific: the light
+// palette paints them at 10% / 22% of the baseline, dark and oled at 20% / 25%
+// (`variables.scss`). The two palette rules above cannot tell light from dark --
+// they are scoped only to the palette mode -- so the light values are re-declared
+// here, after both. The theme store marks the resolved theme on `html`
+// (`light-mode`, plus the `.light` alias `variables.scss` also honours), and this
+// selector is more specific than the palette rules, so it wins wherever both
+// apply. `var()` substitutes on the declaring element, so the rung is still
+// resolved against the scale declared on this same `body` by the palette above.
+html.light-mode.transparent-window body,
+html.light.transparent-window body,
+html.light-mode.has-custom-background body,
+html.light.has-custom-background body {
+	// The selected-button fill is `--color-brand-highlight` in the light theme, and
+	// that tint resolves per palette now, so it is republished here, where the
+	// baseline is known, instead of keeping the root's substitution.
+	--color-button-bg-selected: var(--color-brand-highlight);
+
+	--color-red-bg: color-mix(
+		in srgb,
+		var(--color-red-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-orange-bg: color-mix(
+		in srgb,
+		var(--color-orange-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-green-bg: color-mix(
+		in srgb,
+		var(--color-green-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-blue-bg: color-mix(
+		in srgb,
+		var(--color-blue-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-purple-bg: color-mix(
+		in srgb,
+		var(--color-purple-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+	--color-pink-bg: color-mix(
+		in srgb,
+		var(--color-pink-bg-opaque) var(--opacity-ratio-keep-10),
+		transparent
+	);
+
+	// Light's pink tint is the one highlight the theme paints below 25%.
+	--color-pink-highlight: color-mix(
+		in srgb,
+		var(--color-pink-highlight-opaque) var(--opacity-ratio-keep-22),
+		transparent
+	);
 }
 
 * {
@@ -250,7 +561,7 @@ a {
 
 	&.featured {
 		background-color: var(--color-brand-highlight);
-		color: var(--color-contrast);
+		color: var(--color-text-primary);
 	}
 }
 
@@ -307,11 +618,6 @@ a {
 	box-shadow: 0 0 1rem var(--color-brand) !important;
 }
 
-.gecko {
-	background-color: var(--color-raised-bg);
-	box-shadow: none !important;
-}
-
 img {
 	user-select: none;
 	-webkit-user-select: none;
@@ -359,8 +665,8 @@ pre {
 
 input,
 textarea {
-	background: var(--color-button-bg);
-	color: var(--color-base);
+	background: var(--surface-3);
+	color: var(--color-text-default);
 	padding: 0.5rem 1rem;
 	font-weight: var(--font-weight-medium);
 	border: none;

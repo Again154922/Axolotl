@@ -12,7 +12,6 @@ import {
 import {
 	Avatar,
 	Button,
-	ButtonStyled,
 	defineMessages,
 	injectNotificationManager,
 	OverflowMenu,
@@ -215,12 +214,12 @@ async function unpinLocalServer(serverId: string) {
 							/>
 						</div>
 						<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-							<span class="truncate text-sm font-semibold text-contrast">
+							<span class="truncate text-sm font-semibold text-[var(--color-text-primary)]">
 								{{ server.world.name }}
 							</span>
 							<span
 								v-if="dataFor(server.world).status"
-								class="flex min-w-0 items-center gap-1 text-xs text-secondary"
+								class="flex min-w-0 items-center gap-1 text-xs text-[var(--color-text-tertiary)]"
 							>
 								<SignalIcon class="size-3 shrink-0" aria-hidden="true" />
 								<span class="truncate">
@@ -234,11 +233,14 @@ async function unpinLocalServer(serverId: string) {
 							</span>
 							<span
 								v-else-if="dataFor(server.world).refreshing"
-								class="truncate text-xs text-secondary"
+								class="truncate text-xs text-[var(--color-text-tertiary)]"
 							>
 								{{ server.world.address }}
 							</span>
-							<span v-else class="flex min-w-0 items-center gap-1 text-xs text-secondary">
+							<span
+								v-else
+								class="flex min-w-0 items-center gap-1 text-xs text-[var(--color-text-tertiary)]"
+							>
 								<NoSignalIcon class="size-3 shrink-0" aria-hidden="true" />
 								<span class="truncate">{{ formatMessage(messages.offline) }}</span>
 							</span>
@@ -273,23 +275,22 @@ async function unpinLocalServer(serverId: string) {
 								/>
 								<PlayIcon v-else />
 							</Button>
-							<ButtonStyled circular size="small" type="transparent" class="home-server-menu">
-								<OverflowMenu
-									:options="[
-										{
-											id: 'unpin',
-											action: () => unpinServer(server.world),
-										},
-									]"
-									:tooltip="formatMessage(messages.moreOptions)"
-								>
-									<MoreVerticalIcon />
-									<template #unpin>
-										<PinIcon class="rotate-45" aria-hidden="true" />
-										{{ formatMessage(messages.unpin) }}
-									</template>
-								</OverflowMenu>
-							</ButtonStyled>
+							<OverflowMenu
+								class="home-server-menu relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+								:options="[
+									{
+										id: 'unpin',
+										action: () => unpinServer(server.world),
+									},
+								]"
+								:tooltip="formatMessage(messages.moreOptions)"
+							>
+								<MoreVerticalIcon />
+								<template #unpin>
+									<PinIcon class="rotate-45" aria-hidden="true" />
+									{{ formatMessage(messages.unpin) }}
+								</template>
+							</OverflowMenu>
 						</div>
 					</div>
 				</SmartClickable>
@@ -317,9 +318,13 @@ async function unpinLocalServer(serverId: string) {
 							/>
 						</div>
 						<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-							<span class="truncate text-sm font-semibold text-contrast">{{ server.name }}</span>
-							<span class="flex min-w-0 items-center gap-1 text-xs text-secondary">
-								<span class="shrink-0 rounded bg-button-bg px-1 text-[10px] font-semibold">
+							<span class="truncate text-sm font-semibold text-[var(--color-text-primary)]">{{
+								server.name
+							}}</span>
+							<span
+								class="flex min-w-0 items-center gap-1 text-xs text-[var(--color-text-tertiary)]"
+							>
+								<span class="shrink-0 rounded bg-surface-4 px-1 text-[10px] font-semibold">
 									{{ formatMessage(messages.localServer) }}
 								</span>
 								<span class="truncate">
@@ -345,18 +350,17 @@ async function unpinLocalServer(serverId: string) {
 								><StopCircleIcon v-if="server.running" />
 								<PlayIcon v-else />
 							</Button>
-							<ButtonStyled circular size="small" type="transparent" class="home-server-menu">
-								<OverflowMenu
-									:options="[{ id: 'unpin', action: () => unpinLocalServer(server.id) }]"
-									:tooltip="formatMessage(messages.moreOptions)"
-								>
-									<MoreVerticalIcon />
-									<template #unpin>
-										<PinIcon class="rotate-45" aria-hidden="true" />
-										{{ formatMessage(messages.unpin) }}
-									</template>
-								</OverflowMenu>
-							</ButtonStyled>
+							<OverflowMenu
+								class="home-server-menu relative inline-flex size-6 min-w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-4"
+								:options="[{ id: 'unpin', action: () => unpinLocalServer(server.id) }]"
+								:tooltip="formatMessage(messages.moreOptions)"
+							>
+								<MoreVerticalIcon />
+								<template #unpin>
+									<PinIcon class="rotate-45" aria-hidden="true" />
+									{{ formatMessage(messages.unpin) }}
+								</template>
+							</OverflowMenu>
 						</div>
 					</div>
 				</SmartClickable>
@@ -370,7 +374,7 @@ async function unpinLocalServer(serverId: string) {
 	min-width: 0;
 	overflow: hidden;
 	margin: 0;
-	color: var(--color-contrast);
+	color: var(--color-text-primary);
 	font-size: 1rem;
 	font-weight: 700;
 	letter-spacing: 0;
@@ -418,7 +422,7 @@ async function unpinLocalServer(serverId: string) {
 	flex-direction: column;
 	align-items: center;
 	gap: 0.5rem;
-	color: var(--color-secondary);
+	color: var(--color-text-tertiary);
 	font-size: 0.8125rem;
 	line-height: 1.4;
 	text-align: center;

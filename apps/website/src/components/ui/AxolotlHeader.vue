@@ -4,12 +4,14 @@ import DownloadIcon from '@modrinth/assets/icons/download.svg?component'
 import HamburgerIcon from '@modrinth/assets/icons/hamburger.svg?component'
 import SettingsIcon from '@modrinth/assets/icons/settings.svg?component'
 import XIcon from '@modrinth/assets/icons/x.svg?component'
-import Button from '@modrinth/ui/src/components/base/buttons/Button.vue'
-import ButtonStyled from '@modrinth/ui/src/components/base/ButtonStyled.vue'
+import ButtonLink from '@modrinth/ui/src/components/base/buttons/ButtonLink.vue'
+import IconButton from '@modrinth/ui/src/components/base/buttons/IconButton.vue'
 import { defineMessages, useVIntl } from '@modrinth/ui/src/composables/i18n.ts'
-import type { ComponentPublicInstance } from 'vue'
+import { type ComponentPublicInstance, resolveComponent } from 'vue'
 
 import AxolotlWordmark from '~/components/brand/AxolotlWordmark.vue'
+
+const NuxtLink = resolveComponent('NuxtLink')
 
 const emit = defineEmits<{
 	openSettings: []
@@ -79,56 +81,55 @@ function openSettings() {
 				class="desktop-navigation pointer-events-auto hidden items-center gap-1 lg:flex"
 				:aria-label="formatMessage(messages.primary)"
 			>
-				<ButtonStyled type="transparent">
-					<NuxtLink to="/#features">{{ formatMessage(messages.features) }}</NuxtLink>
-				</ButtonStyled>
-				<ButtonStyled type="transparent">
-					<NuxtLink to="/#faq">{{ formatMessage(messages.faq) }}</NuxtLink>
-				</ButtonStyled>
-				<ButtonStyled type="transparent">
-					<NuxtLink to="/changelog">{{ formatMessage(messages.changelog) }}</NuxtLink>
-				</ButtonStyled>
-				<ButtonStyled type="transparent">
-					<NuxtLink to="/terms">{{ formatMessage(messages.terms) }}</NuxtLink>
-				</ButtonStyled>
-				<ButtonStyled type="transparent">
-					<NuxtLink to="/privacy">{{ formatMessage(messages.privacy) }}</NuxtLink>
-				</ButtonStyled>
-				<ButtonStyled type="transparent">
-					<a href="https://github.com/Mystic-Stars/Axolotl" target="_blank" rel="noopener">
-						<GithubIcon aria-hidden="true" />
-						{{ formatMessage(messages.openSource) }}
-					</a>
-				</ButtonStyled>
+				<ButtonLink :as="NuxtLink" to="/#features" type="quiet">
+					{{ formatMessage(messages.features) }}
+				</ButtonLink>
+				<ButtonLink :as="NuxtLink" to="/#faq" type="quiet">
+					{{ formatMessage(messages.faq) }}
+				</ButtonLink>
+				<ButtonLink :as="NuxtLink" to="/changelog" type="quiet">
+					{{ formatMessage(messages.changelog) }}
+				</ButtonLink>
+				<ButtonLink :as="NuxtLink" to="/terms" type="quiet">
+					{{ formatMessage(messages.terms) }}
+				</ButtonLink>
+				<ButtonLink :as="NuxtLink" to="/privacy" type="quiet">
+					{{ formatMessage(messages.privacy) }}
+				</ButtonLink>
+				<ButtonLink
+					href="https://github.com/Mystic-Stars/Axolotl"
+					target="_blank"
+					rel="noopener"
+					type="quiet"
+				>
+					<GithubIcon aria-hidden="true" />
+					{{ formatMessage(messages.openSource) }}
+				</ButtonLink>
 			</nav>
 
 			<div class="header-actions pointer-events-auto flex items-center gap-1">
-				<ButtonStyled class="desktop-download hidden lg:flex" color="brand">
-					<a href="#download">
-						<DownloadIcon aria-hidden="true" />
-						{{ formatMessage(messages.download) }}
-					</a>
-				</ButtonStyled>
-				<Button
-					type="quiet"
-					circular
-					icon-only
-					:aria-label="formatMessage(messages.openSettings)"
-					@click="openSettings"
+				<ButtonLink
+					class="desktop-download hidden lg:flex"
+					href="#download"
+					type="colored"
+					color="brand"
+				>
+					<DownloadIcon aria-hidden="true" />
+					{{ formatMessage(messages.download) }}
+				</ButtonLink>
+				<IconButton type="quiet" :label="formatMessage(messages.openSettings)" @click="openSettings"
 					><SettingsIcon aria-hidden="true" />
-				</Button>
-				<Button
+				</IconButton>
+				<IconButton
 					ref="mobileMenuButtonRef"
 					class="hidden max-lg:flex"
 					type="quiet"
-					circular
-					icon-only
-					:aria-label="formatMessage(mobileMenuOpen ? messages.closeMenu : messages.openMenu)"
+					:label="formatMessage(mobileMenuOpen ? messages.closeMenu : messages.openMenu)"
 					:aria-expanded="mobileMenuOpen"
 					@click="mobileMenuOpen = !mobileMenuOpen"
 					><XIcon v-if="mobileMenuOpen" aria-hidden="true" />
 					<HamburgerIcon v-else aria-hidden="true" />
-				</Button>
+				</IconButton>
 			</div>
 		</div>
 
@@ -188,7 +189,7 @@ function openSettings() {
 	grid-row: 2;
 	justify-content: center;
 
-	:deep(.button) {
+	:deep([data-button]) {
 		min-height: 2.25rem;
 		border-radius: 0;
 		color: var(--color-secondary);
@@ -219,7 +220,7 @@ function openSettings() {
 	padding: 0.75rem;
 	border: 1px solid var(--color-divider);
 	border-radius: 1rem;
-	background: color-mix(in srgb, var(--color-raised-bg) 92%, transparent);
+	background: color-mix(in srgb, var(--surface-3) 92%, transparent);
 	box-shadow: 0 1.25rem 3rem rgb(0 0 0 / 22%);
 	backdrop-filter: blur(20px) saturate(150%);
 
@@ -234,7 +235,7 @@ function openSettings() {
 		text-decoration: none;
 
 		&:hover {
-			background: var(--color-button-bg);
+			background: var(--surface-3);
 		}
 	}
 

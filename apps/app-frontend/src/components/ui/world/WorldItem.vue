@@ -21,7 +21,7 @@ import {
 import type { MessageDescriptor } from '@modrinth/ui'
 import {
 	Avatar,
-	ButtonStyled,
+	Button,
 	commonMessages,
 	defineMessages,
 	injectNotificationManager,
@@ -282,7 +282,7 @@ const messages = defineMessages({
 						dashboardDensity === 'compact',
 					'world-item-dashboard-comfortable p-2': dashboardDensity === 'comfortable',
 				},
-				flat ? 'px-2 py-2 hover:bg-button-bg' : 'card-shadow bg-bg-raised p-3',
+				flat ? 'px-2 py-2 hover:bg-surface-4' : 'card-shadow bg-surface-2 p-3',
 			]"
 		>
 			<Avatar
@@ -295,7 +295,9 @@ const messages = defineMessages({
 			/>
 			<div class="flex flex-col justify-between h-full">
 				<div class="flex items-center gap-2">
-					<div class="text-lg text-contrast font-bold truncate smart-clickable:underline-on-hover">
+					<div
+						class="text-lg text-[var(--color-text-primary)] font-bold truncate smart-clickable:underline-on-hover"
+					>
 						{{ world.name }}
 					</div>
 					<TagItem
@@ -308,18 +310,18 @@ const messages = defineMessages({
 					</TagItem>
 					<div
 						v-if="world.type === 'singleplayer'"
-						class="text-sm text-secondary flex items-center gap-1 font-semibold flex-nowrap whitespace-nowrap"
+						class="text-sm text-[var(--color-text-tertiary)] flex items-center gap-1 font-semibold flex-nowrap whitespace-nowrap"
 					>
 						<UserIcon
 							aria-hidden="true"
-							class="h-4 w-4 text-secondary shrink-0"
+							class="h-4 w-4 text-[var(--color-text-tertiary)] shrink-0"
 							stroke-width="3px"
 						/>
 						{{ formatMessage(commonMessages.singleplayerLabel) }}
 					</div>
 					<div
 						v-else-if="world.type === 'server'"
-						class="text-sm text-secondary flex items-center gap-1 font-semibold flex-nowrap whitespace-nowrap"
+						class="text-sm text-[var(--color-text-tertiary)] flex items-center gap-1 font-semibold flex-nowrap whitespace-nowrap"
 					>
 						<template v-if="refreshing">
 							<SpinnerIcon aria-hidden="true" class="animate-spin shrink-0" />
@@ -376,7 +378,7 @@ const messages = defineMessages({
 						</template>
 					</div>
 				</div>
-				<div class="flex items-center gap-2 text-sm text-secondary">
+				<div class="flex items-center gap-2 text-sm text-[var(--color-text-tertiary)]">
 					<div
 						v-tooltip="world.last_played ? formatDateTime(world.last_played) : null"
 						class="w-fit shrink-0"
@@ -396,7 +398,7 @@ const messages = defineMessages({
 					<template v-if="instanceId">
 						<span v-if="dashboardDensity !== 'compact'" aria-hidden="true">•</span>
 						<router-link
-							class="flex items-center gap-1 truncate hover:underline text-secondary smart-clickable:allow-pointer-events"
+							class="flex items-center gap-1 truncate hover:underline text-[var(--color-text-tertiary)] smart-clickable:allow-pointer-events"
 							:to="`/instance/${instanceId}`"
 						>
 							<InstanceIcon
@@ -413,7 +415,11 @@ const messages = defineMessages({
 			</div>
 			<div
 				class="font-semibold flex items-center gap-1 justify-center text-center"
-				:class="world.type === 'singleplayer' && world.hardcore ? `text-red` : 'text-secondary'"
+				:class="
+					world.type === 'singleplayer' && world.hardcore
+						? `text-red`
+						: 'text-[var(--color-text-tertiary)]'
+				"
 			>
 				<template v-if="world.type === 'server'">
 					<template v-if="refreshing">
@@ -422,13 +428,16 @@ const messages = defineMessages({
 					</template>
 					<div
 						v-else-if="renderedMotd"
-						class="motd-renderer font-normal font-minecraft line-clamp-2 text-secondary leading-5"
+						class="motd-renderer font-normal font-minecraft line-clamp-2 text-[var(--color-text-tertiary)] leading-5"
 						v-html="renderedMotd"
 					/>
 					<div v-else-if="!serverStatus" class="font-normal font-minecraft text-red leading-5">
 						{{ formatMessage(messages.cantConnect) }}
 					</div>
-					<div v-else class="font-normal font-minecraft text-secondary leading-5">
+					<div
+						v-else
+						class="font-normal font-minecraft text-[var(--color-text-tertiary)] leading-5"
+					>
 						{{ formatMessage(messages.aMinecraftServer) }}
 					</div>
 				</template>
@@ -444,7 +453,7 @@ const messages = defineMessages({
 				</template>
 			</div>
 			<div class="flex gap-1 justify-end smart-clickable:allow-pointer-events">
-				<ButtonStyled
+				<Button
 					v-if="(playingWorld || (locked && playingInstance)) && !startingInstance"
 					color="red"
 					:circular="dashboardDensity === 'compact'"
@@ -455,8 +464,8 @@ const messages = defineMessages({
 							{{ formatMessage(commonMessages.stopButton) }}
 						</span>
 					</button>
-				</ButtonStyled>
-				<ButtonStyled v-else :circular="dashboardDensity === 'compact'">
+				</Button>
+				<Button v-else :circular="dashboardDensity === 'compact'">
 					<button
 						v-tooltip="
 							world.type === 'server'
@@ -489,129 +498,127 @@ const messages = defineMessages({
 							{{ formatMessage(commonMessages.playButton) }}
 						</span>
 					</button>
-				</ButtonStyled>
-				<ButtonStyled circular type="transparent">
-					<OverflowMenu
-						:options="[
-							{
-								id: 'play-instance',
-								shown: !!instanceId,
-								disabled: playingInstance,
-								action: () => emit('play-instance'),
-							},
-							{
-								id: 'open-instance',
-								shown: !!instanceId,
-								action: () => router.push(`/instance/${encodeURIComponent(instanceId)}`),
-							},
-							{
-								id: 'refresh',
-								shown: world.type === 'server',
-								action: () => emit('refresh'),
-							},
-							{
-								id: 'copy-address',
-								shown: world.type === 'server',
-								action: () => copyToClipboard((world as ServerWorld).address),
-							},
-							{
-								id: 'edit',
-								action: () => emit('edit'),
-								shown: !instanceId,
-								disabled: locked || managed,
-								tooltip: locked
-									? formatMessage(messages.worldInUse)
-									: managed
-										? formatMessage(messages.linkedServer)
-										: undefined,
-							},
-							{
-								id: 'open-folder',
-								shown: world.type === 'singleplayer',
-								action: () => (world.type === 'singleplayer' ? emit('open-folder', world) : {}),
-							},
-							{
-								divider: true,
-								shown: !!instanceId,
-							},
-							{
-								id: pinnedToHome ? 'unpin-home' : 'pin-home',
-								shown: !!homePinTarget,
-								action: updateHomePin,
-							},
-							{
-								id: 'create-shortcut',
-								shown: !!shortcutInstanceId,
-								action: () => createShortcut(),
-							},
-							{
-								divider: true,
-								shown: !instanceId,
-							},
-							{
-								id: 'delete',
-								color: 'red',
-								hoverFilled: true,
-								action: () => emit('delete'),
-								shown: !instanceId,
-								disabled: locked || managed,
-								tooltip: locked
-									? formatMessage(messages.worldInUse)
-									: managed
-										? formatMessage(messages.linkedServer)
-										: undefined,
-							},
-						]"
-					>
-						<MoreVerticalIcon aria-hidden="true" />
-						<template #play-instance>
-							<PlayIcon aria-hidden="true" />
-							{{ formatMessage(messages.playInstance) }}
-						</template>
-						<template #open-instance>
-							<EyeIcon aria-hidden="true" />
-							{{ formatMessage(messages.viewInstance) }}
-						</template>
-						<template #edit>
-							<EditIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.editButton) }}
-						</template>
-						<template #open-folder>
-							<FolderOpenIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.openFolderButton) }}
-						</template>
-						<template #copy-address>
-							<ClipboardCopyIcon aria-hidden="true" />
-							{{ formatMessage(messages.copyAddress) }}
-						</template>
-						<template #refresh>
-							<UpdatedIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.refreshButton) }}
-						</template>
-						<template #create-shortcut>
-							<ExternalIcon aria-hidden="true" />
-							{{ formatMessage(messages.createShortcut) }}
-						</template>
-						<template #pin-home>
-							<PinIcon aria-hidden="true" />
-							{{ formatMessage(messages.pinToHome) }}
-						</template>
-						<template #unpin-home>
-							<PinIcon class="rotate-45" aria-hidden="true" />
-							{{ formatMessage(messages.unpinFromHome) }}
-						</template>
-						<template #delete>
-							<TrashIcon aria-hidden="true" />
-							{{
-								formatMessage(
-									world.type === 'server'
-										? commonMessages.removeButton
-										: commonMessages.deleteLabel,
-								)
-							}}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+				</Button>
+				<OverflowMenu
+					type="button"
+					class="relative inline-flex size-9 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-transparent p-0 text-[var(--color-text-default)] transition-[background-color,color,filter,transform] duration-150 hover:bg-surface-4 hover:brightness-[--hover-brightness] active:scale-[0.97] [&>svg]:size-5"
+					:options="[
+						{
+							id: 'play-instance',
+							shown: !!instanceId,
+							disabled: playingInstance,
+							action: () => emit('play-instance'),
+						},
+						{
+							id: 'open-instance',
+							shown: !!instanceId,
+							action: () => router.push(`/instance/${encodeURIComponent(instanceId)}`),
+						},
+						{
+							id: 'refresh',
+							shown: world.type === 'server',
+							action: () => emit('refresh'),
+						},
+						{
+							id: 'copy-address',
+							shown: world.type === 'server',
+							action: () => copyToClipboard((world as ServerWorld).address),
+						},
+						{
+							id: 'edit',
+							action: () => emit('edit'),
+							shown: !instanceId,
+							disabled: locked || managed,
+							tooltip: locked
+								? formatMessage(messages.worldInUse)
+								: managed
+									? formatMessage(messages.linkedServer)
+									: undefined,
+						},
+						{
+							id: 'open-folder',
+							shown: world.type === 'singleplayer',
+							action: () => (world.type === 'singleplayer' ? emit('open-folder', world) : {}),
+						},
+						{
+							divider: true,
+							shown: !!instanceId,
+						},
+						{
+							id: pinnedToHome ? 'unpin-home' : 'pin-home',
+							shown: !!homePinTarget,
+							action: updateHomePin,
+						},
+						{
+							id: 'create-shortcut',
+							shown: !!shortcutInstanceId,
+							action: () => createShortcut(),
+						},
+						{
+							divider: true,
+							shown: !instanceId,
+						},
+						{
+							id: 'delete',
+							color: 'red',
+							hoverFilled: true,
+							action: () => emit('delete'),
+							shown: !instanceId,
+							disabled: locked || managed,
+							tooltip: locked
+								? formatMessage(messages.worldInUse)
+								: managed
+									? formatMessage(messages.linkedServer)
+									: undefined,
+						},
+					]"
+				>
+					<MoreVerticalIcon aria-hidden="true" />
+					<template #play-instance>
+						<PlayIcon aria-hidden="true" />
+						{{ formatMessage(messages.playInstance) }}
+					</template>
+					<template #open-instance>
+						<EyeIcon aria-hidden="true" />
+						{{ formatMessage(messages.viewInstance) }}
+					</template>
+					<template #edit>
+						<EditIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.editButton) }}
+					</template>
+					<template #open-folder>
+						<FolderOpenIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.openFolderButton) }}
+					</template>
+					<template #copy-address>
+						<ClipboardCopyIcon aria-hidden="true" />
+						{{ formatMessage(messages.copyAddress) }}
+					</template>
+					<template #refresh>
+						<UpdatedIcon aria-hidden="true" />
+						{{ formatMessage(commonMessages.refreshButton) }}
+					</template>
+					<template #create-shortcut>
+						<ExternalIcon aria-hidden="true" />
+						{{ formatMessage(messages.createShortcut) }}
+					</template>
+					<template #pin-home>
+						<PinIcon aria-hidden="true" />
+						{{ formatMessage(messages.pinToHome) }}
+					</template>
+					<template #unpin-home>
+						<PinIcon class="rotate-45" aria-hidden="true" />
+						{{ formatMessage(messages.unpinFromHome) }}
+					</template>
+					<template #delete>
+						<TrashIcon aria-hidden="true" />
+						{{
+							formatMessage(
+								world.type === 'server' ? commonMessages.removeButton : commonMessages.deleteLabel,
+							)
+						}}
+					</template>
+				</OverflowMenu>
 			</div>
 		</div>
 	</SmartClickable>
