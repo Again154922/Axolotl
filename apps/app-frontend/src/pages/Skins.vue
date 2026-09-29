@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { CheckIcon, EditIcon, EyeIcon, LogInIcon, PlusIcon, SpinnerIcon } from '@modrinth/assets'
+import {
+	CheckIcon,
+	EditIcon,
+	EyeIcon,
+	LogInIcon,
+	PlusIcon,
+	RotateCounterClockwiseIcon,
+	SpinnerIcon,
+} from '@modrinth/assets'
 import {
 	type ArmorPreviewConfig,
 	ArmorPreviewControls,
@@ -595,6 +603,12 @@ function changeSkin(newSkin: Skin) {
 	selectedSkin.value = newSkin
 }
 
+function resetSelectedSkin() {
+	selectedSkin.value =
+		skins.value.find((skin) => skinsMatch(skin, originalSelectedSkin.value)) ??
+		originalSelectedSkin.value
+}
+
 function removeLocalSkin(deletedSkin: Skin) {
 	const nextSkins = skins.value.filter((skin) => !skinsMatch(skin, deletedSkin))
 	skins.value = nextSkins
@@ -1179,6 +1193,14 @@ await loadSkins()
 			-->
 			<div class="ml-5 mt-3 flex flex-wrap items-center justify-center gap-2">
 				<template v-if="hasPendingSkinChange">
+					<button
+						class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-surface-4 px-4 py-2.5 text-base font-semibold leading-5 shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
+						:disabled="isApplyingSkin || isSkinManagementReadOnly"
+						@click="resetSelectedSkin"
+					>
+						<RotateCounterClockwiseIcon />
+						{{ formatMessage(commonMessages.resetButton) }}
+					</button>
 					<button
 						class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border-0 bg-brand px-4 py-2.5 text-base font-semibold leading-5 text-[rgba(0,0,0,0.9)] shadow-md transition-[filter,transform] duration-200 enabled:hover:brightness-[--hover-brightness] enabled:focus-visible:brightness-[--hover-brightness] enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-5 [&>svg]:shrink-0"
 						:disabled="isApplyingSkin || isSkinManagementReadOnly"
