@@ -985,7 +985,7 @@ const pageTitle: MessageDescriptor = settingsPageTitle
 	flex-shrink: 0;
 	align-items: center;
 	gap: var(--gap-md);
-	padding: var(--gap-xs) var(--gap-xl) var(--gap-lg);
+	padding: var(--gap-xl) var(--gap-xl) var(--gap-lg);
 }
 
 .settings-content-scroll :deep([id^='settings-target-']),

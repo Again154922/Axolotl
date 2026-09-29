@@ -23,6 +23,64 @@ const previewRemoteAnnouncement = inject<
 >('previewRemoteAnnouncement')
 const previewWithAction = ref(false)
 const messages = defineMessages({
+	featureFlagsSectionTitle: {
+		id: 'app.settings.developer.feature-flags-section-title',
+		defaultMessage: 'Feature flags',
+	},
+	projectBackground: {
+		id: 'app.settings.feature-flags.project-background',
+		defaultMessage: 'Project backgrounds',
+	},
+	pagePath: { id: 'app.settings.feature-flags.page-path', defaultMessage: 'Page path' },
+	worldsTab: { id: 'app.settings.feature-flags.worlds-tab', defaultMessage: 'Worlds tab' },
+	worldsInHome: {
+		id: 'app.settings.feature-flags.worlds-in-home',
+		defaultMessage: 'Worlds on home page',
+	},
+	serverProjectQa: {
+		id: 'app.settings.feature-flags.server-project-qa',
+		defaultMessage: 'Server project QA',
+	},
+	showVersionEnvironmentColumn: {
+		id: 'app.settings.feature-flags.show-version-environment-column',
+		defaultMessage: 'Show version environment column',
+	},
+	serverRamAsBytesAlwaysOn: {
+		id: 'app.settings.feature-flags.server-ram-as-bytes-always-on',
+		defaultMessage: 'Always show server RAM as bytes',
+	},
+	alwaysShowAppControls: {
+		id: 'app.settings.feature-flags.always-show-app-controls',
+		defaultMessage: 'Always show app controls',
+	},
+	skipNonEssentialWarnings: {
+		id: 'app.settings.feature-flags.skip-non-essential-warnings',
+		defaultMessage: 'Skip non-essential warnings',
+	},
+	skipUnknownPackWarning: {
+		id: 'app.settings.feature-flags.skip-unknown-pack-warning',
+		defaultMessage: 'Skip unknown pack warnings',
+	},
+	i18nDebug: {
+		id: 'app.settings.feature-flags.i18n-debug',
+		defaultMessage: 'Translation debugging',
+	},
+	showInstancePlayTime: {
+		id: 'app.settings.feature-flags.show-instance-play-time',
+		defaultMessage: 'Show instance play time',
+	},
+	pageTransitions: {
+		id: 'app.settings.feature-flags.page-transitions',
+		defaultMessage: 'Page transitions',
+	},
+	advancedFiltersCollapsed: {
+		id: 'app.settings.feature-flags.advanced-filters-collapsed',
+		defaultMessage: 'Collapse advanced filters by default',
+	},
+	autoInstallDependencies: {
+		id: 'app.settings.feature-flags.auto-install-dependencies',
+		defaultMessage: 'Automatically install dependencies',
+	},
 	announcementPreview: {
 		id: 'app.settings.developer.announcement-preview',
 		defaultMessage: 'Announcement preview',
@@ -80,6 +138,23 @@ const messages = defineMessages({
 
 const settings = ref(await getSettings())
 const options = ref<FeatureFlag[]>(Object.keys(DEFAULT_FEATURE_FLAGS))
+const featureFlagLabels: Record<FeatureFlag, keyof typeof messages> = {
+	project_background: 'projectBackground',
+	page_path: 'pagePath',
+	worlds_tab: 'worldsTab',
+	worlds_in_home: 'worldsInHome',
+	server_project_qa: 'serverProjectQa',
+	show_version_environment_column: 'showVersionEnvironmentColumn',
+	server_ram_as_bytes_always_on: 'serverRamAsBytesAlwaysOn',
+	always_show_app_controls: 'alwaysShowAppControls',
+	skip_non_essential_warnings: 'skipNonEssentialWarnings',
+	skip_unknown_pack_warning: 'skipUnknownPackWarning',
+	i18n_debug: 'i18nDebug',
+	show_instance_play_time: 'showInstancePlayTime',
+	page_transitions: 'pageTransitions',
+	advanced_filters_collapsed: 'advancedFiltersCollapsed',
+	auto_install_dependencies: 'autoInstallDependencies',
+}
 
 function setFeatureFlag(key: string, value: boolean) {
 	themeStore.featureFlags[key] = value
@@ -107,9 +182,12 @@ watch(
 )
 </script>
 <template>
-	<SettingsSection>
+	<SettingsSection
+		:title="formatMessage(messages.featureFlagsSectionTitle)"
+		title-id="settings-target-feature-flags"
+	>
 		<SettingsRow v-for="option in options" :key="option">
-			<template #label>{{ option.replaceAll('_', ' ') }}</template>
+			<template #label>{{ formatMessage(messages[featureFlagLabels[option]]) }}</template>
 			<template #control>
 				<div class="flex items-center gap-2">
 					<Button

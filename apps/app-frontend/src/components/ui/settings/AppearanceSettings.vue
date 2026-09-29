@@ -81,6 +81,18 @@ const pageTransitionsFlag: FeatureFlag = 'page_transitions'
 const autoInstallDependenciesFlag: FeatureFlag = 'auto_install_dependencies'
 
 const messages = defineMessages({
+	homeNavigationSectionTitle: {
+		id: 'app.appearance-settings.sections.home-navigation',
+		defaultMessage: 'Home & navigation',
+	},
+	advancedInterfaceSectionTitle: {
+		id: 'app.appearance-settings.sections.advanced-interface',
+		defaultMessage: 'Advanced interface',
+	},
+	contentBehaviorSectionTitle: {
+		id: 'app.appearance-settings.sections.content-behavior',
+		defaultMessage: 'Content behavior',
+	},
 	colorThemeTitle: {
 		id: 'app.appearance-settings.color-theme.title',
 		defaultMessage: 'Color theme',
@@ -957,8 +969,10 @@ watch(
 					<button
 						v-for="accentColor in accentColorOptions"
 						:key="accentColor.value"
+						v-tooltip="formatMessage(accentColor.label)"
 						type="button"
 						role="radio"
+						:aria-label="formatMessage(accentColor.label)"
 						:aria-checked="settings.accent_color === accentColor.value"
 						class="relative flex min-w-0 flex-1 basis-[5.75rem] items-center justify-center gap-2 overflow-hidden rounded-lg border border-solid px-2 py-2.5 @xl:pe-5 @4xl:ps-3 font-semibold transition-all active:scale-[0.97]"
 						:class="
@@ -977,15 +991,14 @@ watch(
 							class="size-4 shrink-0 rounded-full ring-2 ring-white/20"
 							:style="{ backgroundColor: accentColor.color }"
 						/>
-						<span class="hidden min-w-0 truncate @xl:block">{{
-							formatMessage(accentColor.label)
-						}}</span>
+						<span class="min-w-0 truncate">{{ formatMessage(accentColor.label) }}</span>
 						<CheckIcon
 							v-if="settings.accent_color === accentColor.value"
-							class="absolute end-2 top-1/2 hidden size-3.5 shrink-0 -translate-y-1/2 @xl:block"
+							class="absolute end-2 top-1/2 size-3.5 shrink-0 -translate-y-1/2"
 						/>
 					</button>
 					<button
+						v-tooltip="formatMessage(messages.accentColorSystem)"
 						type="button"
 						role="radio"
 						:disabled="themeStore.systemAccentSupported !== true"
@@ -1018,7 +1031,7 @@ watch(
 								backgroundColor: themeStore.systemAccentColor ?? 'var(--color-pink)',
 							}"
 						/>
-						<span class="hidden min-w-0 flex-col text-start leading-tight @xl:flex">
+						<span class="min-w-0 flex-col text-start leading-tight">
 							<span class="truncate">{{ formatMessage(messages.accentColorSystem) }}</span>
 							<span
 								v-if="themeStore.systemAccentSupported === false"
@@ -1029,12 +1042,14 @@ watch(
 						</span>
 						<CheckIcon
 							v-if="isSystemAccent"
-							class="absolute end-2 top-1/2 hidden size-3.5 shrink-0 -translate-y-1/2 @xl:block"
+							class="absolute end-2 top-1/2 size-3.5 shrink-0 -translate-y-1/2"
 						/>
 					</button>
 					<button
+						v-tooltip="formatMessage(messages.accentColorCustom)"
 						type="button"
 						role="radio"
+						:aria-label="formatMessage(messages.accentColorCustom)"
 						:aria-checked="isCustomAccent"
 						class="relative flex min-w-0 flex-1 basis-[6.75rem] items-center justify-center gap-2 overflow-hidden rounded-lg border border-solid px-2 py-2.5 @xl:pe-5 @4xl:ps-3 font-semibold transition-all active:scale-[0.97]"
 						:class="
@@ -1052,12 +1067,10 @@ watch(
 									: 'conic-gradient(#ef4444, #f59e0b, #22c55e, #06b6d4, #6366f1, #ec4899, #ef4444)',
 							}"
 						/>
-						<span class="hidden min-w-0 truncate @xl:block">{{
-							formatMessage(messages.accentColorCustom)
-						}}</span>
+						<span class="min-w-0 truncate">{{ formatMessage(messages.accentColorCustom) }}</span>
 						<CheckIcon
 							v-if="isCustomAccent"
-							class="absolute end-2 top-1/2 hidden size-3.5 shrink-0 -translate-y-1/2 @xl:block"
+							class="absolute end-2 top-1/2 size-3.5 shrink-0 -translate-y-1/2"
 						/>
 					</button>
 				</div>
@@ -1422,7 +1435,11 @@ watch(
 			</div>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'home-navigation'">
+		<SettingsSection
+			v-if="props.scope === 'home-navigation'"
+			:title="formatMessage(messages.homeNavigationSectionTitle)"
+			title-id="settings-target-appearance-home-navigation"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-appearance-home-layout" tabindex="-1">
@@ -1667,7 +1684,11 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'interface'">
+		<SettingsSection
+			v-if="props.scope === 'interface'"
+			:title="formatMessage(messages.advancedInterfaceSectionTitle)"
+			title-id="settings-target-appearance-advanced-interface"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-appearance-advanced-rendering" tabindex="-1">
@@ -1763,7 +1784,11 @@ watch(
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection v-if="props.scope === 'content-downloads'">
+		<SettingsSection
+			v-if="props.scope === 'content-downloads'"
+			:title="formatMessage(messages.contentBehaviorSectionTitle)"
+			title-id="settings-target-appearance-content-behavior"
+		>
 			<SettingsRow>
 				<template #label>
 					<span id="settings-target-content-auto-install-dependencies" tabindex="-1">

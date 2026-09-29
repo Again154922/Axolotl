@@ -35,13 +35,10 @@ import { type AboutMemberExperience, getAboutMemberExperience } from './about-me
 import QqChannelIcon from './QqChannelIcon.vue'
 import SettingsSection from './SettingsSection.vue'
 
-// Lazy so three.js does not sit on the Suspense critical path for this settings
-// category (dev builds hang the skeleton while the chunk loads).
-// Policy: About must work in production builds; dev Vite hang is accepted
-// (see compose spec S3). Keep error isolation so a failed 3D scene cannot
-// tear down Settings in either environment.
+// Load the scene independently so the About content can render immediately.
 const AboutScene = defineAsyncComponent({
 	loader: () => import('../AboutScene.vue'),
+	suspensible: false,
 	onError(error, retry, fail) {
 		// one retry, then leave the scene slot empty instead of tearing down Settings
 		if ((error as { __aboutSceneRetried?: boolean }).__aboutSceneRetried) {

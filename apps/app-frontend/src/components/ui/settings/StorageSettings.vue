@@ -441,8 +441,9 @@ function formatDateTime(date: Date) {
 							<div class="legend-info">
 								<span
 									class="whitespace-nowrap text-[0.8125rem] font-semibold text-[var(--color-text-primary)]"
-									>{{ slice.label }}</span
 								>
+									{{ slice.label }}
+								</span>
 								<span class="legend-size">{{ slice.formattedSize }}</span>
 								<span class="legend-percent">{{ slice.percentText }}</span>
 							</div>
@@ -560,6 +561,7 @@ function formatDateTime(date: Date) {
 /* 右侧核心区域：强制向右对齐 */
 .storage-chart-section {
 	display: flex;
+	min-width: 0;
 	align-items: center;
 	gap: 1.5rem;
 	margin-left: auto;
@@ -601,7 +603,8 @@ function formatDateTime(date: Date) {
 /* 图例布局 */
 .storage-legend {
 	display: grid;
-	grid-template-columns: repeat(2, auto);
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	min-width: 0;
 	gap: 0.625rem 1.25rem;
 }
 
@@ -640,8 +643,13 @@ function formatDateTime(date: Date) {
 
 .legend-info {
 	display: flex;
+	min-width: 0;
 	flex-direction: column;
 	line-height: 1.25;
+}
+
+.legend-info > span:first-child {
+	overflow-wrap: anywhere;
 }
 
 .legend-size {

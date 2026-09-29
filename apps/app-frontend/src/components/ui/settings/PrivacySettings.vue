@@ -17,6 +17,10 @@ const lastSaveState = ref<'idle' | 'saved' | 'error'>('idle')
 const retrySave = ref<(() => void) | undefined>()
 
 const messages = defineMessages({
+	sectionTitle: {
+		id: 'app.settings.privacy.section-title',
+		defaultMessage: 'Privacy & data sharing',
+	},
 	telemetry: {
 		id: 'app.settings.privacy.telemetry',
 		defaultMessage: 'Allow telemetry',
@@ -91,7 +95,10 @@ async function updateDiscordRpc(value: boolean) {
 
 <template>
 	<div class="flex w-full flex-col gap-6">
-		<SettingsSection>
+		<SettingsSection
+			:title="formatMessage(messages.sectionTitle)"
+			title-id="settings-target-privacy"
+		>
 			<template #extra>
 				<SettingsSaveStatus :status="saveStatus" :retry="retrySave" />
 			</template>

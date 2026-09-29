@@ -3025,8 +3025,15 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 						The layer mounts as soon as the URL changes — not when the async page
 						Suspense resolves — so nav switches stay smooth while data loads.
 					-->
-					<Transition name="page-slide" :css="themeStore.getFeatureFlag('page_transitions')" appear>
-						<div :key="getPageTransitionKey(pageRoute)" class="page-transition-layer">
+					<Transition
+						name="page-slide"
+						:css="themeStore.getFeatureFlag('page_transitions') && !onSettingsPage"
+						appear
+					>
+						<div
+							:key="onSettingsPage ? 'settings-shell' : getPageTransitionKey(pageRoute)"
+							class="page-transition-layer"
+						>
 							<Suspense v-if="Component" @pending="onSuspensePending" @resolve="onSuspenseResolve">
 								<component :is="Component"></component>
 							</Suspense>

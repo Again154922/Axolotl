@@ -86,7 +86,7 @@ onMounted(refresh)
 	>
 		<SettingsRow stacked>
 			<template #control>
-				<div class="flex min-w-0 flex-col gap-2">
+				<div class="flex w-full min-w-0 flex-col gap-2">
 					<p v-if="loading" class="m-0 p-2 text-sm text-[var(--color-text-tertiary)]">…</p>
 					<p v-else-if="!logs.length" class="m-0 p-2 text-sm text-[var(--color-text-tertiary)]">
 						{{ formatMessage(messages.empty) }}

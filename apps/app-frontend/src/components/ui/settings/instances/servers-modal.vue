@@ -301,8 +301,8 @@ defineExpose({ show })
 		ref="serverEditorModal"
 		:header="formatMessage(messages.serverEditorTitle)"
 		no-padding
-		max-width="min(928px, calc(95vw - 10rem))"
-		width="min(928px, calc(95vw - 10rem))"
+		max-width="min(928px, calc(100vw - 2rem))"
+		width="min(928px, calc(100vw - 2rem))"
 	>
 		<div class="flex max-h-[min(600px,calc(95vh-10rem))] flex-col">
 			<div

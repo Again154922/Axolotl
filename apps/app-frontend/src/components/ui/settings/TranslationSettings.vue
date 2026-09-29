@@ -65,6 +65,10 @@ let poolTimer: ReturnType<typeof setInterval> | undefined
 
 const messages = defineMessages({
 	title: { id: 'app.translation-settings.title', defaultMessage: 'Translation' },
+	displaySectionTitle: {
+		id: 'app.translation-settings.display-section-title',
+		defaultMessage: 'Translation display',
+	},
 	description: {
 		id: 'app.translation-settings.description',
 		defaultMessage:
@@ -681,7 +685,10 @@ async function clearCache() {
 			</SettingsRow>
 		</SettingsSection>
 
-		<SettingsSection>
+		<SettingsSection
+			:title="formatMessage(messages.displaySectionTitle)"
+			title-id="settings-target-translation-display"
+		>
 			<SettingsRow>
 				<template #label>{{ formatMessage(messages.targetLanguage) }}</template>
 				<template #control>
