@@ -22,11 +22,11 @@ import {
 } from '@modrinth/ui'
 import { computed, reactive, ref, watch } from 'vue'
 
-import HomeLocalServerPickerModal from '@/components/home/HomeLocalServerPickerModal.vue'
 import type { HomeWidgetSize } from '@/components/home/home-dashboard'
 import { useHomeDashboardRuntime } from '@/components/home/home-dashboard-runtime'
-import ManagedServerIcon from '@/components/multiplayer/servers/ServerIcon.vue'
+import HomeLocalServerPickerModal from '@/components/home/HomeLocalServerPickerModal.vue'
 import OnlineModeWarningModal from '@/components/multiplayer/servers/OnlineModeWarningModal.vue'
+import ManagedServerIcon from '@/components/multiplayer/servers/ServerIcon.vue'
 import { useMinecraftLaunchError } from '@/composables/useMinecraftLaunchError'
 import { useOnlineModeWarning } from '@/composables/useOnlineModeWarning'
 import { useServers } from '@/composables/useServers'
