@@ -488,7 +488,7 @@ async function unpinLocalServer(serverId: string) {
 								icon-only
 								:class="server.running ? '!text-red' : '!text-brand'"
 								@click="server.running ? stopLocalServer(server.id) : startLocalServer(server.id)"
-							><StopCircleIcon v-if="server.running" />
+								><StopCircleIcon v-if="server.running" />
 								<PlayIcon v-else />
 							</Button>
 							<OverflowMenu

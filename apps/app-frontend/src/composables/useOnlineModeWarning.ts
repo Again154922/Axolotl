@@ -12,9 +12,8 @@ import { get_default_user } from '@/helpers/auth.js'
  * `<OnlineModeWarningModal ref="onlineModeWarningModal" />` in the template.
  */
 export function useOnlineModeWarning() {
-	const onlineModeWarningModal = useTemplateRef<
-		ComponentExposed<typeof OnlineModeWarningModal>
-	>('onlineModeWarningModal')
+	const onlineModeWarningModal =
+		useTemplateRef<ComponentExposed<typeof OnlineModeWarningModal>>('onlineModeWarningModal')
 
 	/** Name of the active account when it is an offline account, else null. */
 	async function offlineAccountName(): Promise<string | null> {

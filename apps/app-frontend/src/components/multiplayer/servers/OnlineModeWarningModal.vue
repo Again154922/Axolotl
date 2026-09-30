@@ -39,10 +39,7 @@ function answer(value: boolean) {
 	modal.value?.hide()
 }
 
-function show(payload: {
-	serverName: string
-	accountName: string
-}): Promise<boolean> {
+function show(payload: { serverName: string; accountName: string }): Promise<boolean> {
 	serverName.value = payload.serverName
 	accountName.value = payload.accountName
 	settled = false
