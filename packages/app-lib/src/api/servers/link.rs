@@ -112,15 +112,33 @@ pub async fn wait_until_ready(
             return Ok(false);
         }
         for target in &targets {
-            if tokio::net::TcpStream::connect(target).await.is_ok() {
+            if connect_within(target, deadline).await {
                 return Ok(true);
             }
         }
         if Instant::now() >= deadline {
             return Ok(false);
         }
-        tokio::time::sleep(READY_POLL_INTERVAL).await;
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        tokio::time::sleep(READY_POLL_INTERVAL.min(remaining)).await;
     }
+}
+
+/// Connects to `target`, but never past `deadline`.
+///
+/// A dropped SYN (firewall, half-open socket) can keep `connect` pending for
+/// tens of seconds, and the targets are probed one after another, so an
+/// attempt that is left unbounded can push the whole wait past its timeout.
+async fn connect_within(target: &SocketAddr, deadline: Instant) -> bool {
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    if remaining.is_zero() {
+        return false;
+    }
+    matches!(
+        tokio::time::timeout(remaining, tokio::net::TcpStream::connect(target))
+            .await,
+        Ok(Ok(_))
+    )
 }
 
 /// Addresses to probe for readiness: the configured `server-ip` when it points
@@ -179,6 +197,24 @@ mod tests {
         assert!(!is_local_address("203.0.113.7"));
         assert!(!is_local_address("[2001:db8::1]:25565"));
         assert!(!is_local_address(""));
+    }
+
+    #[tokio::test]
+    async fn connect_attempts_do_not_outlive_the_deadline() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind loopback listener");
+        let target = listener.local_addr().expect("listener address");
+
+        // An expired deadline fails even though this listener would accept the
+        // connection straight away.
+        assert!(!connect_within(&target, Instant::now()).await);
+
+        // With time left the same target is reported as reachable.
+        assert!(
+            connect_within(&target, Instant::now() + Duration::from_secs(5))
+                .await
+        );
     }
 
     #[test]
