@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ButtonStyled, defineMessages, NewModal, useVIntl } from '@modrinth/ui'
+import { Button, defineMessages, NewModal, useVIntl } from '@modrinth/ui'
 import { ref } from 'vue'
 
 const { formatMessage } = useVIntl()
@@ -73,12 +73,10 @@ defineExpose({ show })
 				}}
 			</p>
 			<div class="flex justify-end gap-2">
-				<ButtonStyled>
-					<button @click="answer(false)">{{ formatMessage(messages.cancel) }}</button>
-				</ButtonStyled>
-				<ButtonStyled color="brand">
-					<button @click="answer(true)">{{ formatMessage(messages.confirm) }}</button>
-				</ButtonStyled>
+				<Button type="outlined" @click="answer(false)">{{ formatMessage(messages.cancel) }}</Button>
+				<Button type="colored" color="brand" @click="answer(true)">{{
+					formatMessage(messages.confirm)
+				}}</Button>
 			</div>
 		</div>
 	</NewModal>
